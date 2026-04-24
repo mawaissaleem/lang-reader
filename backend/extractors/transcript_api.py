@@ -2,10 +2,15 @@ from youtube_transcript_api import (
     YouTubeTranscriptApi,
     NoTranscriptFound,
 )
-import requests
 import os
 
-from utils import extract_video_id, load_cookies_session, to_vtt_time
+from utils import (
+    extract_video_id,
+    load_cookies_session,
+    to_vtt_time,
+    get_video_title,
+    sanitize_filename,
+)
 
 COOKIES_PATH = "cookies.txt"
 
@@ -44,9 +49,11 @@ def method1_youtube_transcript_api(url: str) -> dict:
 
     fetched = transcript.fetch()
 
+    # Get title and use it for filename
+    title = sanitize_filename(get_video_title(url))
     output_dir = "subtitles"
     os.makedirs(output_dir, exist_ok=True)
-    output_file = f"{output_dir}/{video_id}_de.vtt"
+    output_file = os.path.join(output_dir, f"{title}.de.vtt")
 
     with open(output_file, "w", encoding="utf-8") as f:
         f.write("WEBVTT\n\n")
@@ -61,6 +68,7 @@ def method1_youtube_transcript_api(url: str) -> dict:
         "status": "success",
         "message": "German subtitles downloaded successfully.",
         "video_id": video_id,
+        "video_title": title,
         "subtitle_type": "auto-generated" if transcript.is_generated else "manual",
         "language": transcript.language,
         "total_lines": len(fetched.snippets),

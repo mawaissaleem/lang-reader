@@ -15,6 +15,26 @@ def extract_video_id(url: str) -> str:
     raise ValueError("Could not extract video ID from URL. Please check the URL.")
 
 
+def get_video_title(url: str) -> str:
+    try:
+        response = requests.get(
+            "https://www.youtube.com/oembed",
+            params={"url": url, "format": "json"},
+            timeout=5,
+        )
+        response.raise_for_status()
+        return response.json().get("title", "unknown_title")
+    except Exception:
+        return "unknown_title"
+
+
+def sanitize_filename(title: str) -> str:
+    # Remove characters that are invalid in filenames
+    title = re.sub(r'[\\/*?:"<>|]', "", title)
+    title = title.strip()
+    return title
+
+
 def load_cookies_session(cookie_file: str) -> requests.Session:
     session = requests.Session()
     with open(cookie_file, "r") as f:
