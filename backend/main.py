@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from youtube_transcript_api import (
     YouTubeTranscriptApi,
@@ -10,6 +10,8 @@ import requests
 import os
 import re
 
+from vtt_parser import extract_subtitles
+
 app = FastAPI(title="YouTube Subtitle Downloader")
 
 COOKIES_PATH = "cookies.txt"
@@ -17,6 +19,30 @@ COOKIES_PATH = "cookies.txt"
 
 class VideoRequest(BaseModel):
     url: str
+
+
+# ─────────────────────────────────────────
+# Background Task
+# ─────────────────────────────────────────
+
+
+def clean_and_save_subtitle(vtt_path: str):
+    try:
+        filename = os.path.basename(vtt_path)
+        stem = os.path.splitext(filename)[0]
+        output_dir = "cleaned_subtitles"
+        os.makedirs(output_dir, exist_ok=True)
+        output_path = os.path.join(output_dir, f"{stem}.txt")
+
+        cleaned_text = extract_subtitles(vtt_path)
+
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(cleaned_text)
+
+        print(f"[BackgroundTask] Cleaned subtitles saved → {output_path}")
+
+    except Exception as e:
+        print(f"[BackgroundTask] Failed to clean {vtt_path}: {type(e).__name__}: {e}")
 
 
 # ─────────────────────────────────────────
@@ -64,10 +90,6 @@ def to_vtt_time(seconds: float) -> str:
 
 
 def method1_youtube_transcript_api(url: str) -> dict:
-    """
-    Uses youtube_transcript_api + cookies.txt.
-    Returns a result dict on success, raises an exception on any failure.
-    """
     video_id = extract_video_id(url)
 
     if not os.path.exists(COOKIES_PATH):
@@ -76,7 +98,7 @@ def method1_youtube_transcript_api(url: str) -> dict:
     session = load_cookies_session(COOKIES_PATH)
     ytt_api = YouTubeTranscriptApi(http_client=session)
 
-    transcript_list = ytt_api.list(video_id)  # raises on failure
+    transcript_list = ytt_api.list(video_id)
 
     available_languages = [
         {
@@ -96,6 +118,7 @@ def method1_youtube_transcript_api(url: str) -> dict:
             "video_id": video_id,
             "available_languages": available_languages,
             "method_used": "youtube_transcript_api",
+            "vtt_path": None,
         }
 
     fetched = transcript.fetch()
@@ -122,6 +145,7 @@ def method1_youtube_transcript_api(url: str) -> dict:
         "total_lines": len(fetched.snippets),
         "output_file": os.path.abspath(output_file),
         "method_used": "youtube_transcript_api",
+        "vtt_path": os.path.abspath(output_file),
     }
 
 
@@ -131,10 +155,6 @@ def method1_youtube_transcript_api(url: str) -> dict:
 
 
 def method2_yt_dlp(url: str) -> dict:
-    """
-    Uses yt_dlp with browser cookies.
-    Returns a result dict on success, raises an exception on any failure.
-    """
     ydl_opts_info = {
         "skip_download": True,
         "quiet": True,
@@ -143,7 +163,7 @@ def method2_yt_dlp(url: str) -> dict:
     }
 
     with yt_dlp.YoutubeDL(ydl_opts_info) as ydl:
-        info = ydl.extract_info(url, download=False)  # raises on failure
+        info = ydl.extract_info(url, download=False)
 
     available_subtitles = info.get("subtitles", {})
     available_auto_captions = info.get("automatic_captions", {})
@@ -164,6 +184,7 @@ def method2_yt_dlp(url: str) -> dict:
             "available_languages": list(available_subtitles.keys())
             or list(available_auto_captions.keys()),
             "method_used": "yt_dlp",
+            "vtt_path": None,
         }
 
     output_dir = "subtitles"
@@ -182,18 +203,24 @@ def method2_yt_dlp(url: str) -> dict:
     }
 
     with yt_dlp.YoutubeDL(ydl_opts_download) as ydl:
-        ydl.download([url])  # raises on failure
+        ydl.download([url])
 
-    downloaded_files = [f for f in os.listdir(output_dir) if f.endswith(".vtt")]
+    vtt_files = [
+        os.path.join(output_dir, f)
+        for f in os.listdir(output_dir)
+        if f.endswith(".vtt")
+    ]
+    latest_vtt = max(vtt_files, key=os.path.getmtime) if vtt_files else None
 
     return {
         "status": "success",
         "message": "German subtitles downloaded successfully.",
         "video_title": video_title,
         "subtitle_type": "manual" if "de" in available_subtitles else "auto-generated",
-        "downloaded_files": downloaded_files,
+        "downloaded_files": [os.path.basename(p) for p in vtt_files],
         "output_directory": os.path.abspath(output_dir),
         "method_used": "yt_dlp",
+        "vtt_path": os.path.abspath(latest_vtt) if latest_vtt else None,
     }
 
 
@@ -203,20 +230,19 @@ def method2_yt_dlp(url: str) -> dict:
 
 
 @app.post("/subtitles/german")
-def get_german_subtitles(request: VideoRequest):
+def get_german_subtitles(request: VideoRequest, background_tasks: BackgroundTasks):
     url = request.url
 
-    # Validate URL early so both methods don't have to repeat this error
     try:
         extract_video_id(url)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
     # ── Try Method 1 ──
+    result = None
     try:
-        return method1_youtube_transcript_api(url)
+        result = method1_youtube_transcript_api(url)
     except TranscriptsDisabled:
-        # No point trying yt_dlp either — subtitles are genuinely disabled
         raise HTTPException(
             status_code=400, detail="Subtitles are disabled for this video."
         )
@@ -224,13 +250,21 @@ def get_german_subtitles(request: VideoRequest):
         print(f"[Method 1 failed] {type(e).__name__}: {e} — falling back to yt_dlp")
 
     # ── Fallback: Method 2 ──
-    try:
-        return method2_yt_dlp(url)
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Both methods failed. Last error (yt_dlp): {str(e)}",
-        )
+    if result is None:
+        try:
+            result = method2_yt_dlp(url)
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Both methods failed. Last error (yt_dlp): {str(e)}",
+            )
+
+    # ── Schedule cleaning in background ──
+    vtt_path = result.pop("vtt_path", None)
+    if vtt_path and result.get("status") == "success":
+        background_tasks.add_task(clean_and_save_subtitle, vtt_path)
+
+    return result
 
 
 @app.get("/")
