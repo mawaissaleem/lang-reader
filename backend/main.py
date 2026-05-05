@@ -3,6 +3,10 @@ from pydantic import BaseModel
 from youtube_transcript_api import TranscriptsDisabled
 from sqlalchemy.orm import Session
 import os
+import httpx
+import os
+from fastapi import APIRouter
+from dotenv import load_dotenv
 
 from extractors.transcript_api import method1_youtube_transcript_api
 from extractors.yt_dlp import method2_yt_dlp
@@ -145,3 +149,55 @@ def get_subtitles(video_id: int, db: Session = Depends(get_db)):
         {"id": s.id, "method": s.extraction_method, "txt_path": s.txt_path}
         for s in video.subtitles
     ]
+
+
+load_dotenv()
+
+PONS_API_KEY = os.getenv("PONS_API_KEY")
+
+router = APIRouter()
+
+import re
+
+
+def strip_html(text: str) -> str:
+    return re.sub(r"<[^>]+>", "", text).strip()
+
+
+@app.get("/dictionary/{word}")
+async def get_word_meaning(word: str):
+    url = "https://api.pons.com/v1/dictionary"
+    params = {"q": word, "l": "deen", "language": "de"}
+    headers = {"X-Secret": PONS_API_KEY}
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, params=params, headers=headers)
+
+        if response.status_code == 200:
+            raw = response.json()
+            translations = []
+
+            for hit in raw[0].get("hits", []):
+                for rom in hit.get("roms", []):
+                    for arab in rom.get("arabs", []):
+                        for translation in arab.get("translations", []):
+                            german = strip_html(translation["source"])
+                            english = strip_html(translation["target"])
+                            translations.append({"german": german, "english": english})
+
+            return {"success": True, "word": word, "translations": translations}
+
+        elif response.status_code == 204:
+            return {"success": False, "message": f"No results found for '{word}'"}
+
+        elif response.status_code == 403:
+            return {"success": False, "message": "Invalid API key"}
+
+        elif response.status_code == 429:
+            return {"success": False, "message": "Monthly request limit reached"}
+
+        else:
+            return {
+                "success": False,
+                "message": f"Unexpected error: {response.status_code}",
+            }
