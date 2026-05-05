@@ -22,6 +22,15 @@ class VideoRequest(BaseModel):
     url: str
 
 
+load_dotenv()
+
+PONS_API_KEY = os.getenv("PONS_API_KEY")
+
+router = APIRouter()
+
+import re
+
+
 # ─────────────────────────────────────────
 # Background Task  ← now accepts db + metadata
 # ─────────────────────────────────────────
@@ -149,15 +158,6 @@ def get_subtitles(video_id: int, db: Session = Depends(get_db)):
         {"id": s.id, "method": s.extraction_method, "txt_path": s.txt_path}
         for s in video.subtitles
     ]
-
-
-load_dotenv()
-
-PONS_API_KEY = os.getenv("PONS_API_KEY")
-
-router = APIRouter()
-
-import re
 
 
 def strip_html(text: str) -> str:
