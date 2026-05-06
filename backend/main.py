@@ -7,6 +7,8 @@ import httpx
 import os
 from fastapi import APIRouter
 from dotenv import load_dotenv
+from models import Video, Subtitle, Dictionary, UserWord
+from datetime import datetime, timezone
 
 from extractors.transcript_api import method1_youtube_transcript_api
 from extractors.yt_dlp import method2_yt_dlp
@@ -201,3 +203,107 @@ async def get_word_meaning(word: str):
                 "success": False,
                 "message": f"Unexpected error: {response.status_code}",
             }
+
+
+# ─────────────────────────────────────────
+# Word Lookup: Cache → PONS → UserWord
+# ─────────────────────────────────────────
+@app.get("/word/{word}")
+async def lookup_word(word: str, user_id: int, db: Session = Depends(get_db)):
+    word = word.strip().lower()
+    now = datetime.now(timezone.utc)
+
+    # ── Step 1: Check Dictionary cache ──────────────────────────
+    cached = db.query(Dictionary).filter(Dictionary.german_word == word).first()
+    if cached:
+        cached.lookup_count += 1
+        cached.last_lookup_at = now
+        db.commit()
+        db.refresh(cached)
+
+        _ensure_user_word(db, user_id, cached.id, now)
+
+        return {
+            "source": "cache",
+            "word": cached.german_word,
+            "english_meanings": cached.english_meanings,
+            "word_class": cached.word_class,
+        }
+
+    # ── Step 2: Call PONS API ────────────────────────────────────
+    pons_url = "https://api.pons.com/v1/dictionary"
+    params = {"q": word, "l": "deen", "language": "de"}
+    headers = {"X-Secret": PONS_API_KEY}
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(pons_url, params=params, headers=headers)
+
+    if response.status_code == 204:
+        raise HTTPException(status_code=404, detail=f"No results found for '{word}'")
+    elif response.status_code == 403:
+        raise HTTPException(status_code=403, detail="Invalid PONS API key")
+    elif response.status_code == 429:
+        raise HTTPException(status_code=429, detail="PONS monthly limit reached")
+    elif response.status_code != 200:
+        raise HTTPException(
+            status_code=502, detail=f"PONS error: {response.status_code}"
+        )
+
+    # ── Step 3: Parse PONS response ──────────────────────────────
+    raw = response.json()
+    translations = []
+    word_class = None
+
+    for hit in raw[0].get("hits", []):
+        for rom in hit.get("roms", []):
+            if not word_class and rom.get("wordclass"):
+                word_class = rom["wordclass"]
+            for arab in rom.get("arabs", []):
+                for translation in arab.get("translations", []):
+                    english = strip_html(translation["target"])
+                    if english:
+                        translations.append(english)
+
+    if not translations:
+        raise HTTPException(
+            status_code=404, detail=f"No translations parsed for '{word}'"
+        )
+
+    # ── Step 4: Save to Dictionary ───────────────────────────────
+    new_entry = Dictionary(
+        german_word=word,
+        english_meanings=translations,
+        word_class=word_class,
+        source="pons",
+        raw_response=raw,
+        lookup_count=1,
+        last_lookup_at=now,
+    )
+    db.add(new_entry)
+    db.commit()
+    db.refresh(new_entry)
+
+    # ── Step 5: Save to UserWord ─────────────────────────────────
+    _ensure_user_word(db, user_id, new_entry.id, now)
+
+    return {
+        "source": "pons",
+        "word": new_entry.german_word,
+        "english_meanings": new_entry.english_meanings,
+        "word_class": new_entry.word_class,
+    }
+
+
+def _ensure_user_word(db: Session, user_id: int, word_id: int, now: datetime):
+    """Create UserWord entry if it doesn't exist, else bump review count."""
+    existing = (
+        db.query(UserWord)
+        .filter(UserWord.user_id == user_id, UserWord.word_id == word_id)
+        .first()
+    )
+    if existing:
+        existing.review_count += 1
+        existing.last_reviewed_at = now
+    else:
+        db.add(UserWord(user_id=user_id, word_id=word_id, last_reviewed_at=now))
+    db.commit()
