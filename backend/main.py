@@ -9,6 +9,7 @@ from fastapi import APIRouter
 from dotenv import load_dotenv
 from models import Video, Subtitle, Dictionary, UserWord
 from datetime import datetime, timezone
+from fastapi.middleware.cors import CORSMiddleware
 
 from extractors.transcript_api import method1_youtube_transcript_api
 from extractors.yt_dlp import method2_yt_dlp
@@ -18,6 +19,17 @@ from database import get_db, SessionLocal
 from models import Video, Subtitle
 
 app = FastAPI(title="YouTube Subtitle Downloader")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://192.168.1.18:3000",
+    ],  # your Next.js dev URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class VideoRequest(BaseModel):
