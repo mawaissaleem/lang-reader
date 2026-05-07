@@ -319,3 +319,34 @@ def _ensure_user_word(db: Session, user_id: int, word_id: int, now: datetime):
     else:
         db.add(UserWord(user_id=user_id, word_id=word_id, last_reviewed_at=now))
     db.commit()
+
+
+@app.get("/user/{user_id}/words")
+def get_user_words(
+    user_id: int, mastered_only: bool = False, db: Session = Depends(get_db)
+):
+    query = (
+        db.query(UserWord)
+        .filter(UserWord.user_id == user_id)
+        .join(Dictionary, UserWord.word_id == Dictionary.id)
+    )
+
+    if mastered_only:
+        query = query.filter(UserWord.is_mastered == True)
+
+    user_words = query.order_by(UserWord.added_at.desc()).all()
+
+    return [
+        {
+            "id": uw.id,
+            "word": uw.word.german_word,
+            "english_meanings": uw.word.english_meanings,
+            "word_class": uw.word.word_class,
+            "is_mastered": uw.is_mastered,
+            "review_count": uw.review_count,
+            "last_reviewed_at": uw.last_reviewed_at,
+            "added_at": uw.added_at,
+            "notes": uw.notes,
+        }
+        for uw in user_words
+    ]
