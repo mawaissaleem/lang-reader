@@ -23,4 +23,6 @@ export interface StoreState {
   setHighlightMode: (m: HighlightMode) => void;
   sidePanelOpen: boolean;
   setSidePanelOpen: (open: boolean) => void;
+  knownWords: Set<string>;
+loadUserWords: (userId: number) => Promise<void>;
 }

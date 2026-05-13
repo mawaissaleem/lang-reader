@@ -1,14 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AddTextDialog from "@/components/AddTextDialog";
 import TextDisplay from "@/components/TextDisplay";
 import SidePanel from "@/components/SidePanel";
 import useStore from "@/store/useStore";
 import { BookOpen } from "lucide-react";
 
+const USER_ID = 1;
 export default function Home() {
   const { text } = useStore();
+
+  const loadUserWords = useStore(s => s.loadUserWords);
+
+  useEffect(() => {
+    loadUserWords(USER_ID);
+  }, []);
+
 
   return (
     <div className="min-h-screen flex flex-col">

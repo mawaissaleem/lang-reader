@@ -1,7 +1,8 @@
 
 import { create } from "zustand";
 import { StoreState } from "@/types";
-import { lookupWord, WordLookupResponse } from "@/lib/api";
+import { lookupWord, WordLookupResponse , fetchUserWords} from "@/lib/api";
+
 
 const USER_ID = 1; // replace with your actual user id
 
@@ -29,6 +30,11 @@ const useStore = create<StoreState>((set) => ({
   setHighlightMode: (m) => set({ highlightMode: m }),
   sidePanelOpen: false,
   setSidePanelOpen: (open) => set({ sidePanelOpen: open }),
+  knownWords: new Set<string>(),
+loadUserWords: async (userId: number) => {
+  const words = await fetchUserWords(userId);
+  set({ knownWords: new Set(words.map(w => w.word.toLowerCase())) });
+},
 }));
 
 export default useStore;
