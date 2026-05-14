@@ -25,6 +25,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://192.168.1.18:3000",
+        "*",
     ],  # your Next.js dev URL
     allow_credentials=True,
     allow_methods=["*"],
@@ -381,3 +382,51 @@ async def save_word(word_id: int, user_id: int, db: Session = Depends(get_db)):
     db.add(user_word)
     db.commit()
     return {"message": "Word saved successfully", "already_saved": False}
+
+
+@app.get("/library")
+def get_library(db: Session = Depends(get_db)):
+    videos = db.query(Video).all()
+
+    items = []
+
+    for v in videos:
+        for s in v.subtitles:
+            # read word count from txt file if it exists
+            word_count = 0
+            if s.txt_path and os.path.exists(s.txt_path):
+                try:
+                    with open(s.txt_path, "r", encoding="utf-8") as f:
+                        word_count = len(f.read().split())
+                except Exception:
+                    pass
+
+            items.append(
+                {
+                    "id": s.id,
+                    "type": "video",
+                    "source": "youtube",
+                    "title": v.title or "Untitled",
+                    "url": v.url,
+                    "language": s.language,
+                    "extraction_method": s.extraction_method,
+                    "word_count": word_count,
+                    "created_at": s.created_at,
+                }
+            )
+
+    # sort newest first
+    items.sort(key=lambda x: x["created_at"], reverse=True)
+    return items
+
+
+@app.get("/subtitles/{subtitle_id}/text")
+def get_subtitle_text(subtitle_id: int, db: Session = Depends(get_db)):
+    subtitle = db.query(Subtitle).filter(Subtitle.id == subtitle_id).first()
+    if not subtitle:
+        raise HTTPException(status_code=404, detail="Subtitle not found")
+    if not subtitle.txt_path or not os.path.exists(subtitle.txt_path):
+        raise HTTPException(status_code=404, detail="Text file not found")
+    with open(subtitle.txt_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    return {"text": content}
