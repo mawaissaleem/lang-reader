@@ -5,9 +5,8 @@ import { X, BookOpen, HelpCircle, Loader2 } from "lucide-react";
 import clsx from "clsx";
 
 export default function SidePanel() {
-  const { selectedWord, sidePanelOpen, setSidePanelOpen, setSelectedWord, wordResult, wordLoading, wordError } =
-    useStore();
-
+const { selectedWord, sidePanelOpen, setSidePanelOpen, setSelectedWord,
+        wordResult, wordLoading, wordError, wordSaved, wordSaving, saveSelectedWord } = useStore();
   function handleClose() {
     setSidePanelOpen(false);
     setSelectedWord(null);
@@ -87,6 +86,18 @@ export default function SidePanel() {
               </p>
             )}
           </div>
+          <button
+  onClick={saveSelectedWord}
+  disabled={wordSaving || wordSaved}
+  className={clsx(
+    "w-full py-2 px-4 rounded-lg text-sm font-medium transition-all",
+    wordSaved
+      ? "bg-green-100 text-green-700 border border-green-200 cursor-default"
+      : "bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60"
+  )}
+>
+  {wordSaving ? "Saving..." : wordSaved ? "✓ Saved to dictionary" : "Save to dictionary"}
+</button>
         </>
       )}
     </aside>

@@ -43,3 +43,24 @@ export async function fetchUserWords(userId: number): Promise<UserWord[]> {
   if (!response.ok) throw new Error("Failed to fetch user words");
   return response.json();
 }
+
+
+export async function saveWord(wordId: number, userId: number): Promise<{ message: string; already_saved: boolean }> {
+  const response = await fetch(
+    `${API_BASE_URL}/user-words/${wordId}/save?user_id=${userId}`,
+    { method: "POST" }
+  );
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || `Request failed with status ${response.status}`);
+  }
+  return response.json();
+}
+
+export interface WordLookupResponse {
+  id: number;
+  source: 'cache' | 'pons';
+  word: string;
+  english_meanings: string[];
+  word_class: string | null;
+}

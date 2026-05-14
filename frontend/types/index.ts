@@ -5,9 +5,8 @@ export interface WordMeaning {
   translation: string;
   partOfSpeech: string;
   examples: { de: string; en: string }[];
-  gender?: string; // for nouns: der/die/das
+  gender?: string;
 }
-
 
 import { WordLookupResponse } from "@/lib/api";
 
@@ -19,10 +18,13 @@ export interface StoreState {
   wordResult: WordLookupResponse | null;
   wordLoading: boolean;
   wordError: string | null;
+  wordSaved: boolean;
+  wordSaving: boolean;
+  saveSelectedWord: () => Promise<void>;
   highlightMode: HighlightMode;
   setHighlightMode: (m: HighlightMode) => void;
   sidePanelOpen: boolean;
   setSidePanelOpen: (open: boolean) => void;
   knownWords: Set<string>;
-loadUserWords: (userId: number) => Promise<void>;
+  loadUserWords: (userId: number) => Promise<void>;
 }

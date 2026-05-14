@@ -236,6 +236,7 @@ async def lookup_word(word: str, user_id: int, db: Session = Depends(get_db)):
         _ensure_user_word(db, user_id, cached.id, now)
 
         return {
+            "id": cached.id,
             "source": "cache",
             "word": cached.german_word,
             "english_meanings": cached.english_meanings,
@@ -299,6 +300,7 @@ async def lookup_word(word: str, user_id: int, db: Session = Depends(get_db)):
     _ensure_user_word(db, user_id, new_entry.id, now)
 
     return {
+        "id": new_entry.id,
         "source": "pons",
         "word": new_entry.german_word,
         "english_meanings": new_entry.english_meanings,
@@ -350,3 +352,32 @@ def get_user_words(
         }
         for uw in user_words
     ]
+
+
+@app.post("/user-words/{word_id}/save")
+async def save_word(word_id: int, user_id: int, db: Session = Depends(get_db)):
+    # Check if word exists in dictionary
+    word = db.query(Dictionary).filter(Dictionary.id == word_id).first()
+    if not word:
+        raise HTTPException(status_code=404, detail="Word not found")
+
+    # Check if already saved
+    existing = (
+        db.query(UserWord)
+        .filter(UserWord.user_id == user_id, UserWord.word_id == word_id)
+        .first()
+    )
+
+    if existing:
+        return {"message": "Word already in your dictionary", "already_saved": True}
+
+    now = datetime.now(timezone.utc)
+    user_word = UserWord(
+        user_id=user_id,
+        word_id=word_id,
+        last_reviewed_at=now,
+        added_at=now,
+    )
+    db.add(user_word)
+    db.commit()
+    return {"message": "Word saved successfully", "already_saved": False}
