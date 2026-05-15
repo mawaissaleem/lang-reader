@@ -5,8 +5,11 @@ import { X, BookOpen, HelpCircle, Loader2 } from "lucide-react";
 import clsx from "clsx";
 
 export default function SidePanel() {
-const { selectedWord, sidePanelOpen, setSidePanelOpen, setSelectedWord,
-        wordResult, wordLoading, wordError, wordSaved, wordSaving, saveSelectedWord } = useStore();
+  const {
+    selectedWord, sidePanelOpen, setSidePanelOpen, setSelectedWord,
+    wordResult, wordLoading, wordError, wordSaved, wordSaving, saveSelectedWord,
+  } = useStore();
+
   function handleClose() {
     setSidePanelOpen(false);
     setSelectedWord(null);
@@ -15,65 +18,76 @@ const { selectedWord, sidePanelOpen, setSidePanelOpen, setSelectedWord,
   return (
     <aside
       className={clsx(
-        "border-l bg-white flex flex-col transition-all duration-300 overflow-hidden",
-        sidePanelOpen ? "w-80 animate-slide-in" : "w-0"
+        "flex flex-col h-full flex-shrink-0 bg-[#111114] transition-all duration-300 overflow-hidden",
+        sidePanelOpen
+          ? "w-80 min-w-80 border-l border-white/[0.07]"
+          : "w-0 min-w-0"
       )}
     >
       {sidePanelOpen && (
         <>
-          {/* Panel header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b">
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.07] flex-shrink-0">
             <div className="flex items-center gap-2">
-              <BookOpen size={16} className="text-blue-600" />
-              <span className="text-sm font-semibold">Word Details</span>
+              <BookOpen size={15} className="text-blue-400" />
+              <span className="text-[13px] font-semibold text-white/80 tracking-tight">
+                Word Details
+              </span>
             </div>
             <button
               onClick={handleClose}
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="text-white/25 hover:text-white/70 transition-colors"
             >
-              <X size={16} />
+              <X size={15} />
             </button>
           </div>
 
-          {/* Panel body */}
+          {/* Body — independent scroll */}
           <div className="flex-1 overflow-y-auto p-5">
             {wordLoading ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground mt-4">
-                <Loader2 size={16} className="animate-spin" />
-                Looking up <strong>{selectedWord}</strong>...
+              <div className="flex items-center gap-2 mt-4 text-[13px] text-white/35">
+                <Loader2 size={15} className="animate-spin" />
+                Looking up{" "}
+                <strong className="text-white/60">{selectedWord}</strong>…
               </div>
             ) : wordError ? (
               <div className="flex flex-col items-center gap-3 mt-10 text-center">
-                <HelpCircle size={36} className="text-red-300" />
-                <p className="font-medium text-sm">"{selectedWord}"</p>
-                <p className="text-xs text-red-400">{wordError}</p>
+                <HelpCircle size={32} className="text-red-400/40" />
+                <p className="text-[14px] font-semibold text-white/60 m-0">
+                  "{selectedWord}"
+                </p>
+                <p className="text-[12px] text-orange-400 m-0">{wordError}</p>
               </div>
             ) : wordResult ? (
               <div className="flex flex-col gap-5">
-                {/* Word + word class */}
+                {/* Word + class */}
                 <div>
-                  <div className="flex items-baseline gap-2">
+                  <div className="flex items-baseline gap-2 mb-1.5">
                     {wordResult.word_class && (
-                      <span className="text-xs font-medium text-blue-500 uppercase">
+                      <span className="text-[10px] font-bold tracking-widest uppercase text-blue-400">
                         {wordResult.word_class}
                       </span>
                     )}
-                    <h2 className="text-2xl font-bold">{wordResult.word}</h2>
+                    <h2 className="text-[26px] font-bold text-white/90 m-0 leading-tight tracking-tight" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>
+                      {wordResult.word}
+                    </h2>
                   </div>
-                  <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium">
-                    {wordResult.source === "cache" ? "from cache" : "from PONS"}
+                  <span className="inline-block text-[10px] font-semibold tracking-widest uppercase text-white/25 bg-white/5 px-2 py-0.5 rounded-full">
+                    {wordResult.source === "cache" ? "cached" : "PONS"}
                   </span>
                 </div>
 
                 {/* Meanings */}
-                <div className="p-4 rounded-lg bg-blue-50 border border-blue-100">
-                  <p className="text-xs text-blue-400 uppercase font-semibold mb-2 tracking-wide">
+                <div className="bg-blue-500/[0.07] border border-blue-400/[0.15] rounded-xl p-4">
+                  <p className="text-[10px] font-bold tracking-widest uppercase text-blue-400 mb-2.5">
                     English
                   </p>
-                  <ul className="flex flex-col gap-1">
+                  <ul className="flex flex-col gap-1.5 m-0 p-0 list-none">
                     {wordResult.english_meanings.map((meaning, i) => (
-                      <li key={i} className="text-sm font-medium text-blue-900 flex gap-2">
-                        <span className="text-blue-300">{i + 1}.</span>
+                      <li key={i} className="flex gap-2 text-[13px] text-white/75 leading-relaxed">
+                        <span className="text-blue-400/50 tabular-nums flex-shrink-0">
+                          {i + 1}.
+                        </span>
                         {meaning}
                       </li>
                     ))}
@@ -81,23 +95,27 @@ const { selectedWord, sidePanelOpen, setSidePanelOpen, setSelectedWord,
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-[13px] text-white/20 mt-2">
                 Click any word to see its meaning.
               </p>
             )}
           </div>
-          <button
-  onClick={saveSelectedWord}
-  disabled={wordSaving || wordSaved}
-  className={clsx(
-    "w-full py-2 px-4 rounded-lg text-sm font-medium transition-all",
-    wordSaved
-      ? "bg-green-100 text-green-700 border border-green-200 cursor-default"
-      : "bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60"
-  )}
->
-  {wordSaving ? "Saving..." : wordSaved ? "✓ Saved to dictionary" : "Save to dictionary"}
-</button>
+
+          {/* Save button — pinned to bottom */}
+          <div className="px-5 py-4 border-t border-white/[0.07] flex-shrink-0">
+            <button
+              onClick={saveSelectedWord}
+              disabled={wordSaving || wordSaved}
+              className={clsx(
+                "w-full py-2.5 rounded-xl text-[13px] font-semibold transition-all",
+                wordSaved
+                  ? "bg-green-500/10 text-green-400 border border-green-400/25 cursor-default"
+                  : "bg-blue-500/15 text-blue-400 border border-blue-400/25 hover:bg-blue-500/25 disabled:opacity-60"
+              )}
+            >
+              {wordSaving ? "Saving…" : wordSaved ? "✓ Saved to dictionary" : "Save to dictionary"}
+            </button>
+          </div>
         </>
       )}
     </aside>

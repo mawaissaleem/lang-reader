@@ -239,18 +239,18 @@ export default function LibraryPage() {
     return (
       <div className="min-h-screen flex flex-col">
         {/* Header */}
-        <header className="border-b px-6 py-4 flex items-center gap-3 bg-white shadow-sm">
+        <header className="border-b border-white/[0.06] px-6 py-4 flex items-center gap-3 bg-[#0d0d0f]">
           <button
             onClick={() => setOpenEntry(null)}
-            className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-900 transition-colors"
+            className="flex items-center gap-2 text-sm text-white/40 hover:text-white/80 transition-colors"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M19 12H5M12 5l-7 7 7 7"/>
             </svg>
             Library
           </button>
-          <span className="text-gray-300">／</span>
-          <span className="text-sm font-medium text-gray-700 truncate max-w-md">
+          <span className="text-white/10">／</span>
+          <span className="text-sm font-medium text-white/60 truncate max-w-md">
             {openEntry.title}
           </span>
         </header>
