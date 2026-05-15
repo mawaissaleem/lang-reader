@@ -1,20 +1,9 @@
-
 "use client";
 import { useState, useEffect } from "react";
-
-const API_BASE = "http://localhost:8000";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface Entry {
-  id: number;
-  type: "video" | "text";
-  title: string;
-  language: string;
-  source: "youtube" | "manual";
-  created_at: string;
-  word_count: number;
-  extraction_method: string | null;
-}
+import { fetchLibrary, fetchSubtitleText, LibraryEntry as Entry } from "@/lib/api";
+import TextDisplay from "@/components/TextDisplay";
+import SidePanel from "@/components/SidePanel";
+import useStore from "@/store/useStore";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function formatDate(iso: string) {
@@ -26,7 +15,7 @@ function readingTime(words: number) {
   return `${mins} min read`;
 }
 
-// ─── Icons (inline SVG — no extra dep) ───────────────────────────────────────
+// ─── Icons ────────────────────────────────────────────────────────────────────
 const YoutubeIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
     <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1C24 15.9 24 12 24 12s0-3.9-.5-5.8zM9.8 15.5V8.5l6.2 3.5-6.2 3.5z"/>
@@ -52,7 +41,6 @@ function EntryCard({ entry, onClick }: { entry: Entry; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="group relative w-full text-left"
       style={{ all: "unset", display: "block", cursor: "pointer", width: "100%" }}
     >
       <div
@@ -88,7 +76,6 @@ function EntryCard({ entry, onClick }: { entry: Entry; onClick: () => void }) {
         }} />
 
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px" }}>
-          {/* Left */}
           <div style={{ flex: 1, minWidth: 0 }}>
             {/* Source badge */}
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
@@ -164,15 +151,7 @@ function EntryCard({ entry, onClick }: { entry: Entry; onClick: () => void }) {
             </div>
           </div>
 
-          {/* Arrow */}
-          <div style={{
-            color: "rgba(255,255,255,0.2)",
-            transition: "all 0.2s",
-            paddingTop: "4px",
-            flexShrink: 0,
-          }}
-            className="card-arrow"
-          >
+          <div style={{ color: "rgba(255,255,255,0.2)", paddingTop: "4px", flexShrink: 0 }}>
             <ArrowIcon />
           </div>
         </div>
@@ -211,14 +190,16 @@ export default function LibraryPage() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [readerLoading, setReaderLoading] = useState(false);
 
+  const setText = useStore(s => s.setText);
+  const text = useStore(s => s.text);
+  const loadUserWords = useStore(s => s.loadUserWords);
+
+  // Fetch library on mount
   useEffect(() => {
-    fetch(`${API_BASE}/library`)
-      .then(res => {
-        if (!res.ok) throw new Error(`Server error: ${res.status}`);
-        return res.json();
-      })
-      .then((data: Entry[]) => {
+    fetchLibrary()
+      .then(data => {
         setEntries(data);
         setLoading(false);
       })
@@ -228,85 +209,68 @@ export default function LibraryPage() {
       });
   }, []);
 
+  // Load user words once (same as root page)
+  useEffect(() => {
+    loadUserWords(1);
+  }, []);
+
+  // When a card is clicked, fetch its text and push into store
+  useEffect(() => {
+    if (!openEntry) return;
+    setReaderLoading(true);
+    setText("");
+    fetchSubtitleText(openEntry.id)
+      .then(t => {
+        setText(t);
+        setReaderLoading(false);
+      })
+      .catch(err => {
+        console.error("Failed to load text", err);
+        setReaderLoading(false);
+      });
+  }, [openEntry]);
+
   const filtered = entries.filter(e =>
     filter === "all" ? true : e.source === filter
   );
 
-  // ── Reader modal ────────────────────────────────────────────────────────────
+  // ── Reader view — identical layout to root page ──────────────────────────────
   if (openEntry) {
     return (
-      <div style={{
-        minHeight: "100vh",
-        background: "#0d0d0f",
-        color: "rgba(255,255,255,0.85)",
-      }}>
-        {/* Reader topbar */}
-        <div style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 50,
-          background: "rgba(13,13,15,0.85)",
-          backdropFilter: "blur(16px)",
-          borderBottom: "1px solid rgba(255,255,255,0.07)",
-          padding: "14px 32px",
-          display: "flex",
-          alignItems: "center",
-          gap: "16px",
-        }}>
+      <div className="min-h-screen flex flex-col">
+        {/* Header */}
+        <header className="border-b px-6 py-4 flex items-center gap-3 bg-white shadow-sm">
           <button
             onClick={() => setOpenEntry(null)}
-            style={{
-              all: "unset",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              fontSize: "13px",
-              color: "rgba(255,255,255,0.4)",
-              transition: "color 0.15s",
-            }}
-            onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.8)")}
-            onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.4)")}
+            className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-900 transition-colors"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M19 12H5M12 5l-7 7 7 7"/>
             </svg>
             Library
           </button>
-          <span style={{ color: "rgba(255,255,255,0.1)" }}>／</span>
-          <span style={{
-            fontSize: "14px",
-            color: "rgba(255,255,255,0.6)",
-            fontFamily: "'DM Serif Display', Georgia, serif",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}>
+          <span className="text-gray-300">／</span>
+          <span className="text-sm font-medium text-gray-700 truncate max-w-md">
             {openEntry.title}
           </span>
-        </div>
+        </header>
 
-        {/* Reader content — your TextDisplay goes here */}
-        <div style={{ padding: "48px 24px" }}>
-          {/*
-            Replace this placeholder with your actual <TextDisplay /> component.
-            You'll need to load the text into your store before rendering.
-            e.g. useEffect(() => store.setText(fetchedText), [openEntry.id])
-          */}
-          <div style={{
-            maxWidth: "720px",
-            margin: "0 auto",
-            fontFamily: "Georgia, serif",
-            fontSize: "1.1rem",
-            lineHeight: 1.9,
-            color: "rgba(255,255,255,0.75)",
-          }}>
-            {/* <TextDisplay /> */}
-            <p style={{ color: "rgba(255,255,255,0.3)", fontStyle: "italic", textAlign: "center", marginTop: "80px" }}>
-              Plug your &lt;TextDisplay /&gt; component here.<br />
-              Load <code style={{ background: "rgba(255,255,255,0.06)", padding: "2px 6px", borderRadius: "4px" }}>openEntry.id</code> → fetch text → set store → render.
-            </p>
-          </div>
+        {/* TextDisplay + SidePanel — exact same structure as root page */}
+        <div className="flex flex-1 overflow-hidden">
+          <main className="flex-1 overflow-y-auto p-8">
+            {readerLoading ? (
+              <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+                Loading text…
+              </div>
+            ) : !text ? (
+              <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+                No text found for this entry.
+              </div>
+            ) : (
+              <TextDisplay />
+            )}
+          </main>
+          <SidePanel />
         </div>
       </div>
     );
@@ -320,7 +284,6 @@ export default function LibraryPage() {
       color: "rgba(255,255,255,0.85)",
       fontFamily: "'DM Sans', system-ui, sans-serif",
     }}>
-      {/* Google Fonts */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap');
         * { box-sizing: border-box; }
@@ -401,7 +364,6 @@ export default function LibraryPage() {
           </span>
         </div>
 
-        {/* Divider */}
         <div style={{ height: "1px", background: "rgba(255,255,255,0.06)", marginBottom: "24px" }} />
 
         {/* Entry list */}
