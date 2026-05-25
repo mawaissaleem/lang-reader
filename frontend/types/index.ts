@@ -12,7 +12,8 @@ import { WordLookupResponse } from "@/lib/api";
 
 export interface StoreState {
   text: string;
-  setText: (t: string) => void;
+  title: string;
+  setText: (text: string, title:string | undefined) => void;
   selectedWord: string | null;
   setSelectedWord: (w: string | null) => void;
   wordResult: WordLookupResponse | null;

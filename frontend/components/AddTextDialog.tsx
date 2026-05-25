@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import useStore from "@/store/useStore";
@@ -8,12 +7,14 @@ import { Plus, X } from "lucide-react";
 export default function AddTextDialog() {
   const { setText } = useStore();
   const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
   const [input, setInput] = useState("");
 
   function handleSubmit() {
     if (input.trim()) {
-      setText(input.trim());
+      setText(input.trim(), title.trim() || undefined);
       setOpen(false);
+      setTitle("");
       setInput("");
     }
   }
@@ -26,7 +27,6 @@ export default function AddTextDialog() {
           Add Text
         </button>
       </Dialog.Trigger>
-
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" />
         <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-xl shadow-2xl w-[90vw] max-w-2xl p-6 flex flex-col gap-4">
@@ -40,18 +40,34 @@ export default function AddTextDialog() {
               </button>
             </Dialog.Close>
           </div>
-
           <Dialog.Description className="text-sm text-muted-foreground">
             Paste any German text below. Known words will be highlighted automatically.
           </Dialog.Description>
 
-          <textarea
-            className="w-full h-64 p-3 rounded-lg border text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
-            placeholder="Fügen Sie hier Ihren deutschen Text ein..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            autoFocus
-          />
+          {/* Title field */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-gray-700">
+              Title             </label>
+            <input
+              type="text"
+              className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+              placeholder="e.g. Der kleine Prinz – Kapitel 1"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </div>
+
+          {/* Text area */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-gray-700">Text</label>
+            <textarea
+              className="w-full h-56 p-3 rounded-lg border text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
+              placeholder="Fügen Sie hier Ihren deutschen Text ein..."
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              autoFocus
+            />
+          </div>
 
           <div className="flex justify-end gap-2">
             <Dialog.Close asChild>

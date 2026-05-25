@@ -6,7 +6,8 @@ const USER_ID = 1;
 
 const useStore = create<StoreState>((set, get) => ({
   text: "",
-  setText: (t) => set({ text: t }),
+  title: "",
+  setText: (text: string, title:string | undefined) => set({ text: text, title: title }),
   selectedWord: null,
   setSelectedWord: async (w) => {
     if (!w) {
