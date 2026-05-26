@@ -7,7 +7,7 @@ function tokenize(text: string): string[] {
 }
 
 export default function TextDisplay() {
-  const { text, highlightMode, setHighlightMode } = useStore();
+  const { text, title, highlightMode, setHighlightMode } = useStore();
   const paragraphs = text.split(/\n+/).filter(Boolean);
 
   return (
@@ -17,7 +17,6 @@ export default function TextDisplay() {
         <span className="text-[10px] font-bold tracking-widest uppercase text-white/25">
           Known word style
         </span>
-
         <div className="flex rounded-lg overflow-hidden border border-white/[0.08]">
           <button
             onClick={() => setHighlightMode("underline")}
@@ -40,7 +39,6 @@ export default function TextDisplay() {
             Highlight
           </button>
         </div>
-
         {/* Legend */}
         <div className="ml-auto flex items-center gap-4 text-[11px] text-white/25">
           <span className="flex items-center gap-1.5">
@@ -56,6 +54,13 @@ export default function TextDisplay() {
 
       {/* Text area */}
       <div className="bg-[#111114] border border-white/[0.07] rounded-2xl p-8 leading-8 text-[1.05rem]">
+        {/* Title */}
+        {title && (
+          <h2 className="text-white/90 text-xl font-semibold mb-6 pb-4 border-b border-white/[0.07] text-center">
+            {title}
+          </h2>
+        )}
+
         {paragraphs.map((para, pi) => (
           <p key={pi} className="mb-6 last:mb-0 text-white/75 leading-[1.9]">
             {tokenize(para).map((token, ti) => {
