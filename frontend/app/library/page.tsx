@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { fetchLibrary, fetchSubtitleText, LibraryEntry as Entry } from "@/lib/api";
+import AddTextDialog from "@/components/AddTextDialog";
 import TextDisplay from "@/components/TextDisplay";
 import SidePanel from "@/components/SidePanel";
 import useStore from "@/store/useStore";
@@ -187,6 +188,7 @@ function FilterPill({ label, active, onClick }: { label: string; active: boolean
 export default function LibraryPage() {
   const [filter, setFilter] = useState<"all" | "youtube" | "manual">("all");
   const [openEntry, setOpenEntry] = useState<Entry | null>(null);
+  const [manualReaderOpen, setManualReaderOpen] = useState(false);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -194,6 +196,7 @@ export default function LibraryPage() {
 
   const setText = useStore(s => s.setText);
   const text = useStore(s => s.text);
+  const title = useStore(s => s.title);
   const loadUserWords = useStore(s => s.loadUserWords);
 
   // Fetch library on mount
@@ -235,13 +238,17 @@ export default function LibraryPage() {
   );
 
   // ── Reader view — identical layout to root page ──────────────────────────────
-  if (openEntry) {
+  if (openEntry || manualReaderOpen) {
     return (
       <div className="min-h-screen flex flex-col">
         {/* Header */}
         <header className="border-b border-white/[0.06] px-6 py-4 flex items-center gap-3 bg-[#0d0d0f]">
           <button
-            onClick={() => setOpenEntry(null)}
+            onClick={() => {
+              setOpenEntry(null);
+              setManualReaderOpen(false);
+              if (!openEntry) setText("");
+            }}
             className="flex items-center gap-2 text-sm text-white/40 hover:text-white/80 transition-colors"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -251,7 +258,7 @@ export default function LibraryPage() {
           </button>
           <span className="text-white/10">／</span>
           <span className="text-sm font-medium text-white/60 truncate max-w-md">
-            {openEntry.title}
+            {openEntry ? openEntry.title : title || "Manual Text"}
           </span>
         </header>
 
@@ -308,7 +315,7 @@ export default function LibraryPage() {
           leseraum
           <span style={{ color: "rgba(255,255,255,0.2)", fontWeight: 400 }}>.de</span>
         </div>
-        <div style={{ display: "flex", gap: "8px" }}>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
           {["Library", "Vocabulary", "Stats"].map(item => (
             <button key={item} style={{
               all: "unset",
@@ -323,6 +330,14 @@ export default function LibraryPage() {
               {item}
             </button>
           ))}
+          <AddTextDialog
+            triggerLabel="Add Text"
+            triggerClassName="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-white/10"
+            onLoadText={() => {
+              setManualReaderOpen(true);
+              setOpenEntry(null);
+            }}
+          />
         </div>
       </header>
 
