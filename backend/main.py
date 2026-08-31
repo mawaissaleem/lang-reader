@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends  # ← added Depends
 from pydantic import BaseModel
+from typing import Optional
 from youtube_transcript_api import TranscriptsDisabled
 from sqlalchemy.orm import Session
 import os
@@ -35,6 +36,7 @@ app.add_middleware(
 
 class VideoRequest(BaseModel):
     url: str
+    title: Optional[str] = None
 
 
 load_dotenv()
@@ -77,6 +79,13 @@ def clean_and_save_subtitle(
                 db.add(video)
                 db.commit()
                 db.refresh(video)
+            else:
+                # If a user provided a title, prefer and persist it even if the video existed
+                if title and title.strip() and video.title != title:
+                    video.title = title
+                    db.add(video)
+                    db.commit()
+                    db.refresh(video)
 
             subtitle = Subtitle(
                 video_id=video.id,
@@ -132,13 +141,14 @@ def get_german_subtitles(request: VideoRequest, background_tasks: BackgroundTask
 
     # ── Schedule cleaning + DB save in background ──
     vtt_path = result.pop("vtt_path", None)
-    title = result.get("title", "Unknown")
+    # Prefer user-provided title, fallback to extractor title, then Unknown
+    final_title = request.title or result.get("title") or "Unknown"
     if vtt_path and result.get("status") == "success":
         background_tasks.add_task(
             clean_and_save_subtitle,
             vtt_path,
             url,
-            title,
+            final_title,
             extraction_method,
         )
 

@@ -82,3 +82,24 @@ export async function fetchSubtitleText(subtitleId: number): Promise<string> {
   const data = await response.json();
   return data.text;
 }
+
+export async function importFromYouTube(url: string, title?: string): Promise<any> {
+  const body: any = { url };
+  if (title !== undefined) body.title = title;
+  const response = await fetch(`${API_BASE_URL}/subtitles/german`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    try {
+      const err = await response.json();
+      throw new Error(err.detail || `Request failed with status ${response.status}`);
+    } catch (e) {
+      throw new Error(`Request failed with status ${response.status}`);
+    }
+  }
+
+  return response.json();
+}

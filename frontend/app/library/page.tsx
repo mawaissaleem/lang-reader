@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { fetchLibrary, fetchSubtitleText, LibraryEntry as Entry } from "@/lib/api";
 import AddTextDialog from "@/components/AddTextDialog";
+import ImportYouTubeDialog from "@/components/ImportYouTubeDialog";
 import TextDisplay from "@/components/TextDisplay";
 import SidePanel from "@/components/SidePanel";
 import useStore from "@/store/useStore";
@@ -194,6 +195,7 @@ export default function LibraryPage() {
   const [error, setError] = useState<string | null>(null);
   const [readerLoading, setReaderLoading] = useState(false);
 
+
   const setText = useStore(s => s.setText);
   const text = useStore(s => s.text);
   const title = useStore(s => s.title);
@@ -211,6 +213,8 @@ export default function LibraryPage() {
         setLoading(false);
       });
   }, []);
+
+
 
   // Load user words once (same as root page)
   useEffect(() => {
@@ -330,6 +334,12 @@ export default function LibraryPage() {
               {item}
             </button>
           ))}
+
+          <ImportYouTubeDialog
+            triggerClassName="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-white/10"
+            onImported={(latest) => setEntries(latest)}
+          />
+
           <AddTextDialog
             triggerLabel="Add Text"
             triggerClassName="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-white/10"
