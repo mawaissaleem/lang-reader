@@ -73,19 +73,34 @@ def clean_and_save_subtitle(
         # ── Save to DB ────────────────────────────────────────
         db = SessionLocal()
         try:
-            video = db.query(Video).filter(Video.url == url).first()
+            normalized_url = extract_video_id(url)
+            normalized_url = f"https://www.youtube.com/watch?v={normalized_url}"
+
+            video = db.query(Video).filter(Video.url == normalized_url).first()
             if not video:
-                video = Video(url=url, title=title)
+                video = Video(
+                    url=normalized_url, title=title.strip() if title else None
+                )
                 db.add(video)
                 db.commit()
                 db.refresh(video)
             else:
-                # If a user provided a title, prefer and persist it even if the video existed
-                if title and title.strip() and video.title != title:
-                    video.title = title
+                # Never overwrite an existing video title with a later duplicate import.
+                if not video.title and title and title.strip():
+                    video.title = title.strip()
                     db.add(video)
                     db.commit()
                     db.refresh(video)
+
+                # Prevent duplicate subtitle rows for the same YouTube video.
+                existing_subtitle = (
+                    db.query(Subtitle).filter(Subtitle.video_id == video.id).first()
+                )
+                if existing_subtitle:
+                    print(
+                        f"[BackgroundTask] Skipping duplicate subtitle for existing video_id={video.id}"
+                    )
+                    return
 
             subtitle = Subtitle(
                 video_id=video.id,
@@ -109,12 +124,27 @@ def clean_and_save_subtitle(
 # Routes
 # ─────────────────────────────────────────
 @app.post("/subtitles/german")
-def get_german_subtitles(request: VideoRequest, background_tasks: BackgroundTasks):
+def get_german_subtitles(
+    request: VideoRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
     url = request.url
     try:
-        extract_video_id(url)
+        video_id = extract_video_id(url)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+    normalized_url = f"https://www.youtube.com/watch?v={video_id}"
+    existing_video = db.query(Video).filter(Video.url == normalized_url).first()
+    if existing_video:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"This video already exists in your library: "
+                f"{existing_video.title or 'Untitled'}"
+            ),
+        )
 
     # ── Try Method 1 ──
     result = None
@@ -147,7 +177,7 @@ def get_german_subtitles(request: VideoRequest, background_tasks: BackgroundTask
         background_tasks.add_task(
             clean_and_save_subtitle,
             vtt_path,
-            url,
+            normalized_url,
             final_title,
             extraction_method,
         )
@@ -401,29 +431,32 @@ def get_library(db: Session = Depends(get_db)):
     items = []
 
     for v in videos:
-        for s in v.subtitles:
-            # read word count from txt file if it exists
-            word_count = 0
-            if s.txt_path and os.path.exists(s.txt_path):
-                try:
-                    with open(s.txt_path, "r", encoding="utf-8") as f:
-                        word_count = len(f.read().split())
-                except Exception:
-                    pass
+        if not v.subtitles:
+            continue
 
-            items.append(
-                {
-                    "id": s.id,
-                    "type": "video",
-                    "source": "youtube",
-                    "title": v.title or "Untitled",
-                    "url": v.url,
-                    "language": s.language,
-                    "extraction_method": s.extraction_method,
-                    "word_count": word_count,
-                    "created_at": s.created_at,
-                }
-            )
+        latest_subtitle = max(v.subtitles, key=lambda s: s.created_at)
+
+        word_count = 0
+        if latest_subtitle.txt_path and os.path.exists(latest_subtitle.txt_path):
+            try:
+                with open(latest_subtitle.txt_path, "r", encoding="utf-8") as f:
+                    word_count = len(f.read().split())
+            except Exception:
+                pass
+
+        items.append(
+            {
+                "id": latest_subtitle.id,
+                "type": "video",
+                "source": "youtube",
+                "title": v.title or "Untitled",
+                "url": v.url,
+                "language": latest_subtitle.language,
+                "extraction_method": latest_subtitle.extraction_method,
+                "word_count": word_count,
+                "created_at": latest_subtitle.created_at,
+            }
+        )
 
     # sort newest first
     items.sort(key=lambda x: x["created_at"], reverse=True)

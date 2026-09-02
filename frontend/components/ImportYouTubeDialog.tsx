@@ -10,6 +10,23 @@ interface Props {
   onImported?: (latest: any[]) => void;
 }
 
+function normalizeYouTubeUrl(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.hostname.includes("youtube.com") || parsed.hostname.includes("youtu.be")) {
+      const videoId = parsed.searchParams.get("v") || parsed.pathname.split("/").filter(Boolean).at(-1);
+      if (videoId) return `https://www.youtube.com/watch?v=${videoId}`;
+    }
+  } catch {
+    // fall through to raw trimmed value for non-URL inputs
+  }
+
+  return trimmed;
+}
+
 export default function ImportYouTubeDialog({ triggerLabel = "Import from YouTube", triggerClassName, onImported }: Props) {
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
@@ -18,7 +35,8 @@ export default function ImportYouTubeDialog({ triggerLabel = "Import from YouTub
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit() {
-    if (!url.trim()) {
+    const normalizedUrl = normalizeYouTubeUrl(url);
+    if (!normalizedUrl) {
       setError("Please enter a YouTube URL");
       return;
     }
@@ -26,10 +44,21 @@ export default function ImportYouTubeDialog({ triggerLabel = "Import from YouTub
       setError("Please enter a title (required)");
       return;
     }
+
     setLoading(true);
     setError(null);
     try {
-      await importFromYouTube(url.trim(), title?.trim() || undefined);
+      const currentLibrary = await fetchLibrary();
+      const existing = currentLibrary.find((entry: any) =>
+        normalizeYouTubeUrl(entry.url) === normalizedUrl
+      );
+
+      if (existing) {
+        setError(`This video already exists in your library: ${existing.title || "Untitled"}`);
+        return;
+      }
+
+      await importFromYouTube(normalizedUrl, title?.trim() || undefined);
 
       // Poll library for the new entry
       let attempts = 0;
