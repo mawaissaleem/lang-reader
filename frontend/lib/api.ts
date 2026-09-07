@@ -61,6 +61,7 @@ export interface WordLookupResponse {
 
 export interface LibraryEntry {
   id: number;
+  video_id: number;
   type: "video" | "text";
   title: string;
   language: string;
@@ -81,6 +82,19 @@ export async function fetchSubtitleText(subtitleId: number): Promise<string> {
   if (!response.ok) throw new Error("Failed to fetch text");
   const data = await response.json();
   return data.text;
+}
+
+export async function renameVideo(videoId: number, newTitle: string): Promise<{ id: number; title: string }> {
+  const response = await fetch(`${API_BASE_URL}/videos/${videoId}/title`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title: newTitle }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || `Request failed with status ${response.status}`);
+  }
+  return response.json();
 }
 
 export async function importFromYouTube(url: string, title?: string): Promise<any> {

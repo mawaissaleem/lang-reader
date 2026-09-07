@@ -1,6 +1,6 @@
 "use client";
-import { useState, useEffect } from "react";
-import { fetchLibrary, fetchSubtitleText, LibraryEntry as Entry } from "@/lib/api";
+import { useState, useEffect, useRef } from "react";
+import { fetchLibrary, fetchSubtitleText, renameVideo, LibraryEntry as Entry } from "@/lib/api";
 import AddTextDialog from "@/components/AddTextDialog";
 import ImportYouTubeDialog from "@/components/ImportYouTubeDialog";
 import TextDisplay from "@/components/TextDisplay";
@@ -36,14 +36,58 @@ const ArrowIcon = () => (
   </svg>
 );
 
+// ─── Edit icon ────────────────────────────────────────────────────────────────
+const EditIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+  </svg>
+);
+
 // ─── Card ─────────────────────────────────────────────────────────────────────
-function EntryCard({ entry, onClick }: { entry: Entry; onClick: () => void }) {
+function EntryCard({
+  entry,
+  onClick,
+  onRename,
+}: {
+  entry: Entry;
+  onClick: () => void;
+  onRename: (videoId: number, newTitle: string) => Promise<void>;
+}) {
   const isYT = entry.source === "youtube";
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(entry.title);
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  const handleSave = async () => {
+    const trimmed = draft.trim();
+    if (!trimmed || trimmed === entry.title) {
+      setDraft(entry.title);
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    try {
+      await onRename(entry.video_id, trimmed);
+      setEditing(false);
+    } catch (err) {
+      console.error("Rename failed:", err);
+      setDraft(entry.title);
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <button
-      onClick={onClick}
-      style={{ all: "unset", display: "block", cursor: "pointer", width: "100%" }}
+      onClick={editing ? undefined : onClick}
+      style={{ all: "unset", display: "block", cursor: editing ? "default" : "pointer", width: "100%" }}
     >
       <div
         style={{
@@ -111,18 +155,82 @@ function EntryCard({ entry, onClick }: { entry: Entry; onClick: () => void }) {
               )}
             </div>
 
-            {/* Title */}
-            <h3 style={{
-              fontSize: "17px",
-              fontWeight: 600,
-              color: "rgba(255,255,255,0.92)",
-              margin: "0 0 12px 0",
-              lineHeight: 1.35,
-              fontFamily: "'DM Serif Display', Georgia, serif",
-              letterSpacing: "-0.01em",
-            }}>
-              {entry.title}
-            </h3>
+            {/* Title — inline editable */}
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+              {editing ? (
+                <input
+                  ref={inputRef}
+                  value={draft}
+                  disabled={saving}
+                  onChange={e => setDraft(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter") { e.preventDefault(); handleSave(); }
+                    if (e.key === "Escape") { setDraft(entry.title); setEditing(false); }
+                  }}
+                  onBlur={handleSave}
+                  onClick={e => e.stopPropagation()}
+                  style={{
+                    flex: 1,
+                    fontSize: "17px",
+                    fontWeight: 600,
+                    color: "rgba(255,255,255,0.92)",
+                    fontFamily: "'DM Serif Display', Georgia, serif",
+                    letterSpacing: "-0.01em",
+                    background: "rgba(255,255,255,0.08)",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    borderRadius: "8px",
+                    padding: "6px 10px",
+                    outline: "none",
+                    lineHeight: 1.35,
+                  }}
+                />
+              ) : (
+                <>
+                  <h3 style={{
+                    fontSize: "17px",
+                    fontWeight: 600,
+                    color: "rgba(255,255,255,0.92)",
+                    margin: 0,
+                    lineHeight: 1.35,
+                    fontFamily: "'DM Serif Display', Georgia, serif",
+                    letterSpacing: "-0.01em",
+                  }}>
+                    {entry.title}
+                  </h3>
+                  <button
+                    onClick={e => {
+                      e.stopPropagation();
+                      setDraft(entry.title);
+                      setEditing(true);
+                    }}
+                    title="Rename"
+                    style={{
+                      all: "unset",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: "26px",
+                      height: "26px",
+                      borderRadius: "6px",
+                      color: "rgba(255,255,255,0.25)",
+                      transition: "all 0.15s ease",
+                      flexShrink: 0,
+                    }}
+                    onMouseEnter={e => {
+                      (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.7)";
+                      (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.08)";
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.25)";
+                      (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                    }}
+                  >
+                    <EditIcon />
+                  </button>
+                </>
+              )}
+            </div>
 
             {/* Meta row */}
             <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
@@ -225,10 +333,10 @@ export default function LibraryPage() {
   useEffect(() => {
     if (!openEntry) return;
     setReaderLoading(true);
-    setText("");
+    setText("", undefined);
     fetchSubtitleText(openEntry.id)
       .then(t => {
-        setText(t);
+        setText(t, openEntry.title);
         setReaderLoading(false);
       })
       .catch(err => {
@@ -236,6 +344,13 @@ export default function LibraryPage() {
         setReaderLoading(false);
       });
   }, [openEntry]);
+
+  const handleRename = async (videoId: number, newTitle: string) => {
+    const result = await renameVideo(videoId, newTitle);
+    setEntries(prev =>
+      prev.map(e => (e.video_id === videoId ? { ...e, title: result.title } : e))
+    );
+  };
 
   const filtered = entries.filter(e =>
     filter === "all" ? true : e.source === filter
@@ -251,7 +366,7 @@ export default function LibraryPage() {
             onClick={() => {
               setOpenEntry(null);
               setManualReaderOpen(false);
-              if (!openEntry) setText("");
+              if (!openEntry) setText("", undefined);
             }}
             className="flex items-center gap-2 text-sm text-white/40 hover:text-white/80 transition-colors"
           >
@@ -408,6 +523,7 @@ export default function LibraryPage() {
               key={entry.id}
               entry={entry}
               onClick={() => setOpenEntry(entry)}
+              onRename={handleRename}
             />
           ))}
         </div>

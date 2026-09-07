@@ -39,6 +39,10 @@ class VideoRequest(BaseModel):
     title: Optional[str] = None
 
 
+class TitleUpdate(BaseModel):
+    title: str
+
+
 load_dotenv()
 
 PONS_API_KEY = os.getenv("PONS_API_KEY")
@@ -213,6 +217,17 @@ def get_subtitles(video_id: int, db: Session = Depends(get_db)):
         {"id": s.id, "method": s.extraction_method, "txt_path": s.txt_path}
         for s in video.subtitles
     ]
+
+
+@app.patch("/videos/{video_id}/title")
+def update_video_title(video_id: int, body: TitleUpdate, db: Session = Depends(get_db)):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    video.title = body.title.strip()
+    db.commit()
+    db.refresh(video)
+    return {"id": video.id, "title": video.title}
 
 
 def strip_html(text: str) -> str:
@@ -447,6 +462,7 @@ def get_library(db: Session = Depends(get_db)):
         items.append(
             {
                 "id": latest_subtitle.id,
+                "video_id": v.id,
                 "type": "video",
                 "source": "youtube",
                 "title": v.title or "Untitled",
