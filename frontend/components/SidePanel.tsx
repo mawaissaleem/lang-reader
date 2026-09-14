@@ -73,7 +73,11 @@ export default function SidePanel() {
                     </h2>
                   </div>
                   <span className="inline-block text-[10px] font-semibold tracking-widest uppercase text-white/25 bg-white/5 px-2 py-0.5 rounded-full">
-                    {wordResult.source === "cache" ? "cached" : "PONS"}
+                    {wordResult.source === "cache"
+                      ? "cached"
+                      : wordResult.source === "libretranslate"
+                      ? "LibreTranslate"
+                      : "PONS"}
                   </span>
                 </div>
 

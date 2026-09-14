@@ -53,7 +53,7 @@ export async function saveWord(wordId: number, userId: number): Promise<{ messag
 
 export interface WordLookupResponse {
   id: number;
-  source: 'cache' | 'pons';
+  source: 'cache' | 'pons' | 'libretranslate';
   word: string;
   english_meanings: string[];
   word_class: string | null;

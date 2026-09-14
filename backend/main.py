@@ -14,6 +14,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from extractors.transcript_api import method1_youtube_transcript_api
 from extractors.yt_dlp import method2_yt_dlp
+from translators.pons import method1_pons
+from translators.libretranslate import method2_libretranslate
 from vtt_parser import extract_subtitles
 from utils import extract_video_id
 from database import get_db, SessionLocal
@@ -46,6 +48,7 @@ class TitleUpdate(BaseModel):
 load_dotenv()
 
 PONS_API_KEY = os.getenv("PONS_API_KEY")
+LIBRETRANSLATE_URL = os.getenv("LIBRETRANSLATE_URL", "http://localhost:5000")
 
 router = APIRouter()
 
@@ -236,45 +239,48 @@ def strip_html(text: str) -> str:
 
 @app.get("/dictionary/{word}")
 async def get_word_meaning(word: str):
-    url = "https://api.pons.com/v1/dictionary"
-    params = {"q": word, "l": "deen", "language": "de"}
-    headers = {"X-Secret": PONS_API_KEY}
+    word = word.strip().lower()
 
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url, params=params, headers=headers)
+    # ── Try Method 1: PONS ──
+    pons_res = await method1_pons(word, PONS_API_KEY)
+    if pons_res.get("success"):
+        return {
+            "success": True,
+            "word": word,
+            "source": "pons",
+            "translations": [
+                {"german": word, "english": t} for t in pons_res["translations"]
+            ],
+            "word_class": pons_res.get("word_class"),
+        }
 
-        if response.status_code == 200:
-            raw = response.json()
-            translations = []
+    pons_err = pons_res.get("error", "Unknown PONS error")
+    print(f"[Method 1 PONS failed] {pons_err} — falling back to LibreTranslate")
 
-            for hit in raw[0].get("hits", []):
-                for rom in hit.get("roms", []):
-                    for arab in rom.get("arabs", []):
-                        for translation in arab.get("translations", []):
-                            german = strip_html(translation["source"])
-                            english = strip_html(translation["target"])
-                            translations.append({"german": german, "english": english})
+    # ── Fallback: Method 2: LibreTranslate ──
+    lt_res = await method2_libretranslate(word, LIBRETRANSLATE_URL)
+    if lt_res.get("success"):
+        return {
+            "success": True,
+            "word": word,
+            "source": "libretranslate",
+            "translations": [
+                {"german": word, "english": t} for t in lt_res["translations"]
+            ],
+            "word_class": None,
+        }
 
-            return {"success": True, "word": word, "translations": translations}
-
-        elif response.status_code == 204:
-            return {"success": False, "message": f"No results found for '{word}'"}
-
-        elif response.status_code == 403:
-            return {"success": False, "message": "Invalid API key"}
-
-        elif response.status_code == 429:
-            return {"success": False, "message": "Monthly request limit reached"}
-
-        else:
-            return {
-                "success": False,
-                "message": f"Unexpected error: {response.status_code}",
-            }
+    lt_err = lt_res.get("error", "Unknown LibreTranslate error")
+    print(f"[Method 2 LibreTranslate failed] {lt_err}")
+    return {
+        "success": False,
+        "word": word,
+        "message": f"Both translation methods failed. PONS: {pons_err}. LibreTranslate: {lt_err}",
+    }
 
 
 # ─────────────────────────────────────────
-# Word Lookup: Cache → PONS → UserWord
+# Word Lookup: Cache → PONS → LibreTranslate → UserWord
 # ─────────────────────────────────────────
 @app.get("/word/{word}")
 async def lookup_word(word: str, user_id: int, db: Session = Depends(get_db)):
@@ -299,52 +305,36 @@ async def lookup_word(word: str, user_id: int, db: Session = Depends(get_db)):
             "word_class": cached.word_class,
         }
 
-    # ── Step 2: Call PONS API ────────────────────────────────────
-    pons_url = "https://api.pons.com/v1/dictionary"
-    params = {"q": word, "l": "deen", "language": "de"}
-    headers = {"X-Secret": PONS_API_KEY}
+    # ── Step 2: Try Method 1 (PONS) ─────────────────────────────
+    translation_result = None
+    pons_res = await method1_pons(word, PONS_API_KEY)
 
-    async with httpx.AsyncClient() as client:
-        response = await client.get(pons_url, params=params, headers=headers)
+    if pons_res.get("success"):
+        translation_result = pons_res
+    else:
+        pons_err = pons_res.get("error", "Unknown PONS error")
+        print(f"[Method 1 PONS failed] {pons_err} — falling back to LibreTranslate")
 
-    if response.status_code == 204:
-        raise HTTPException(status_code=404, detail=f"No results found for '{word}'")
-    elif response.status_code == 403:
-        raise HTTPException(status_code=403, detail="Invalid PONS API key")
-    elif response.status_code == 429:
-        raise HTTPException(status_code=429, detail="PONS monthly limit reached")
-    elif response.status_code != 200:
-        raise HTTPException(
-            status_code=502, detail=f"PONS error: {response.status_code}"
-        )
+    # ── Step 3: Fallback: Method 2 (LibreTranslate) ─────────────
+    if translation_result is None:
+        lt_res = await method2_libretranslate(word, LIBRETRANSLATE_URL)
+        if lt_res.get("success"):
+            translation_result = lt_res
+        else:
+            lt_err = lt_res.get("error", "Unknown LibreTranslate error")
+            print(f"[Method 2 LibreTranslate failed] {lt_err}")
+            raise HTTPException(
+                status_code=404,
+                detail=f"Both translation methods failed. PONS: {pons_err}. LibreTranslate: {lt_err}",
+            )
 
-    # ── Step 3: Parse PONS response ──────────────────────────────
-    raw = response.json()
-    translations = []
-    word_class = None
-
-    for hit in raw[0].get("hits", []):
-        for rom in hit.get("roms", []):
-            if not word_class and rom.get("wordclass"):
-                word_class = rom["wordclass"]
-            for arab in rom.get("arabs", []):
-                for translation in arab.get("translations", []):
-                    english = strip_html(translation["target"])
-                    if english:
-                        translations.append(english)
-
-    if not translations:
-        raise HTTPException(
-            status_code=404, detail=f"No translations parsed for '{word}'"
-        )
-
-    # ── Step 4: Save to Dictionary ───────────────────────────────
+    # ── Step 4: Save to Dictionary Cache ────────────────────────
     new_entry = Dictionary(
         german_word=word,
-        english_meanings=translations,
-        word_class=word_class,
-        source="pons",
-        raw_response=raw,
+        english_meanings=translation_result["translations"],
+        word_class=translation_result.get("word_class"),
+        source=translation_result["source"],
+        raw_response=translation_result.get("raw_response"),
         lookup_count=1,
         last_lookup_at=now,
     )
@@ -357,7 +347,7 @@ async def lookup_word(word: str, user_id: int, db: Session = Depends(get_db)):
 
     return {
         "id": new_entry.id,
-        "source": "pons",
+        "source": translation_result["source"],
         "word": new_entry.german_word,
         "english_meanings": new_entry.english_meanings,
         "word_class": new_entry.word_class,
