@@ -1,14 +1,18 @@
 "use client";
 
 import useStore from "@/store/useStore";
-import { X, BookOpen, HelpCircle, Loader2 } from "lucide-react";
+import { X, BookOpen, HelpCircle, Loader2, Settings } from "lucide-react";
 import clsx from "clsx";
+import React from "react";
 
 export default function SidePanel() {
   const {
     selectedWord, sidePanelOpen, setSidePanelOpen, setSelectedWord,
     wordResult, wordLoading, wordError, wordSaved, wordSaving, saveSelectedWord,
+    translatorPriority, setTranslatorPriority,
   } = useStore();
+
+  const [showPref, setShowPref] = React.useState(false);
 
   function handleClose() {
     setSidePanelOpen(false);
@@ -27,19 +31,68 @@ export default function SidePanel() {
       {sidePanelOpen && (
         <>
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.07] flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <BookOpen size={15} className="text-blue-400" />
-              <span className="text-[13px] font-semibold text-white/80 tracking-tight">
-                Word Details
-              </span>
+          <div className="flex flex-col gap-2 px-5 py-4 border-b border-white/[0.07] flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BookOpen size={15} className="text-blue-400" />
+                <span className="text-[13px] font-semibold text-white/80 tracking-tight">
+                  Word Details
+                </span>
+              </div>
+              <button
+                onClick={handleClose}
+                className="text-white/25 hover:text-white/70 transition-colors"
+              >
+                <X size={15} />
+              </button>
             </div>
-            <button
-              onClick={handleClose}
-              className="text-white/25 hover:text-white/70 transition-colors"
-            >
-              <X size={15} />
-            </button>
+
+            {/* Translator preference — open settings to change */}
+            <div className="flex items-center justify-between">
+              <div className="text-[11px] font-semibold text-white/60">Preferred translator:</div>
+              <div className="flex items-center gap-2">
+                <div className="text-[12px] font-semibold text-white/80 uppercase">
+                  {translatorPriority === "pons" ? "PONS" : "LibreTranslate"}
+                </div>
+                <button
+                  onClick={() => setShowPref((s) => !s)}
+                  className="p-1 rounded hover:bg-white/[0.03] text-white/60"
+                  aria-label="Translator settings"
+                >
+                  <Settings size={14} />
+                </button>
+              </div>
+            </div>
+
+            {showPref && (
+              <div className="mt-2 p-3 rounded-lg bg-white/[0.03]">
+                <div className="text-[12px] text-white/70 mb-2">Choose default translator</div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setTranslatorPriority("pons"); setShowPref(false); }}
+                    className={clsx(
+                      "flex-1 py-1 rounded-md transition-all tracking-wide uppercase text-[12px] font-semibold",
+                      translatorPriority === "pons"
+                        ? "bg-blue-500/25 text-blue-300"
+                        : "text-white/30 hover:text-white/55"
+                    )}
+                  >
+                    PONS
+                  </button>
+                  <button
+                    onClick={() => { setTranslatorPriority("libretranslate"); setShowPref(false); }}
+                    className={clsx(
+                      "flex-1 py-1 rounded-md transition-all tracking-wide uppercase text-[12px] font-semibold",
+                      translatorPriority === "libretranslate"
+                        ? "bg-blue-500/25 text-blue-300"
+                        : "text-white/30 hover:text-white/55"
+                    )}
+                  >
+                    LibreTranslate
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Body — independent scroll */}

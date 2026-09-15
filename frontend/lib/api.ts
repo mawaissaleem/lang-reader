@@ -3,16 +3,21 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 
-export async function lookupWord(word: string, userId: number): Promise<WordLookupResponse> {
-  const response = await fetch(
-    `${API_BASE_URL}/word/${encodeURIComponent(word)}?user_id=${userId}`,
-    {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    }
-  );
+export async function lookupWord(
+  word: string,
+  userId: number,
+  priority?: string,
+  force?: boolean,
+): Promise<WordLookupResponse> {
+  let url = `${API_BASE_URL}/word/${encodeURIComponent(word)}?user_id=${userId}`;
+  if (priority) url += `&priority=${encodeURIComponent(priority)}`;
+  if (force) url += `&force=true`;
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
 
   if (!response.ok) {
     const error = await response.json();

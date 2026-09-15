@@ -14,9 +14,10 @@ const useStore = create<StoreState>((set, get) => ({
       set({ selectedWord: null, sidePanelOpen: false, wordResult: null, wordError: null, wordSaved: false });
       return;
     }
+    const { translatorPriority } = get();
     set({ selectedWord: w, sidePanelOpen: true, wordResult: null, wordError: null, wordLoading: true, wordSaved: false });
     try {
-      const data = await lookupWord(w, USER_ID);
+      const data = await lookupWord(w, USER_ID, translatorPriority);
       set({ wordResult: data, wordLoading: false });
     } catch (err: any) {
       set({ wordError: err.message, wordLoading: false });
@@ -53,6 +54,26 @@ const useStore = create<StoreState>((set, get) => ({
   loadUserWords: async (userId: number) => {
     const words = await fetchUserWords(userId);
     set({ knownWords: new Set(words.map((w) => w.word.toLowerCase())) });
+  },
+  translatorPriority: (typeof window !== "undefined"
+    ? (localStorage.getItem("translatorPriority") as "pons" | "libretranslate") ?? "pons"
+    : "pons"),
+  setTranslatorPriority: async (priority) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("translatorPriority", priority);
+    }
+    set({ translatorPriority: priority });
+    // Re-lookup current word with the new priority (force=true to bypass cache)
+    const { selectedWord } = get();
+    if (selectedWord) {
+      set({ wordResult: null, wordError: null, wordLoading: true, wordSaved: false });
+      try {
+        const data = await lookupWord(selectedWord, USER_ID, priority, true);
+        set({ wordResult: data, wordLoading: false });
+      } catch (err: any) {
+        set({ wordError: err.message, wordLoading: false });
+      }
+    }
   },
 }));
 

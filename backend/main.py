@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends  # ← added Depends
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List, Dict, Any, Tuple
 from youtube_transcript_api import TranscriptsDisabled
 from sqlalchemy.orm import Session
 import os
@@ -49,6 +49,9 @@ load_dotenv()
 
 PONS_API_KEY = os.getenv("PONS_API_KEY")
 LIBRETRANSLATE_URL = os.getenv("LIBRETRANSLATE_URL", "http://localhost:5000")
+DEFAULT_TRANSLATION_PRIORITY = os.getenv(
+    "DEFAULT_TRANSLATION_PRIORITY", "pons,libretranslate"
+)
 
 router = APIRouter()
 
@@ -237,59 +240,88 @@ def strip_html(text: str) -> str:
     return re.sub(r"<[^>]+>", "", text).strip()
 
 
+def get_translator_providers():
+    return {
+        "pons": lambda word: method1_pons(word, PONS_API_KEY),
+        "libretranslate": lambda word: method2_libretranslate(word, LIBRETRANSLATE_URL),
+    }
+
+
+def parse_priority(priority_str: Optional[str]) -> List[str]:
+    raw = priority_str or DEFAULT_TRANSLATION_PRIORITY or "pons,libretranslate"
+    providers = [p.strip().lower() for p in raw.split(",") if p.strip()]
+    valid = ["pons", "libretranslate"]
+    result = [p for p in providers if p in valid]
+    for v in valid:
+        if v not in result:
+            result.append(v)
+    return result
+
+
+async def execute_translation_pipeline(
+    word: str, priority_order: List[str]
+) -> Tuple[Optional[Dict[str, Any]], Dict[str, str]]:
+    providers = get_translator_providers()
+    errors = {}
+    for provider_name in priority_order:
+        provider_func = providers.get(provider_name)
+        if not provider_func:
+            continue
+        res = await provider_func(word)
+        if res.get("success"):
+            return res, errors
+        err = res.get("error", f"{provider_name} failed")
+        errors[provider_name] = err
+        print(f"[{provider_name} failed] {err} — trying next in priority list")
+    return None, errors
+
+
 @app.get("/dictionary/{word}")
-async def get_word_meaning(word: str):
+async def get_word_meaning(word: str, priority: Optional[str] = None):
     word = word.strip().lower()
+    priority_order = parse_priority(priority)
 
-    # ── Try Method 1: PONS ──
-    pons_res = await method1_pons(word, PONS_API_KEY)
-    if pons_res.get("success"):
+    translation_result, errors = await execute_translation_pipeline(
+        word, priority_order
+    )
+    if translation_result:
         return {
             "success": True,
             "word": word,
-            "source": "pons",
+            "source": translation_result["source"],
             "translations": [
-                {"german": word, "english": t} for t in pons_res["translations"]
+                {"german": word, "english": t}
+                for t in translation_result["translations"]
             ],
-            "word_class": pons_res.get("word_class"),
+            "word_class": translation_result.get("word_class"),
         }
 
-    pons_err = pons_res.get("error", "Unknown PONS error")
-    print(f"[Method 1 PONS failed] {pons_err} — falling back to LibreTranslate")
-
-    # ── Fallback: Method 2: LibreTranslate ──
-    lt_res = await method2_libretranslate(word, LIBRETRANSLATE_URL)
-    if lt_res.get("success"):
-        return {
-            "success": True,
-            "word": word,
-            "source": "libretranslate",
-            "translations": [
-                {"german": word, "english": t} for t in lt_res["translations"]
-            ],
-            "word_class": None,
-        }
-
-    lt_err = lt_res.get("error", "Unknown LibreTranslate error")
-    print(f"[Method 2 LibreTranslate failed] {lt_err}")
+    err_details = ". ".join(f"{p.upper()}: {msg}" for p, msg in errors.items())
     return {
         "success": False,
         "word": word,
-        "message": f"Both translation methods failed. PONS: {pons_err}. LibreTranslate: {lt_err}",
+        "message": f"All translation methods failed. {err_details}",
     }
 
 
 # ─────────────────────────────────────────
-# Word Lookup: Cache → PONS → LibreTranslate → UserWord
+# Word Lookup: Cache → Priority Translation Pipeline → UserWord
 # ─────────────────────────────────────────
 @app.get("/word/{word}")
-async def lookup_word(word: str, user_id: int, db: Session = Depends(get_db)):
+async def lookup_word(
+    word: str,
+    user_id: int,
+    priority: Optional[str] = None,
+    force: bool = False,
+    db: Session = Depends(get_db),
+):
     word = word.strip().lower()
     now = datetime.now(timezone.utc)
+    priority_order = parse_priority(priority)
 
-    # ── Step 1: Check Dictionary cache ──────────────────────────
+    # ── Step 1: Check Dictionary cache (unless force=True) ──────
     cached = db.query(Dictionary).filter(Dictionary.german_word == word).first()
-    if cached:
+    if cached and not force:
         cached.lookup_count += 1
         cached.last_lookup_at = now
         db.commit()
@@ -305,52 +337,51 @@ async def lookup_word(word: str, user_id: int, db: Session = Depends(get_db)):
             "word_class": cached.word_class,
         }
 
-    # ── Step 2: Try Method 1 (PONS) ─────────────────────────────
-    translation_result = None
-    pons_res = await method1_pons(word, PONS_API_KEY)
-
-    if pons_res.get("success"):
-        translation_result = pons_res
-    else:
-        pons_err = pons_res.get("error", "Unknown PONS error")
-        print(f"[Method 1 PONS failed] {pons_err} — falling back to LibreTranslate")
-
-    # ── Step 3: Fallback: Method 2 (LibreTranslate) ─────────────
-    if translation_result is None:
-        lt_res = await method2_libretranslate(word, LIBRETRANSLATE_URL)
-        if lt_res.get("success"):
-            translation_result = lt_res
-        else:
-            lt_err = lt_res.get("error", "Unknown LibreTranslate error")
-            print(f"[Method 2 LibreTranslate failed] {lt_err}")
-            raise HTTPException(
-                status_code=404,
-                detail=f"Both translation methods failed. PONS: {pons_err}. LibreTranslate: {lt_err}",
-            )
-
-    # ── Step 4: Save to Dictionary Cache ────────────────────────
-    new_entry = Dictionary(
-        german_word=word,
-        english_meanings=translation_result["translations"],
-        word_class=translation_result.get("word_class"),
-        source=translation_result["source"],
-        raw_response=translation_result.get("raw_response"),
-        lookup_count=1,
-        last_lookup_at=now,
+    # ── Step 2: Execute priority translation pipeline ───────────
+    translation_result, errors = await execute_translation_pipeline(
+        word, priority_order
     )
-    db.add(new_entry)
-    db.commit()
-    db.refresh(new_entry)
+    if not translation_result:
+        err_details = ". ".join(f"{p.upper()}: {msg}" for p, msg in errors.items())
+        raise HTTPException(
+            status_code=404,
+            detail=f"All translation methods failed for '{word}'. {err_details}",
+        )
 
-    # ── Step 5: Save to UserWord ─────────────────────────────────
-    _ensure_user_word(db, user_id, new_entry.id, now)
+    # ── Step 3: Save or Update Dictionary Cache ─────────────────
+    if cached:
+        cached.english_meanings = translation_result["translations"]
+        cached.word_class = translation_result.get("word_class")
+        cached.source = translation_result["source"]
+        cached.raw_response = translation_result.get("raw_response")
+        cached.last_lookup_at = now
+        db.commit()
+        db.refresh(cached)
+        entry = cached
+    else:
+        new_entry = Dictionary(
+            german_word=word,
+            english_meanings=translation_result["translations"],
+            word_class=translation_result.get("word_class"),
+            source=translation_result["source"],
+            raw_response=translation_result.get("raw_response"),
+            lookup_count=1,
+            last_lookup_at=now,
+        )
+        db.add(new_entry)
+        db.commit()
+        db.refresh(new_entry)
+        entry = new_entry
+
+    # ── Step 4: Save to UserWord ─────────────────────────────────
+    _ensure_user_word(db, user_id, entry.id, now)
 
     return {
-        "id": new_entry.id,
+        "id": entry.id,
         "source": translation_result["source"],
-        "word": new_entry.german_word,
-        "english_meanings": new_entry.english_meanings,
-        "word_class": new_entry.word_class,
+        "word": entry.german_word,
+        "english_meanings": entry.english_meanings,
+        "word_class": entry.word_class,
     }
 
 

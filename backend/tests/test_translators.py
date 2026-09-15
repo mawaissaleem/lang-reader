@@ -185,6 +185,100 @@ class TestLookupWordFallback(unittest.IsolatedAsyncioTestCase):
                 res["translations"], [{"german": "hallo", "english": "hello"}]
             )
 
+    async def test_priority_libretranslate_first_skips_pons_on_success(self):
+        # LibreTranslate succeeds and PONS should not be called
+        mock_lt = {
+            "success": True,
+            "word": "kaffee",
+            "translations": ["coffee"],
+            "word_class": None,
+            "source": "libretranslate",
+            "raw_response": {"translatedText": "coffee"},
+        }
+
+        with patch("main.method1_pons", new_callable=AsyncMock) as mock_p, patch(
+            "main.method2_libretranslate", new_callable=AsyncMock
+        ) as mock_l:
+            mock_p.return_value = {
+                "success": False,
+                "status_code": 204,
+                "error": "Not found",
+            }
+            mock_l.return_value = mock_lt
+
+            res = await lookup_word(
+                "kaffee", user_id=1, priority="libretranslate,pons", db=self.db
+            )
+            self.assertEqual(res["source"], "libretranslate")
+            mock_l.assert_awaited()
+            mock_p.assert_not_awaited()
+
+    async def test_priority_libretranslate_first_falls_back_to_pons(self):
+        # LibreTranslate fails, PONS should be used as fallback
+        mock_lt = {"success": False, "status_code": None, "error": "Unreachable"}
+        mock_p = {
+            "success": True,
+            "word": "kaffee",
+            "translations": ["coffee"],
+            "word_class": None,
+            "source": "pons",
+            "raw_response": {"hits": []},
+        }
+
+        with patch("main.method1_pons", new_callable=AsyncMock) as mock_p_func, patch(
+            "main.method2_libretranslate", new_callable=AsyncMock
+        ) as mock_l_func:
+            mock_p_func.return_value = mock_p
+            mock_l_func.return_value = mock_lt
+
+            res = await lookup_word(
+                "kaffee", user_id=1, priority="libretranslate,pons", db=self.db
+            )
+            self.assertEqual(res["source"], "pons")
+            mock_l_func.assert_awaited()
+            mock_p_func.assert_awaited()
+
+    async def test_force_true_requeries_and_updates_cache(self):
+        # First: PONS returns success and caches source as 'pons'
+        mock_p_initial = {
+            "success": True,
+            "word": "tee",
+            "translations": ["tea"],
+            "word_class": None,
+            "source": "pons",
+            "raw_response": {"hits": []},
+        }
+        mock_lt_updated = {
+            "success": True,
+            "word": "tee",
+            "translations": ["tea (lt)"],
+            "word_class": None,
+            "source": "libretranslate",
+            "raw_response": {"translatedText": "tea (lt)"},
+        }
+
+        with patch("main.method1_pons", new_callable=AsyncMock) as mock_p_func, patch(
+            "main.method2_libretranslate", new_callable=AsyncMock
+        ) as mock_l_func:
+            mock_p_func.return_value = mock_p_initial
+            mock_l_func.return_value = mock_lt_updated
+
+            # Initial lookup uses PONS and caches it
+            res1 = await lookup_word(
+                "tee", user_id=1, priority="pons,libretranslate", db=self.db
+            )
+            self.assertEqual(res1["source"], "pons")
+
+            # Now force a re-lookup with LibreTranslate first and force=True
+            res2 = await lookup_word(
+                "tee", user_id=1, priority="libretranslate,pons", force=True, db=self.db
+            )
+            # Should update cache source to libretranslate
+            self.assertEqual(res2["source"], "libretranslate")
+            saved = self.db.query(Dictionary).filter_by(german_word="tee").first()
+            self.assertIsNotNone(saved)
+            self.assertEqual(saved.source, "libretranslate")
+
 
 if __name__ == "__main__":
     unittest.main()

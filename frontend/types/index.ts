@@ -28,4 +28,6 @@ export interface StoreState {
   setSidePanelOpen: (open: boolean) => void;
   knownWords: Set<string>;
   loadUserWords: (userId: number) => Promise<void>;
+  translatorPriority: "pons" | "libretranslate";
+  setTranslatorPriority: (priority: "pons" | "libretranslate") => void;
 }
