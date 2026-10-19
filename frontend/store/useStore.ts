@@ -11,11 +11,11 @@ const useStore = create<StoreState>((set, get) => ({
   selectedWord: null,
   setSelectedWord: async (w) => {
     if (!w) {
-      set({ selectedWord: null, sidePanelOpen: false, wordResult: null, wordError: null, wordSaved: false });
+      set({ selectedWord: null, sidePanelOpen: false, wordResult: null, wordError: null, wordSaved: false, saveError: null });
       return;
     }
     const { translatorPriority } = get();
-    set({ selectedWord: w, sidePanelOpen: true, wordResult: null, wordError: null, wordLoading: true, wordSaved: false });
+    set({ selectedWord: w, sidePanelOpen: true, wordResult: null, wordError: null, wordLoading: true, wordSaved: false, saveError: null });
     try {
       const data = await lookupWord(w, USER_ID, translatorPriority);
       set({ wordResult: data, wordLoading: false });
@@ -28,22 +28,21 @@ const useStore = create<StoreState>((set, get) => ({
   wordError: null,
   wordSaved: false,
   wordSaving: false,
+  saveError: null,
   saveSelectedWord: async () => {
     const { wordResult } = get();
     if (!wordResult?.id) return;
-    set({ wordSaving: true });
+    set({ wordSaving: true, saveError: null });
     try {
-      const res = await saveWord(wordResult.id, USER_ID);
-      if (res.already_saved || !res.already_saved) {
-        // either way, mark as saved and add to knownWords
-        set((state) => ({
-          wordSaved: true,
-          wordSaving: false,
-          knownWords: new Set([...state.knownWords, wordResult.word.toLowerCase()]),
-        }));
-      }
+      await saveWord(wordResult.id, USER_ID);
+      // already_saved or not, the word is now known
+      set((state) => ({
+        wordSaved: true,
+        wordSaving: false,
+        knownWords: new Set([...state.knownWords, wordResult.word.toLowerCase()]),
+      }));
     } catch (err: any) {
-      set({ wordSaving: false });
+      set({ wordSaving: false, saveError: err.message });
     }
   },
   highlightMode: "underline",
@@ -66,7 +65,7 @@ const useStore = create<StoreState>((set, get) => ({
     // Re-lookup current word with the new priority (force=true to bypass cache)
     const { selectedWord } = get();
     if (selectedWord) {
-      set({ wordResult: null, wordError: null, wordLoading: true, wordSaved: false });
+      set({ wordResult: null, wordError: null, wordLoading: true, wordSaved: false, saveError: null });
       try {
         const data = await lookupWord(selectedWord, USER_ID, priority, true);
         set({ wordResult: data, wordLoading: false });

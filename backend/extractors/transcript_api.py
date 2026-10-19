@@ -49,11 +49,11 @@ def method1_youtube_transcript_api(url: str) -> dict:
 
     fetched = transcript.fetch()
 
-    # Get title and use it for filename
+    # filename is the video id: titles collide and the title lookup can fail
     title = sanitize_filename(get_video_title(url))
     output_dir = "subtitles"
     os.makedirs(output_dir, exist_ok=True)
-    output_file = os.path.join(output_dir, f"{title}.de.vtt")
+    output_file = os.path.join(output_dir, f"{video_id}.de.vtt")
 
     with open(output_file, "w", encoding="utf-8") as f:
         f.write("WEBVTT\n\n")

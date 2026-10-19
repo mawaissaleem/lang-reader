@@ -159,7 +159,7 @@ class TestLookupWordFallback(unittest.IsolatedAsyncioTestCase):
                 await lookup_word("unknownxyz", user_id=1, db=self.db)
 
             self.assertEqual(ctx.exception.status_code, 404)
-            self.assertIn("Both translation methods failed", ctx.exception.detail)
+            self.assertIn("All translation methods failed", ctx.exception.detail)
 
     async def test_get_word_meaning_fallback(self):
         mock_pons = {"success": False, "status_code": 429, "error": "PONS limit"}

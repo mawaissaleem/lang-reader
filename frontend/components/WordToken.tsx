@@ -2,6 +2,7 @@
 import useStore from "@/store/useStore";
 import { HighlightMode } from "@/types";
 import clsx from "clsx";
+import { cleanWord } from "@/lib/words";
 
 interface Props {
   word: string;
@@ -10,7 +11,7 @@ interface Props {
 
 export default function WordToken({ word, highlightMode }: Props) {
   const { setSelectedWord, selectedWord, knownWords } = useStore();
-  const clean = word.replace(/[.,!?;:"'()]/g, "");
+  const clean = cleanWord(word);
   const known = knownWords.has(clean.toLowerCase());
   const isSelected = selectedWord?.toLowerCase() === clean.toLowerCase();
 

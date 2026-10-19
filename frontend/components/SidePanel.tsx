@@ -8,7 +8,7 @@ import React from "react";
 export default function SidePanel() {
   const {
     selectedWord, sidePanelOpen, setSidePanelOpen, setSelectedWord,
-    wordResult, wordLoading, wordError, wordSaved, wordSaving, saveSelectedWord,
+    wordResult, wordLoading, wordError, wordSaved, wordSaving, saveError, saveSelectedWord,
     translatorPriority, setTranslatorPriority,
   } = useStore();
 
@@ -160,6 +160,7 @@ export default function SidePanel() {
 
           {/* Save button — pinned to bottom */}
           <div className="px-5 py-4 border-t border-white/[0.07] flex-shrink-0">
+            {saveError && <p className="text-[12px] text-orange-400 m-0 mb-2">{saveError}</p>}
             <button
               onClick={saveSelectedWord}
               disabled={wordSaving || wordSaved}

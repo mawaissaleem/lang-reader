@@ -20,7 +20,7 @@ export async function lookupWord(
   });
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await response.json().catch(() => ({}));
     throw new Error(error.detail || `Request failed with status ${response.status}`);
   }
 
@@ -50,7 +50,7 @@ export async function saveWord(wordId: number, userId: number): Promise<{ messag
     { method: "POST" }
   );
   if (!response.ok) {
-    const error = await response.json();
+    const error = await response.json().catch(() => ({}));
     throw new Error(error.detail || `Request failed with status ${response.status}`);
   }
   return response.json();
@@ -112,12 +112,8 @@ export async function importFromYouTube(url: string, title?: string): Promise<an
   });
 
   if (!response.ok) {
-    try {
-      const err = await response.json();
-      throw new Error(err.detail || `Request failed with status ${response.status}`);
-    } catch (e) {
-      throw new Error(`Request failed with status ${response.status}`);
-    }
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || `Request failed with status ${response.status}`);
   }
 
   return response.json();

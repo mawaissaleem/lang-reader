@@ -19,14 +19,15 @@ def method2_yt_dlp(url: str) -> dict:
     available_auto_captions = info.get("automatic_captions", {})
     video_title = info.get("title", "Unknown Title")
 
-    german_keys = [
-        key
-        for key in list(available_subtitles.keys())
-        + list(available_auto_captions.keys())
-        if key.startswith("de")
-    ]
+    # manual subs beat auto captions; exact "de" beats variants like de-DE
+    lang = None
+    for pool in (available_subtitles, available_auto_captions):
+        keys = sorted((k for k in pool if k.startswith("de")), key=lambda k: k != "de")
+        if keys:
+            lang = keys[0]
+            break
 
-    if not german_keys:
+    if not lang:
         return {
             "status": "not_found",
             "message": "German subtitles not found for this video.",
@@ -44,31 +45,39 @@ def method2_yt_dlp(url: str) -> dict:
         "skip_download": True,
         "writesubtitles": True,
         "writeautomaticsub": True,
-        "subtitleslangs": ["de"],
+        "subtitleslangs": [lang],
         "subtitlesformat": "vtt",
-        "outtmpl": f"{output_dir}/%(title)s.%(ext)s",
+        "outtmpl": f"{output_dir}/%(id)s.%(ext)s",
         "quiet": True,
         "cookiesfrombrowser": ("firefox",),
         "extractor_args": {"youtube": {"js_runtimes": ["node:/usr/bin/node"]}},
     }
 
     with yt_dlp.YoutubeDL(ydl_opts_download) as ydl:
-        ydl.download([url])
+        result = ydl.extract_info(url, download=True)
 
-    vtt_files = [
-        os.path.join(output_dir, f)
-        for f in os.listdir(output_dir)
-        if f.endswith(".vtt")
-    ]
-    latest_vtt = max(vtt_files, key=os.path.getmtime) if vtt_files else None
+    # use yt-dlp's own reported path, never scan the folder (stale files)
+    vtt_path = ((result.get("requested_subtitles") or {}).get(lang) or {}).get(
+        "filepath"
+    )
+    if not vtt_path or not os.path.isfile(vtt_path):
+        return {
+            "status": "not_found",
+            "message": "German subtitles could not be downloaded.",
+            "video_title": video_title,
+            "available_languages": list(available_subtitles.keys())
+            or list(available_auto_captions.keys()),
+            "method_used": "yt_dlp",
+            "vtt_path": None,
+        }
 
     return {
         "status": "success",
         "message": "German subtitles downloaded successfully.",
         "video_title": video_title,
-        "subtitle_type": "manual" if "de" in available_subtitles else "auto-generated",
-        "downloaded_files": [os.path.basename(p) for p in vtt_files],
+        "subtitle_type": "manual" if lang in available_subtitles else "auto-generated",
+        "downloaded_files": [os.path.basename(vtt_path)],
         "output_directory": os.path.abspath(output_dir),
         "method_used": "yt_dlp",
-        "vtt_path": os.path.abspath(latest_vtt) if latest_vtt else None,
+        "vtt_path": os.path.abspath(vtt_path),
     }

@@ -2,15 +2,15 @@
 import { useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
-import { importFromYouTube, fetchLibrary } from "@/lib/api";
+import { importFromYouTube, fetchLibrary, type LibraryEntry } from "@/lib/api";
 
 interface Props {
   triggerLabel?: string;
   triggerClassName?: string;
-  onImported?: (latest: any[]) => void;
+  onImported?: (latest: LibraryEntry[]) => void;
 }
 
-function normalizeYouTubeUrl(value: string) {
+export function normalizeYouTubeUrl(value: string) {
   const trimmed = value.trim();
   if (!trimmed) return "";
 
@@ -48,41 +48,14 @@ export default function ImportYouTubeDialog({ triggerLabel = "Import from YouTub
     setLoading(true);
     setError(null);
     try {
-      const currentLibrary = await fetchLibrary();
-      const existing = currentLibrary.find((entry: any) =>
-        normalizeYouTubeUrl(entry.url) === normalizedUrl
-      );
-
-      if (existing) {
-        setError(`This video already exists in your library: ${existing.title || "Untitled"}`);
-        return;
-      }
-
-      await importFromYouTube(normalizedUrl, title?.trim() || undefined);
-
-      // Poll library for the new entry
-      let attempts = 0;
-      let found = false;
-      while (attempts < 8 && !found) {
-        await new Promise((r) => setTimeout(r, 1000));
-        const latest = await fetchLibrary();
-        if (latest.some((e: any) => e.url === url.trim())) {
-          found = true;
-          onImported?.(latest);
-          break;
-        }
-        attempts++;
-      }
-
-      // Final refresh
-      const final = await fetchLibrary();
-      onImported?.(final);
+      await importFromYouTube(normalizedUrl, title.trim());
+      onImported?.(await fetchLibrary());
 
       setOpen(false);
       setUrl("");
       setTitle("");
-    } catch (e: any) {
-      setError(e?.message || String(e));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }

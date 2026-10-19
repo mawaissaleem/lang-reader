@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends  # ← added Depends
+from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any, Tuple
 from youtube_transcript_api import TranscriptsDisabled
@@ -59,84 +59,11 @@ import re
 
 
 # ─────────────────────────────────────────
-# Background Task  ← now accepts db + metadata
-# ─────────────────────────────────────────
-def clean_and_save_subtitle(
-    vtt_path: str,
-    url: str,
-    title: str,
-    extraction_method: str,
-):
-    try:
-        filename = os.path.basename(vtt_path)
-        stem = os.path.splitext(filename)[0]
-        output_dir = "cleaned_subtitles"
-        os.makedirs(output_dir, exist_ok=True)
-        output_path = os.path.join(output_dir, f"{stem}.txt")
-
-        cleaned_text = extract_subtitles(vtt_path)
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(cleaned_text)
-
-        print(f"[BackgroundTask] Cleaned subtitles saved → {output_path}")
-
-        # ── Save to DB ────────────────────────────────────────
-        db = SessionLocal()
-        try:
-            normalized_url = extract_video_id(url)
-            normalized_url = f"https://www.youtube.com/watch?v={normalized_url}"
-
-            video = db.query(Video).filter(Video.url == normalized_url).first()
-            if not video:
-                video = Video(
-                    url=normalized_url, title=title.strip() if title else None
-                )
-                db.add(video)
-                db.commit()
-                db.refresh(video)
-            else:
-                # Never overwrite an existing video title with a later duplicate import.
-                if not video.title and title and title.strip():
-                    video.title = title.strip()
-                    db.add(video)
-                    db.commit()
-                    db.refresh(video)
-
-                # Prevent duplicate subtitle rows for the same YouTube video.
-                existing_subtitle = (
-                    db.query(Subtitle).filter(Subtitle.video_id == video.id).first()
-                )
-                if existing_subtitle:
-                    print(
-                        f"[BackgroundTask] Skipping duplicate subtitle for existing video_id={video.id}"
-                    )
-                    return
-
-            subtitle = Subtitle(
-                video_id=video.id,
-                extraction_method=extraction_method,
-                vtt_path=vtt_path,
-                txt_path=output_path,
-                language="de",
-            )
-            db.add(subtitle)
-            db.commit()
-            print(f"[BackgroundTask] Saved to DB → video_id={video.id}")
-        finally:
-            db.close()
-        # ────────────────────────────────────────────────────────
-
-    except Exception as e:
-        print(f"[BackgroundTask] Failed: {type(e).__name__}: {e}")
-
-
-# ─────────────────────────────────────────
 # Routes
 # ─────────────────────────────────────────
 @app.post("/subtitles/german")
 def get_german_subtitles(
     request: VideoRequest,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
     url = request.url
@@ -169,7 +96,9 @@ def get_german_subtitles(
         print(f"[Method 1 failed] {type(e).__name__}: {e} — falling back to yt_dlp")
 
     # ── Fallback: Method 2 ──
-    if result is None:
+    if result is None or result.get("status") != "success":
+        # method 1 may return status "not_found" instead of raising
+        languages = (result or {}).get("available_languages")
         extraction_method = "yt_dlp"
         try:
             result = method2_yt_dlp(url)
@@ -178,21 +107,57 @@ def get_german_subtitles(
                 status_code=500,
                 detail=f"Both methods failed. Last error (yt_dlp): {str(e)}",
             )
+        if result.get("status") != "success":
+            languages = languages or result.get("available_languages")
+            detail = "No German subtitles found for this video."
+            if languages:
+                codes = [l["code"] if isinstance(l, dict) else l for l in languages]
+                detail += f" Available languages: {', '.join(codes)}"
+            raise HTTPException(status_code=404, detail=detail)
 
-    # ── Schedule cleaning + DB save in background ──
-    vtt_path = result.pop("vtt_path", None)
-    # Prefer user-provided title, fallback to extractor title, then Unknown
+    # ── Clean + save inside the request so the entry exists when we return ──
+    vtt_path = result.get("vtt_path")
     final_title = request.title or result.get("title") or "Unknown"
-    if vtt_path and result.get("status") == "success":
-        background_tasks.add_task(
-            clean_and_save_subtitle,
-            vtt_path,
-            normalized_url,
-            final_title,
-            extraction_method,
+    try:
+        stem = os.path.splitext(os.path.basename(vtt_path))[0]
+        os.makedirs("cleaned_subtitles", exist_ok=True)
+        txt_path = os.path.join("cleaned_subtitles", f"{stem}.txt")
+        cleaned_text = extract_subtitles(vtt_path)
+        with open(txt_path, "w", encoding="utf-8") as f:
+            f.write(cleaned_text)
+
+        video = Video(url=normalized_url, title=final_title.strip())
+        db.add(video)
+        db.flush()
+        subtitle = Subtitle(
+            video_id=video.id,
+            extraction_method=extraction_method,
+            vtt_path=vtt_path,
+            txt_path=txt_path,
+            language="de",
+        )
+        db.add(subtitle)
+        db.commit()
+        db.refresh(subtitle)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to process subtitles: {type(e).__name__}: {e}",
         )
 
-    return result
+    return {
+        "id": subtitle.id,
+        "video_id": video.id,
+        "type": "video",
+        "source": "youtube",
+        "title": video.title,
+        "url": video.url,
+        "language": subtitle.language,
+        "extraction_method": subtitle.extraction_method,
+        "word_count": len(cleaned_text.split()),
+        "created_at": subtitle.created_at,
+    }
 
 
 @app.get("/")
@@ -310,7 +275,7 @@ async def get_word_meaning(word: str, priority: Optional[str] = None):
 @app.get("/word/{word}")
 async def lookup_word(
     word: str,
-    user_id: int,
+    user_id: int,  # unused: lookup never saves; kept for client compat
     priority: Optional[str] = None,
     force: bool = False,
     db: Session = Depends(get_db),
@@ -326,8 +291,6 @@ async def lookup_word(
         cached.last_lookup_at = now
         db.commit()
         db.refresh(cached)
-
-        _ensure_user_word(db, user_id, cached.id, now)
 
         return {
             "id": cached.id,
@@ -373,9 +336,6 @@ async def lookup_word(
         db.refresh(new_entry)
         entry = new_entry
 
-    # ── Step 4: Save to UserWord ─────────────────────────────────
-    _ensure_user_word(db, user_id, entry.id, now)
-
     return {
         "id": entry.id,
         "source": translation_result["source"],
@@ -383,21 +343,6 @@ async def lookup_word(
         "english_meanings": entry.english_meanings,
         "word_class": entry.word_class,
     }
-
-
-def _ensure_user_word(db: Session, user_id: int, word_id: int, now: datetime):
-    """Create UserWord entry if it doesn't exist, else bump review count."""
-    existing = (
-        db.query(UserWord)
-        .filter(UserWord.user_id == user_id, UserWord.word_id == word_id)
-        .first()
-    )
-    if existing:
-        existing.review_count += 1
-        existing.last_reviewed_at = now
-    else:
-        db.add(UserWord(user_id=user_id, word_id=word_id, last_reviewed_at=now))
-    db.commit()
 
 
 @app.get("/user/{user_id}/words")

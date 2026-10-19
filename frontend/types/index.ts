@@ -21,6 +21,7 @@ export interface StoreState {
   wordError: string | null;
   wordSaved: boolean;
   wordSaving: boolean;
+  saveError: string | null;
   saveSelectedWord: () => Promise<void>;
   highlightMode: HighlightMode;
   setHighlightMode: (m: HighlightMode) => void;
