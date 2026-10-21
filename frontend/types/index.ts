@@ -14,6 +14,11 @@ export interface StoreState {
   wordSaved: boolean;
   wordSaving: boolean;
   saveError: string | null;
+  activeSource: string | null;
+  setActiveSource: (source: string) => void;
+  sourceLoading: boolean;
+  sourceError: string | null;
+  lookupSource: (source: string) => Promise<void>;
   saveSelectedWord: () => Promise<void>;
   highlightMode: HighlightMode;
   setHighlightMode: (m: HighlightMode) => void;

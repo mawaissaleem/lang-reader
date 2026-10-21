@@ -2,6 +2,7 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import useStore from "@/store/useStore";
+import { createText, type LibraryEntry } from "@/lib/api";
 import { Plus, X } from "lucide-react";
 
 interface AddTextDialogProps {
@@ -9,7 +10,7 @@ interface AddTextDialogProps {
   triggerStyle?: CSSProperties;
   triggerClassName?: string;
   triggerIcon?: ReactNode;
-  onLoadText?: (text: string, title?: string) => void;
+  onLoadText?: (entry: LibraryEntry) => void;
 }
 
 export default function AddTextDialog({
@@ -23,15 +24,24 @@ export default function AddTextDialog({
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [input, setInput] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function handleSubmit() {
-    if (input.trim()) {
-      const trimmedTitle = title.trim() || undefined;
-      setText(input.trim(), trimmedTitle);
-      onLoadText?.(input.trim(), trimmedTitle);
+  async function handleSubmit() {
+    if (!input.trim() || saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const entry = await createText(title.trim(), input.trim());
+      setText(input.trim(), entry.title);
+      onLoadText?.(entry);
       setOpen(false);
       setTitle("");
       setInput("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save text");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -87,6 +97,8 @@ export default function AddTextDialog({
             />
           </div>
 
+          {error && <p className="text-sm text-red-400">{error}</p>}
+
           <div className="flex justify-end gap-3">
             <Dialog.Close asChild>
               <button className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/5">
@@ -95,10 +107,10 @@ export default function AddTextDialog({
             </Dialog.Close>
             <button
               onClick={handleSubmit}
-              disabled={!input.trim()}
+              disabled={!input.trim() || saving}
               className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Load Text
+              {saving ? "Saving…" : "Load Text"}
             </button>
           </div>
         </Dialog.Content>

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { fetchLibrary, fetchSubtitleText, renameVideo, LibraryEntry as Entry } from "@/lib/api";
+import { fetchLibrary, fetchEntryText, renameEntry, entryKey, LibraryEntry as Entry } from "@/lib/api";
 import AddTextDialog from "@/components/AddTextDialog";
 import ImportYouTubeDialog from "@/components/ImportYouTubeDialog";
 import TextDisplay from "@/components/TextDisplay";
@@ -52,7 +52,7 @@ function EntryCard({
 }: {
   entry: Entry;
   onClick: () => void;
-  onRename: (videoId: number, newTitle: string) => Promise<void>;
+  onRename: (entry: Entry, newTitle: string) => Promise<void>;
 }) {
   const isYT = entry.source === "youtube";
   const [editing, setEditing] = useState(false);
@@ -73,7 +73,7 @@ function EntryCard({
     }
     setSaving(true);
     try {
-      await onRename(entry.video_id, trimmed);
+      await onRename(entry, trimmed);
       setEditing(false);
     } catch (err) {
       console.error("Rename failed:", err);
@@ -297,7 +297,6 @@ function FilterPill({ label, active, onClick }: { label: string; active: boolean
 export default function LibraryPage() {
   const [filter, setFilter] = useState<"all" | "youtube" | "manual">("all");
   const [openEntry, setOpenEntry] = useState<Entry | null>(null);
-  const [manualReaderOpen, setManualReaderOpen] = useState(false);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -306,7 +305,6 @@ export default function LibraryPage() {
 
   const setText = useStore(s => s.setText);
   const text = useStore(s => s.text);
-  const title = useStore(s => s.title);
   const loadUserWords = useStore(s => s.loadUserWords);
   const loadTranslatorPriority = useStore(s => s.loadTranslatorPriority);
 
@@ -335,7 +333,7 @@ export default function LibraryPage() {
   useEffect(() => {
     if (!openEntry) return;
     setText("", undefined);
-    fetchSubtitleText(openEntry.id)
+    fetchEntryText(openEntry)
       .then(t => {
         setText(t, openEntry.title);
         setReaderLoading(false);
@@ -346,10 +344,10 @@ export default function LibraryPage() {
       });
   }, [openEntry, setText]);
 
-  const handleRename = async (videoId: number, newTitle: string) => {
-    const result = await renameVideo(videoId, newTitle);
+  const handleRename = async (entry: Entry, newTitle: string) => {
+    const result = await renameEntry(entry, newTitle);
     setEntries(prev =>
-      prev.map(e => (e.video_id === videoId ? { ...e, title: result.title } : e))
+      prev.map(e => (entryKey(e) === entryKey(entry) ? { ...e, title: result.title } : e))
     );
   };
 
@@ -358,17 +356,13 @@ export default function LibraryPage() {
   );
 
   // ── Reader view — identical layout to root page ──────────────────────────────
-  if (openEntry || manualReaderOpen) {
+  if (openEntry) {
     return (
       <div className="min-h-screen flex flex-col">
         {/* Header */}
         <header className="border-b border-white/[0.06] px-6 py-4 flex items-center gap-3 bg-[#0d0d0f]">
           <button
-            onClick={() => {
-              setOpenEntry(null);
-              setManualReaderOpen(false);
-              if (!openEntry) setText("", undefined);
-            }}
+            onClick={() => setOpenEntry(null)}
             className="flex items-center gap-2 text-sm text-white/40 hover:text-white/80 transition-colors"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -378,7 +372,7 @@ export default function LibraryPage() {
           </button>
           <span className="text-white/10">／</span>
           <span className="text-sm font-medium text-white/60 truncate max-w-md">
-            {openEntry ? openEntry.title : title || "Manual Text"}
+            {openEntry.title}
           </span>
         </header>
 
@@ -459,9 +453,10 @@ export default function LibraryPage() {
           <AddTextDialog
             triggerLabel="Add Text"
             triggerClassName="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-white/10"
-            onLoadText={() => {
-              setManualReaderOpen(true);
-              setOpenEntry(null);
+            onLoadText={entry => {
+              setReaderLoading(true);
+              setOpenEntry(entry);
+              fetchLibrary().then(setEntries).catch(err => console.error("Library refresh failed", err));
             }}
           />
         </div>
@@ -521,7 +516,7 @@ export default function LibraryPage() {
           )}
           {!loading && !error && filtered.map(entry => (
             <EntryCard
-              key={entry.id}
+              key={entryKey(entry)}
               entry={entry}
               onClick={() => { setReaderLoading(true); setOpenEntry(entry); }}
               onRename={handleRename}

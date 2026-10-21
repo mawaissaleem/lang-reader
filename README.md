@@ -57,7 +57,22 @@ LIBRETRANSLATE_URL=http://localhost:5000
 CORS_ORIGINS=http://localhost:3000
 ```
 
-### 4. Run the Backend API
+### 4. Database migrations
+
+Schema changes are managed with Alembic (`backend/migrations/`). Migrations run
+automatically when the API starts (an existing pre-Alembic `subtitles.db` is
+adopted by the baseline migration, so no data is lost). The DB is `backend/subtitles.db`
+unless `DATABASE_URL` is set.
+
+```bash
+cd backend
+alembic upgrade head                                   # apply manually
+alembic revision --autogenerate -m "describe change"   # after editing models.py
+```
+
+Review the generated file in `migrations/versions/` before committing it.
+
+### 5. Run the Backend API
 
 ```bash
 cd backend

@@ -5,14 +5,25 @@ import { X, BookOpen, HelpCircle, Loader2, Settings } from "lucide-react";
 import clsx from "clsx";
 import React from "react";
 
+const SOURCES = [
+  { id: "pons", label: "PONS" },
+  { id: "libretranslate", label: "LibreTranslate" },
+];
+
 export default function SidePanel() {
   const {
     selectedWord, sidePanelOpen, setSidePanelOpen, setSelectedWord,
     wordResult, wordLoading, wordError, wordSaved, wordSaving, saveError, saveSelectedWord,
     translatorPriority, setTranslatorPriority,
+    activeSource, setActiveSource, sourceLoading, sourceError, lookupSource,
   } = useStore();
 
   const [showPref, setShowPref] = React.useState(false);
+
+  // a source the backend returned but we don't know yet still gets a tab
+  const tabs = [...SOURCES, ...Object.keys(wordResult?.translations ?? {}).filter((id) => !SOURCES.some((s) => s.id === id)).map((id) => ({ id, label: id }))];
+  const active = activeSource ? wordResult?.translations[activeSource] : undefined;
+  const activeLabel = tabs.find((t) => t.id === activeSource)?.label;
 
   function handleClose() {
     setSidePanelOpen(false);
@@ -116,40 +127,69 @@ export default function SidePanel() {
                 {/* Word + class */}
                 <div>
                   <div className="flex items-baseline gap-2 mb-1.5">
-                    {wordResult.word_class && (
+                    {active?.word_class && (
                       <span className="text-[10px] font-bold tracking-widest uppercase text-blue-400">
-                        {wordResult.word_class}
+                        {active.word_class}
                       </span>
                     )}
                     <h2 className="text-[26px] font-bold text-white/90 m-0 leading-tight tracking-tight" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>
                       {wordResult.word}
                     </h2>
                   </div>
-                  <span className="inline-block text-[10px] font-semibold tracking-widest uppercase text-white/25 bg-white/5 px-2 py-0.5 rounded-full">
-                    {wordResult.source === "cache"
-                      ? "cached"
-                      : wordResult.source === "libretranslate"
-                      ? "LibreTranslate"
-                      : "PONS"}
-                  </span>
+                </div>
+
+                {/* One tab per source — switching never re-queries */}
+                <div role="tablist" className="flex gap-4 border-b border-white/[0.07]">
+                  {tabs.map((t) => (
+                    <button
+                      key={t.id}
+                      role="tab"
+                      aria-selected={activeSource === t.id}
+                      onClick={() => setActiveSource(t.id)}
+                      className={clsx(
+                        "pb-2 -mb-px text-[11px] font-semibold tracking-widest uppercase border-b-2 transition-colors",
+                        activeSource === t.id
+                          ? "border-blue-400 text-blue-300"
+                          : "border-transparent text-white/30 hover:text-white/55"
+                      )}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
                 </div>
 
                 {/* Meanings */}
-                <div className="bg-blue-500/[0.07] border border-blue-400/[0.15] rounded-xl p-4">
-                  <p className="text-[10px] font-bold tracking-widest uppercase text-blue-400 mb-2.5">
-                    English
-                  </p>
-                  <ul className="flex flex-col gap-1.5 m-0 p-0 list-none">
-                    {wordResult.english_meanings.map((meaning, i) => (
-                      <li key={i} className="flex gap-2 text-[13px] text-white/75 leading-relaxed">
-                        <span className="text-blue-400/50 tabular-nums flex-shrink-0">
-                          {i + 1}.
-                        </span>
-                        {meaning}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                {active ? (
+                  <div role="tabpanel" className="bg-blue-500/[0.07] border border-blue-400/[0.15] rounded-xl p-4">
+                    <p className="text-[10px] font-bold tracking-widest uppercase text-blue-400 mb-2.5">
+                      English
+                    </p>
+                    <ul className="flex flex-col gap-1.5 m-0 p-0 list-none">
+                      {active.meanings.map((meaning, i) => (
+                        <li key={i} className="flex gap-2 text-[13px] text-white/75 leading-relaxed">
+                          <span className="text-blue-400/50 tabular-nums flex-shrink-0">
+                            {i + 1}.
+                          </span>
+                          {meaning}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <div role="tabpanel" className="flex flex-col items-center gap-3 py-6 text-center">
+                    <p className="text-[12px] text-white/40 m-0">
+                      No {activeLabel} result for this word yet.
+                    </p>
+                    {sourceError && <p className="text-[12px] text-orange-400 m-0">{sourceError}</p>}
+                    <button
+                      onClick={() => lookupSource(activeSource as string)}
+                      disabled={sourceLoading}
+                      className="px-3 py-1.5 rounded-lg text-[12px] font-semibold bg-blue-500/15 text-blue-400 border border-blue-400/25 hover:bg-blue-500/25 disabled:opacity-60"
+                    >
+                      {sourceLoading ? "Looking up…" : `Look up in ${activeLabel}`}
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <p className="text-[13px] text-white/20 mt-2">
@@ -163,7 +203,7 @@ export default function SidePanel() {
             {saveError && <p className="text-[12px] text-orange-400 m-0 mb-2">{saveError}</p>}
             <button
               onClick={saveSelectedWord}
-              disabled={wordSaving || wordSaved}
+              disabled={wordSaving || wordSaved || !active}
               className={clsx(
                 "w-full py-2.5 rounded-xl text-[13px] font-semibold transition-all",
                 wordSaved

@@ -35,6 +35,7 @@ export interface UserWord {
   is_mastered: boolean;
   review_count: number;
   added_at: string;
+  source: string | null;
 }
 
 export async function fetchUserWords(userId: number): Promise<UserWord[]> {
@@ -44,9 +45,9 @@ export async function fetchUserWords(userId: number): Promise<UserWord[]> {
 }
 
 
-export async function saveWord(wordId: number, userId: number): Promise<{ message: string; already_saved: boolean }> {
+export async function saveWord(wordId: number, userId: number, source?: string): Promise<{ message: string; already_saved: boolean }> {
   const response = await fetch(
-    `${API_BASE_URL}/user-words/${wordId}/save?user_id=${userId}`,
+    `${API_BASE_URL}/user-words/${wordId}/save?user_id=${userId}${source ? `&source=${encodeURIComponent(source)}` : ""}`,
     { method: "POST" }
   );
   if (!response.ok) {
@@ -58,15 +59,18 @@ export async function saveWord(wordId: number, userId: number): Promise<{ messag
 
 export interface WordLookupResponse {
   id: number;
-  source: 'cache' | 'pons' | 'libretranslate';
+  source: string; // translator shown: 'pons' | 'libretranslate' | ...
   word: string;
   english_meanings: string[];
   word_class: string | null;
+  translations: Record<string, { meanings: string[]; word_class: string | null }>;
+  preferred: string;
+  errors?: Record<string, string>;
 }
 
 export interface LibraryEntry {
   id: number;
-  video_id: number;
+  video_id: number | null;
   type: "video" | "text";
   title: string;
   language: string;
@@ -101,6 +105,50 @@ export async function renameVideo(videoId: number, newTitle: string): Promise<{ 
   }
   return response.json();
 }
+
+export async function createText(title: string, content: string): Promise<LibraryEntry> {
+  const response = await fetch(`${API_BASE_URL}/texts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title, content }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || `Request failed with status ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchText(id: number): Promise<string> {
+  const response = await fetch(`${API_BASE_URL}/texts/${id}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || `Request failed with status ${response.status}`);
+  }
+  return (await response.json()).text;
+}
+
+export async function renameText(id: number, newTitle: string): Promise<{ id: number; title: string }> {
+  const response = await fetch(`${API_BASE_URL}/texts/${id}/title`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title: newTitle }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || `Request failed with status ${response.status}`);
+  }
+  return response.json();
+}
+
+// Entry ids are per-type (subtitle id vs text id), so type is part of identity.
+export const entryKey = (e: LibraryEntry) => `${e.type}-${e.id}`;
+
+export const fetchEntryText = (e: LibraryEntry) =>
+  e.type === "text" ? fetchText(e.id) : fetchSubtitleText(e.id);
+
+export const renameEntry = (e: LibraryEntry, title: string) =>
+  e.type === "text" ? renameText(e.id, title) : renameVideo(e.video_id as number, title);
 
 export async function importFromYouTube(url: string, title?: string): Promise<LibraryEntry> {
   const body: { url: string; title?: string } = { url };

@@ -1,13 +1,25 @@
+import os
+from pathlib import Path
+
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from models import Base
 
-DATABASE_URL = "sqlite:///./subtitles.db"
+BASE_DIR = Path(__file__).resolve().parent
+# Absolute so the DB is the same regardless of the process cwd.
+DATABASE_URL = os.getenv("DATABASE_URL") or f"sqlite:///{BASE_DIR / 'subtitles.db'}"
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
-Base.metadata.create_all(bind=engine)  # creates subtitles.db automatically
+
+
+def run_migrations(url: str = DATABASE_URL) -> None:
+    """Bring the DB to the latest schema. Called once at app startup."""
+    cfg = Config(str(BASE_DIR / "alembic.ini"))
+    cfg.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
+    command.upgrade(cfg, "head")
 
 
 def get_db():

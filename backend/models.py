@@ -36,9 +36,22 @@ class Subtitle(Base):
     vtt_path = Column(String)
     txt_path = Column(String)
     language = Column(String, default="de")
+    word_count = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     video = relationship("Video", back_populates="subtitles")
+
+
+class ManualText(Base):
+    """Texts pasted by the user (not from YouTube)."""
+
+    __tablename__ = "texts"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    title = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
+    word_count = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class Dictionary(Base):
@@ -48,6 +61,7 @@ class Dictionary(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     german_word = Column(String, unique=True, nullable=False, index=True)
+    # shortcut: these 4 columns mirror the latest fetched translation; drop once all readers use `translations`
     english_meanings = Column(JSON, nullable=False)  # ["bank (financial)", "bench"]
     word_class = Column(String, nullable=True)  # noun, verb, adjective
     source = Column(String, nullable=False)  # 'seed', 'pons', 'mymemory'
@@ -60,6 +74,31 @@ class Dictionary(Base):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
+    translations = relationship(
+        "Translation", back_populates="word", cascade="all, delete-orphan"
+    )
+
+
+class Translation(Base):
+    """One result per (word, source) so switching translator keeps the other's result"""
+
+    __tablename__ = "translations"
+    __table_args__ = (UniqueConstraint("word_id", "source"),)
+
+    id = Column(Integer, primary_key=True)
+    word_id = Column(Integer, ForeignKey("dictionary.id"), nullable=False)
+    source = Column(String, nullable=False)  # 'pons' | 'libretranslate' | 'seed' ...
+    meanings = Column(JSON, nullable=False)
+    word_class = Column(String, nullable=True)
+    raw_response = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    word = relationship("Dictionary", back_populates="translations")
 
 
 class UserWord(Base):
@@ -78,6 +117,7 @@ class UserWord(Base):
     review_count = Column(Integer, default=0)
     last_reviewed_at = Column(DateTime, nullable=True)
     notes = Column(Text, nullable=True)  # user's personal notes
+    source = Column(String, nullable=True)  # translation source whose meaning was saved; NULL for old rows
 
     # When did user add this word to their known list
     added_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

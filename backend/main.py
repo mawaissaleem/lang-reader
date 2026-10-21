@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any, Tuple
@@ -5,8 +6,8 @@ from youtube_transcript_api import TranscriptsDisabled
 from sqlalchemy.orm import Session
 import os
 from dotenv import load_dotenv
-from models import Video, Subtitle, Dictionary, UserWord
-from datetime import datetime, timezone
+from models import Video, Subtitle, Dictionary, Translation, UserWord, ManualText
+from datetime import datetime, timedelta, timezone
 from fastapi.middleware.cors import CORSMiddleware
 
 from extractors.transcript_api import method1_youtube_transcript_api
@@ -15,7 +16,7 @@ from translators.pons import method1_pons
 from translators.libretranslate import method2_libretranslate
 from vtt_parser import extract_subtitles
 from utils import extract_video_id
-from database import get_db
+from database import get_db, run_migrations
 
 load_dotenv()  # must run before CORS_ORIGINS is read below
 
@@ -24,7 +25,13 @@ def parse_origins(value: str) -> List[str]:
     return [o.strip() for o in value.split(",") if o.strip()]
 
 
-app = FastAPI(title="YouTube Subtitle Downloader")
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    run_migrations()
+    yield
+
+
+app = FastAPI(title="YouTube Subtitle Downloader", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -42,6 +49,11 @@ class VideoRequest(BaseModel):
 
 class TitleUpdate(BaseModel):
     title: str
+
+
+class TextCreate(BaseModel):
+    title: Optional[str] = None
+    content: str
 
 
 PONS_API_KEY = os.getenv("PONS_API_KEY")
@@ -127,6 +139,7 @@ def get_german_subtitles(
             vtt_path=vtt_path,
             txt_path=txt_path,
             language="de",
+            word_count=len(cleaned_text.split()),
         )
         db.add(subtitle)
         db.commit()
@@ -147,7 +160,7 @@ def get_german_subtitles(
         "url": video.url,
         "language": subtitle.language,
         "extraction_method": subtitle.extraction_method,
-        "word_count": len(cleaned_text.split()),
+        "word_count": subtitle.word_count,
         "created_at": subtitle.created_at,
     }
 
@@ -272,65 +285,86 @@ async def lookup_word(
     now = datetime.now(timezone.utc)
     priority_order = parse_priority(priority)
 
-    # ── Step 1: Check Dictionary cache (unless force=True) ──────
-    cached = db.query(Dictionary).filter(Dictionary.german_word == word).first()
-    if cached and not force:
-        cached.lookup_count += 1
-        cached.last_lookup_at = now
-        db.commit()
-        db.refresh(cached)
-
-        return {
-            "id": cached.id,
-            "source": "cache",
-            "word": cached.german_word,
-            "english_meanings": cached.english_meanings,
-            "word_class": cached.word_class,
-        }
-
-    # ── Step 2: Execute priority translation pipeline ───────────
-    translation_result, errors = await execute_translation_pipeline(
-        word, priority_order
+    entry = db.query(Dictionary).filter(Dictionary.german_word == word).first()
+    cached = {t.source: t for t in entry.translations} if entry else {}
+    preferred = priority_order[0]
+    errors: Dict[str, str] = {}
+    fetched = None
+    marker = cached.get(preferred)
+    # a failed source is stored as an empty-meanings marker and retried at most once a day
+    retry_preferred = marker is None or (
+        not marker.meanings
+        and marker.updated_at.replace(tzinfo=None)
+        < now.replace(tzinfo=None) - timedelta(hours=24)
     )
-    if not translation_result:
+
+    if force:
+        # re-fetch only the preferred provider; never fall back, never touch other rows
+        fetched = await get_translator_providers()[preferred](word)
+        if not fetched.get("success"):
+            raise HTTPException(
+                status_code=502,
+                detail=f"{preferred.upper()} failed for '{word}': {fetched.get('error', 'unknown error')}",
+            )
+    elif retry_preferred:
+        fetched, errors = await execute_translation_pipeline(word, priority_order)
+
+    def upsert(src):
+        nonlocal entry
+        if not entry:
+            entry = Dictionary(german_word=word, lookup_count=0)
+            db.add(entry)
+        if src not in cached:
+            cached[src] = Translation(source=src, meanings=[])
+            entry.translations.append(cached[src])
+        cached[src].updated_at = now
+        return cached[src]
+
+    if fetched:
+        row = upsert(fetched["source"])
+        row.meanings = fetched["translations"]
+        row.word_class = fetched.get("word_class")
+        row.raw_response = fetched.get("raw_response")
+        # mirror for legacy readers
+        entry.english_meanings = row.meanings
+        entry.word_class = row.word_class
+        entry.source = row.source
+        entry.raw_response = row.raw_response
+
+    # shortcut: no marker for a word nobody has a translation for (legacy columns are NOT NULL), so unknown words refetch per click
+    for src in errors:
+        if entry and not (cached.get(src) and cached[src].meanings):  # never blank a good row
+            upsert(src)
+
+    found = {s: t for s, t in cached.items() if t.meanings}
+    if not found:
         err_details = ". ".join(f"{p.upper()}: {msg}" for p, msg in errors.items())
         raise HTTPException(
             status_code=404,
-            detail=f"All translation methods failed for '{word}'. {err_details}",
+            detail=f"All translation methods failed for '{word}'. {err_details}".strip(),
         )
 
-    # ── Step 3: Save or Update Dictionary Cache ─────────────────
-    if cached:
-        cached.english_meanings = translation_result["translations"]
-        cached.word_class = translation_result.get("word_class")
-        cached.source = translation_result["source"]
-        cached.raw_response = translation_result.get("raw_response")
-        cached.last_lookup_at = now
-        db.commit()
-        db.refresh(cached)
-        entry = cached
-    else:
-        new_entry = Dictionary(
-            german_word=word,
-            english_meanings=translation_result["translations"],
-            word_class=translation_result.get("word_class"),
-            source=translation_result["source"],
-            raw_response=translation_result.get("raw_response"),
-            lookup_count=1,
-            last_lookup_at=now,
-        )
-        db.add(new_entry)
-        db.commit()
-        db.refresh(new_entry)
-        entry = new_entry
+    entry.lookup_count = (entry.lookup_count or 0) + 1
+    entry.last_lookup_at = now
+    db.commit()
+    db.refresh(entry)
 
-    return {
+    shown = next(s for s in [preferred, *priority_order, *found] if s in found)
+    res = {
         "id": entry.id,
-        "source": translation_result["source"],
+        "source": shown,
         "word": entry.german_word,
-        "english_meanings": entry.english_meanings,
-        "word_class": entry.word_class,
+        "english_meanings": found[shown].meanings,
+        "word_class": found[shown].word_class,
+        "translations": {
+            s: {"meanings": t.meanings, "word_class": t.word_class}
+            for s, t in found.items()
+        },
+        "preferred": preferred,
     }
+    if errors:
+        res["errors"] = errors
+    return res
 
 
 @app.get("/user/{user_id}/words")
@@ -348,12 +382,20 @@ def get_user_words(
 
     user_words = query.order_by(UserWord.added_at.desc()).all()
 
+    def shown(uw):
+        # the saved source's row wins; fall back to the Dictionary mirror
+        return next(
+            (t for t in uw.word.translations if t.source == uw.source and t.meanings),
+            uw.word,
+        )
+
     return [
         {
             "id": uw.id,
             "word": uw.word.german_word,
-            "english_meanings": uw.word.english_meanings,
-            "word_class": uw.word.word_class,
+            "english_meanings": getattr(shown(uw), "meanings", uw.word.english_meanings),
+            "word_class": shown(uw).word_class,
+            "source": uw.source,
             "is_mastered": uw.is_mastered,
             "review_count": uw.review_count,
             "last_reviewed_at": uw.last_reviewed_at,
@@ -365,11 +407,21 @@ def get_user_words(
 
 
 @app.post("/user-words/{word_id}/save")
-async def save_word(word_id: int, user_id: int, db: Session = Depends(get_db)):
+async def save_word(
+    word_id: int,
+    user_id: int,
+    source: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
     # Check if word exists in dictionary
     word = db.query(Dictionary).filter(Dictionary.id == word_id).first()
     if not word:
         raise HTTPException(status_code=404, detail="Word not found")
+
+    if source is not None and not any(
+        t.source == source and t.meanings for t in word.translations
+    ):
+        raise HTTPException(status_code=422, detail=f"No '{source}' translation for this word")
 
     # Check if already saved
     existing = (
@@ -379,18 +431,74 @@ async def save_word(word_id: int, user_id: int, db: Session = Depends(get_db)):
     )
 
     if existing:
+        # re-saving from another tab switches the saved meaning to that source
+        if source is not None:
+            existing.source = source
+            db.commit()
         return {"message": "Word already in your dictionary", "already_saved": True}
 
     now = datetime.now(timezone.utc)
     user_word = UserWord(
         user_id=user_id,
         word_id=word_id,
+        source=source,
         last_reviewed_at=now,
         added_at=now,
     )
     db.add(user_word)
     db.commit()
     return {"message": "Word saved successfully", "already_saved": False}
+
+
+def _text_entry(t: ManualText):
+    return {
+        "id": t.id,
+        "video_id": None,
+        "type": "text",
+        "source": "manual",
+        "title": t.title,
+        "language": "de",
+        "extraction_method": None,
+        "word_count": t.word_count,
+        "created_at": t.created_at,
+    }
+
+
+@app.post("/texts")
+def create_text(body: TextCreate, db: Session = Depends(get_db)):
+    content = body.content.strip()
+    if not content:
+        raise HTTPException(status_code=422, detail="Text must not be empty")
+    t = ManualText(
+        title=(body.title or "").strip() or "Untitled",
+        content=content,
+        word_count=len(content.split()),
+    )
+    db.add(t)
+    db.commit()
+    db.refresh(t)
+    return _text_entry(t)
+
+
+@app.get("/texts/{text_id}")
+def get_text(text_id: int, db: Session = Depends(get_db)):
+    t = db.get(ManualText, text_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="Text not found")
+    return {"text": t.content}
+
+
+@app.patch("/texts/{text_id}/title")
+def update_text_title(text_id: int, body: TitleUpdate, db: Session = Depends(get_db)):
+    t = db.get(ManualText, text_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="Text not found")
+    title = body.title.strip()
+    if not title:
+        raise HTTPException(status_code=422, detail="Title must not be empty")
+    t.title = title
+    db.commit()
+    return {"id": t.id, "title": t.title}
 
 
 @app.get("/library")
@@ -405,14 +513,6 @@ def get_library(db: Session = Depends(get_db)):
 
         latest_subtitle = max(v.subtitles, key=lambda s: s.created_at)
 
-        word_count = 0
-        if latest_subtitle.txt_path and os.path.exists(latest_subtitle.txt_path):
-            try:
-                with open(latest_subtitle.txt_path, "r", encoding="utf-8") as f:
-                    word_count = len(f.read().split())
-            except Exception:
-                pass
-
         items.append(
             {
                 "id": latest_subtitle.id,
@@ -423,10 +523,13 @@ def get_library(db: Session = Depends(get_db)):
                 "url": v.url,
                 "language": latest_subtitle.language,
                 "extraction_method": latest_subtitle.extraction_method,
-                "word_count": word_count,
+                "word_count": latest_subtitle.word_count,
                 "created_at": latest_subtitle.created_at,
             }
         )
+
+    for t in db.query(ManualText).all():
+        items.append(_text_entry(t))
 
     # sort newest first
     items.sort(key=lambda x: x["created_at"], reverse=True)

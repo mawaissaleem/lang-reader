@@ -41,4 +41,12 @@ describe("translatorPriority hydration", () => {
     useStore.getState().loadTranslatorPriority();
     expect(useStore.getState().translatorPriority).toBe("pons");
   });
+
+  it("re-looks up the selected word on switch without force", async () => {
+    const useStore = await freshStore();
+    vi.mocked(lookupWord).mockResolvedValue({} as never);
+    useStore.setState({ selectedWord: "Haus" });
+    await useStore.getState().setTranslatorPriority("libretranslate");
+    expect(lookupWord).toHaveBeenCalledWith("Haus", expect.anything(), "libretranslate");
+  });
 });

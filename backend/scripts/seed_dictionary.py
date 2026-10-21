@@ -1,16 +1,14 @@
 import json
 import os
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from models import Base, Dictionary  # adjust import path if needed
+from database import engine, run_migrations
+from models import Dictionary, Translation
 import json
 import os
 import sys
 from dotenv import load_dotenv
 
-DATABASE_URL = "sqlite:///./subtitles.db"
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-Base.metadata.create_all(bind=engine)  # ← add this
+run_migrations()
 
 Session = sessionmaker(bind=engine)
 
@@ -42,6 +40,14 @@ def seed_dictionary(json_path: str = "dictionary.json"):
                 word_class=entry["word_class"],
                 source=entry["source"],
                 raw_response=entry,  # store full entry as raw
+            )
+            word.translations.append(
+                Translation(
+                    source=entry["source"],
+                    meanings=entry["english_meanings"],
+                    word_class=entry["word_class"],
+                    raw_response=entry,
+                )
             )
             session.add(word)
             inserted += 1

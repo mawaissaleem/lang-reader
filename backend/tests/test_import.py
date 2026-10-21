@@ -62,6 +62,7 @@ class TestGermanImport(unittest.TestCase):
         self.assertEqual((r["title"], r["url"], r["word_count"]), ("Mein Titel", URL, 3))
         sub = self.db.query(Subtitle).one()
         self.assertEqual(sub.id, r["id"])
+        self.assertEqual(sub.word_count, 3)
         self.assertEqual(self.db.query(Video).one().id, r["video_id"])
         self.assertTrue(os.path.exists(os.path.join("cleaned_subtitles", "abc.txt")))
 

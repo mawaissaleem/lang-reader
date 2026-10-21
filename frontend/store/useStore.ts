@@ -1,8 +1,11 @@
 import { create } from "zustand";
 import { StoreState } from "@/types";
-import { lookupWord, saveWord, fetchUserWords } from "@/lib/api";
+import { lookupWord, saveWord, fetchUserWords, type WordLookupResponse } from "@/lib/api";
 
 const USER_ID = 1;
+
+// open on the preferred source when it has a result, else on whatever was returned
+const openTab = (d: WordLookupResponse) => (d.translations[d.preferred] ? d.preferred : d.source);
 
 const useStore = create<StoreState>((set, get) => ({
   text: "",
@@ -15,10 +18,10 @@ const useStore = create<StoreState>((set, get) => ({
       return;
     }
     const { translatorPriority } = get();
-    set({ selectedWord: w, sidePanelOpen: true, wordResult: null, wordError: null, wordLoading: true, wordSaved: false, saveError: null });
+    set({ selectedWord: w, sidePanelOpen: true, wordResult: null, wordError: null, wordLoading: true, wordSaved: false, saveError: null, sourceLoading: false, sourceError: null });
     try {
       const data = await lookupWord(w, USER_ID, translatorPriority);
-      set({ wordResult: data, wordLoading: false });
+      set({ wordResult: data, activeSource: openTab(data), sourceError: null, wordLoading: false });
     } catch (err) {
       set({ wordError: err instanceof Error ? err.message : String(err), wordLoading: false });
     }
@@ -29,12 +32,36 @@ const useStore = create<StoreState>((set, get) => ({
   wordSaved: false,
   wordSaving: false,
   saveError: null,
+  activeSource: null,
+  // switching tabs re-enables Save so the word can be re-saved from the other source
+  setActiveSource: (source) => set({ activeSource: source, wordSaved: false, saveError: null, sourceError: null }),
+  sourceLoading: false,
+  sourceError: null,
+  lookupSource: async (source) => {
+    const { selectedWord } = get();
+    if (!selectedWord) return;
+    set({ sourceLoading: true, sourceError: null });
+    try {
+      // not force: the backend fetches only the missing source
+      const data = await lookupWord(selectedWord, USER_ID, source);
+      // the user picked another word meanwhile: setSelectedWord already reset the source state
+      if (get().selectedWord !== selectedWord || get().wordResult?.id !== data.id) return;
+      set((state) => ({
+        sourceLoading: false,
+        sourceError: data.translations[source] ? null : data.errors?.[source] ?? `No result from ${source}`,
+        wordResult: state.wordResult && { ...state.wordResult, translations: { ...state.wordResult.translations, ...data.translations } },
+      }));
+    } catch (err) {
+      if (get().selectedWord !== selectedWord) return;
+      set({ sourceLoading: false, sourceError: err instanceof Error ? err.message : String(err) });
+    }
+  },
   saveSelectedWord: async () => {
-    const { wordResult } = get();
+    const { wordResult, activeSource } = get();
     if (!wordResult?.id) return;
     set({ wordSaving: true, saveError: null });
     try {
-      await saveWord(wordResult.id, USER_ID);
+      await saveWord(wordResult.id, USER_ID, activeSource ?? undefined);
       // already_saved or not, the word is now known
       set((state) => ({
         wordSaved: true,
@@ -66,13 +93,13 @@ const useStore = create<StoreState>((set, get) => ({
       localStorage.setItem("translatorPriority", priority);
     } catch {}
     set({ translatorPriority: priority });
-    // Re-lookup current word with the new priority (force=true to bypass cache)
+    // Re-lookup without force: the backend serves cached sources and only fetches what is missing
     const { selectedWord } = get();
     if (selectedWord) {
-      set({ wordResult: null, wordError: null, wordLoading: true, wordSaved: false, saveError: null });
+      set({ wordResult: null, wordError: null, wordLoading: true, wordSaved: false, saveError: null, sourceLoading: false, sourceError: null });
       try {
-        const data = await lookupWord(selectedWord, USER_ID, priority, true);
-        set({ wordResult: data, wordLoading: false });
+        const data = await lookupWord(selectedWord, USER_ID, priority);
+        set({ wordResult: data, activeSource: openTab(data), sourceError: null, wordLoading: false });
       } catch (err) {
         set({ wordError: err instanceof Error ? err.message : String(err), wordLoading: false });
       }

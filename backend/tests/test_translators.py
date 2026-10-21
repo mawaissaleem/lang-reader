@@ -141,7 +141,7 @@ class TestLookupWordFallback(unittest.IsolatedAsyncioTestCase):
             mock_l.reset_mock()
 
             cached_res = await lookup_word("kaffee", user_id=1, db=self.db)
-            self.assertEqual(cached_res["source"], "cache")
+            self.assertEqual(cached_res["source"], "libretranslate")
             mock_p.assert_not_called()
             mock_l.assert_not_called()
 
