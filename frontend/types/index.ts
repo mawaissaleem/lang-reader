@@ -1,13 +1,5 @@
 export type HighlightMode = "underline" | "highlight";
 
-export interface WordMeaning {
-  word: string;
-  translation: string;
-  partOfSpeech: string;
-  examples: { de: string; en: string }[];
-  gender?: string;
-}
-
 import { WordLookupResponse } from "@/lib/api";
 
 export interface StoreState {
@@ -30,5 +22,6 @@ export interface StoreState {
   knownWords: Set<string>;
   loadUserWords: (userId: number) => Promise<void>;
   translatorPriority: "pons" | "libretranslate";
+  loadTranslatorPriority: () => void;
   setTranslatorPriority: (priority: "pons" | "libretranslate") => void;
 }

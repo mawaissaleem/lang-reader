@@ -102,8 +102,8 @@ export async function renameVideo(videoId: number, newTitle: string): Promise<{ 
   return response.json();
 }
 
-export async function importFromYouTube(url: string, title?: string): Promise<any> {
-  const body: any = { url };
+export async function importFromYouTube(url: string, title?: string): Promise<LibraryEntry> {
+  const body: { url: string; title?: string } = { url };
   if (title !== undefined) body.title = title;
   const response = await fetch(`${API_BASE_URL}/subtitles/german`, {
     method: "POST",

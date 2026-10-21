@@ -4,9 +4,6 @@ from typing import Optional, List, Dict, Any, Tuple
 from youtube_transcript_api import TranscriptsDisabled
 from sqlalchemy.orm import Session
 import os
-import httpx
-import os
-from fastapi import APIRouter
 from dotenv import load_dotenv
 from models import Video, Subtitle, Dictionary, UserWord
 from datetime import datetime, timezone
@@ -18,19 +15,21 @@ from translators.pons import method1_pons
 from translators.libretranslate import method2_libretranslate
 from vtt_parser import extract_subtitles
 from utils import extract_video_id
-from database import get_db, SessionLocal
-from models import Video, Subtitle
+from database import get_db
+
+load_dotenv()  # must run before CORS_ORIGINS is read below
+
+
+def parse_origins(value: str) -> List[str]:
+    return [o.strip() for o in value.split(",") if o.strip()]
+
 
 app = FastAPI(title="YouTube Subtitle Downloader")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://192.168.1.18:3000",
-        "*",
-    ],  # your Next.js dev URL
-    allow_credentials=True,
+    allow_origins=parse_origins(os.getenv("CORS_ORIGINS", "http://localhost:3000")),
+    allow_credentials=False,  # frontend uses no cookies
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -45,18 +44,11 @@ class TitleUpdate(BaseModel):
     title: str
 
 
-load_dotenv()
-
 PONS_API_KEY = os.getenv("PONS_API_KEY")
 LIBRETRANSLATE_URL = os.getenv("LIBRETRANSLATE_URL", "http://localhost:5000")
 DEFAULT_TRANSLATION_PRIORITY = os.getenv(
     "DEFAULT_TRANSLATION_PRIORITY", "pons,libretranslate"
 )
-
-router = APIRouter()
-
-import re
-
 
 # ─────────────────────────────────────────
 # Routes
@@ -201,10 +193,6 @@ def update_video_title(video_id: int, body: TitleUpdate, db: Session = Depends(g
     return {"id": video.id, "title": video.title}
 
 
-def strip_html(text: str) -> str:
-    return re.sub(r"<[^>]+>", "", text).strip()
-
-
 def get_translator_providers():
     return {
         "pons": lambda word: method1_pons(word, PONS_API_KEY),
@@ -270,7 +258,7 @@ async def get_word_meaning(word: str, priority: Optional[str] = None):
 
 
 # ─────────────────────────────────────────
-# Word Lookup: Cache → Priority Translation Pipeline → UserWord
+# Word Lookup: Cache → Priority Translation Pipeline
 # ─────────────────────────────────────────
 @app.get("/word/{word}")
 async def lookup_word(

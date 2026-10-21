@@ -7,7 +7,10 @@ function tokenize(text: string): string[] {
 }
 
 export default function TextDisplay() {
-  const { text, title, highlightMode, setHighlightMode } = useStore();
+  const text = useStore((s) => s.text);
+  const title = useStore((s) => s.title);
+  const highlightMode = useStore((s) => s.highlightMode);
+  const setHighlightMode = useStore((s) => s.setHighlightMode);
   const paragraphs = text.split(/\n+/).filter(Boolean);
 
   return (

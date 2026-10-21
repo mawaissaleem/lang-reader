@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { StoreState } from "@/types";
-import { lookupWord, saveWord, fetchUserWords, WordLookupResponse } from "@/lib/api";
+import { lookupWord, saveWord, fetchUserWords } from "@/lib/api";
 
 const USER_ID = 1;
 
@@ -19,8 +19,8 @@ const useStore = create<StoreState>((set, get) => ({
     try {
       const data = await lookupWord(w, USER_ID, translatorPriority);
       set({ wordResult: data, wordLoading: false });
-    } catch (err: any) {
-      set({ wordError: err.message, wordLoading: false });
+    } catch (err) {
+      set({ wordError: err instanceof Error ? err.message : String(err), wordLoading: false });
     }
   },
   wordResult: null,
@@ -41,8 +41,8 @@ const useStore = create<StoreState>((set, get) => ({
         wordSaving: false,
         knownWords: new Set([...state.knownWords, wordResult.word.toLowerCase()]),
       }));
-    } catch (err: any) {
-      set({ wordSaving: false, saveError: err.message });
+    } catch (err) {
+      set({ wordSaving: false, saveError: err instanceof Error ? err.message : String(err) });
     }
   },
   highlightMode: "underline",
@@ -54,13 +54,17 @@ const useStore = create<StoreState>((set, get) => ({
     const words = await fetchUserWords(userId);
     set({ knownWords: new Set(words.map((w) => w.word.toLowerCase())) });
   },
-  translatorPriority: (typeof window !== "undefined"
-    ? (localStorage.getItem("translatorPriority") as "pons" | "libretranslate") ?? "pons"
-    : "pons"),
+  translatorPriority: "pons", // always "pons" at first render; saved value loads after mount
+  loadTranslatorPriority: () => {
+    try {
+      const saved = localStorage.getItem("translatorPriority");
+      if (saved === "pons" || saved === "libretranslate") set({ translatorPriority: saved });
+    } catch {}
+  },
   setTranslatorPriority: async (priority) => {
-    if (typeof window !== "undefined") {
+    try {
       localStorage.setItem("translatorPriority", priority);
-    }
+    } catch {}
     set({ translatorPriority: priority });
     // Re-lookup current word with the new priority (force=true to bypass cache)
     const { selectedWord } = get();
@@ -69,8 +73,8 @@ const useStore = create<StoreState>((set, get) => ({
       try {
         const data = await lookupWord(selectedWord, USER_ID, priority, true);
         set({ wordResult: data, wordLoading: false });
-      } catch (err: any) {
-        set({ wordError: err.message, wordLoading: false });
+      } catch (err) {
+        set({ wordError: err instanceof Error ? err.message : String(err), wordLoading: false });
       }
     }
   },

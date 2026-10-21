@@ -308,6 +308,7 @@ export default function LibraryPage() {
   const text = useStore(s => s.text);
   const title = useStore(s => s.title);
   const loadUserWords = useStore(s => s.loadUserWords);
+  const loadTranslatorPriority = useStore(s => s.loadTranslatorPriority);
 
   // Fetch library on mount
   useEffect(() => {
@@ -327,12 +328,12 @@ export default function LibraryPage() {
   // Load user words once (same as root page)
   useEffect(() => {
     loadUserWords(1);
-  }, []);
+    loadTranslatorPriority();
+  }, [loadUserWords, loadTranslatorPriority]);
 
   // When a card is clicked, fetch its text and push into store
   useEffect(() => {
     if (!openEntry) return;
-    setReaderLoading(true);
     setText("", undefined);
     fetchSubtitleText(openEntry.id)
       .then(t => {
@@ -343,7 +344,7 @@ export default function LibraryPage() {
         console.error("Failed to load text", err);
         setReaderLoading(false);
       });
-  }, [openEntry]);
+  }, [openEntry, setText]);
 
   const handleRename = async (videoId: number, newTitle: string) => {
     const result = await renameVideo(videoId, newTitle);
@@ -522,7 +523,7 @@ export default function LibraryPage() {
             <EntryCard
               key={entry.id}
               entry={entry}
-              onClick={() => setOpenEntry(entry)}
+              onClick={() => { setReaderLoading(true); setOpenEntry(entry); }}
               onRename={handleRename}
             />
           ))}

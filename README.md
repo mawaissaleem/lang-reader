@@ -52,6 +52,9 @@ Create `backend/.env`:
 ```env
 PONS_API_KEY=your_pons_api_key_here
 LIBRETRANSLATE_URL=http://localhost:5000
+# Comma-separated allowed frontend origins (default: http://localhost:3000).
+# For LAN access: CORS_ORIGINS=http://localhost:3000,http://192.168.1.18:3000
+CORS_ORIGINS=http://localhost:3000
 ```
 
 ### 4. Run the Backend API

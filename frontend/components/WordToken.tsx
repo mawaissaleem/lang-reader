@@ -10,10 +10,11 @@ interface Props {
 }
 
 export default function WordToken({ word, highlightMode }: Props) {
-  const { setSelectedWord, selectedWord, knownWords } = useStore();
   const clean = cleanWord(word);
-  const known = knownWords.has(clean.toLowerCase());
-  const isSelected = selectedWord?.toLowerCase() === clean.toLowerCase();
+  const key = clean.toLowerCase();
+  const setSelectedWord = useStore((s) => s.setSelectedWord);
+  const known = useStore((s) => s.knownWords.has(key));
+  const isSelected = useStore((s) => s.selectedWord?.toLowerCase() === key);
 
   if (!clean) {
     return <span className="text-white/20">{word}</span>;

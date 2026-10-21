@@ -107,7 +107,7 @@ export default function SidePanel() {
               <div className="flex flex-col items-center gap-3 mt-10 text-center">
                 <HelpCircle size={32} className="text-red-400/40" />
                 <p className="text-[14px] font-semibold text-white/60 m-0">
-                  "{selectedWord}"
+                  &quot;{selectedWord}&quot;
                 </p>
                 <p className="text-[12px] text-orange-400 m-0">{wordError}</p>
               </div>

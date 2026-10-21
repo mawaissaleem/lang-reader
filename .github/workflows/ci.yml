@@ -47,8 +47,6 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit
       - name: Lint
-        # shortcut: 14 existing lint errors make this non-blocking; remove continue-on-error after PLAN task 2.6.
-        continue-on-error: true
         run: npm run lint
       - name: Unit tests
         run: npm run test --if-present
