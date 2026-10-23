@@ -1,6 +1,8 @@
 import yt_dlp
 import os
 
+from database import BASE_DIR
+
 from utils import extract_video_id
 
 
@@ -38,7 +40,7 @@ def method2_yt_dlp(url: str) -> dict:
             "vtt_path": None,
         }
 
-    output_dir = "subtitles"
+    output_dir = str(BASE_DIR / "subtitles")
     os.makedirs(output_dir, exist_ok=True)
 
     ydl_opts_download = {

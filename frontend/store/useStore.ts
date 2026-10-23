@@ -21,8 +21,11 @@ const useStore = create<StoreState>((set, get) => ({
     set({ selectedWord: w, sidePanelOpen: true, wordResult: null, wordError: null, wordLoading: true, wordSaved: false, saveError: null, sourceLoading: false, sourceError: null });
     try {
       const data = await lookupWord(w, USER_ID, translatorPriority);
+      // a newer click owns the panel and the loading flag
+      if (get().selectedWord !== w) return;
       set({ wordResult: data, activeSource: openTab(data), sourceError: null, wordLoading: false });
     } catch (err) {
+      if (get().selectedWord !== w) return;
       set({ wordError: err instanceof Error ? err.message : String(err), wordLoading: false });
     }
   },
@@ -99,8 +102,10 @@ const useStore = create<StoreState>((set, get) => ({
       set({ wordResult: null, wordError: null, wordLoading: true, wordSaved: false, saveError: null, sourceLoading: false, sourceError: null });
       try {
         const data = await lookupWord(selectedWord, USER_ID, priority);
+        if (get().selectedWord !== selectedWord) return;
         set({ wordResult: data, activeSource: openTab(data), sourceError: null, wordLoading: false });
       } catch (err) {
+        if (get().selectedWord !== selectedWord) return;
         set({ wordError: err instanceof Error ? err.message : String(err), wordLoading: false });
       }
     }

@@ -1,3 +1,4 @@
+import os
 import sqlite3
 import tempfile
 import unittest
@@ -91,6 +92,25 @@ class MigrationTests(unittest.TestCase):
         with sqlite3.connect(self.path) as c:
             rows = c.execute("select word_count from subtitles order by id").fetchall()
         self.assertEqual(rows, [(4,), (0,)])
+
+    def test_0003_backfill_resolves_relative_paths_from_another_cwd(self):
+        from alembic import command
+
+        cfg = Config(str(BASE_DIR / "alembic.ini"))
+        cfg.set_main_option("sqlalchemy.url", self.url)
+        command.upgrade(cfg, "0002")
+        rel = Path("_mig_test_rel.txt")
+        (BASE_DIR / rel).write_text("eins zwei drei", encoding="utf-8")
+        self.addCleanup((BASE_DIR / rel).unlink)
+        with sqlite3.connect(self.path) as c:
+            c.execute("insert into videos (id, url) values (1, 'u')")
+            c.execute("insert into subtitles (video_id, extraction_method, txt_path) values (1, 'x', ?)", (str(rel),))
+        old = os.getcwd()
+        self.addCleanup(os.chdir, old)
+        os.chdir(self.tmp.name)
+        command.upgrade(cfg, "head")
+        with sqlite3.connect(self.path) as c:
+            self.assertEqual(c.execute("select word_count from subtitles").fetchall(), [(3,)])
 
     def test_0004_copies_dictionary_into_translations(self):
         from alembic import command

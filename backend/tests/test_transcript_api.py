@@ -1,6 +1,7 @@
 import os
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from extractors.transcript_api import method1_youtube_transcript_api
@@ -19,7 +20,8 @@ class TranscriptApiFilenameTest(unittest.TestCase):
             self.addCleanup(os.chdir, cwd)
             os.chdir(tmp)
             open("cookies.txt", "w").close()
-            with patch("extractors.transcript_api.YouTubeTranscriptApi", return_value=api), \
+            with patch("extractors.transcript_api.BASE_DIR", Path(tmp)), \
+                 patch("extractors.transcript_api.YouTubeTranscriptApi", return_value=api), \
                  patch("extractors.transcript_api.load_cookies_session"), \
                  patch("extractors.transcript_api.get_video_title", return_value="Folge 1"):
                 a = method1_youtube_transcript_api("https://www.youtube.com/watch?v=aaaaaaaaaaa")

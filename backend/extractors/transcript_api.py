@@ -4,6 +4,8 @@ from youtube_transcript_api import (
 )
 import os
 
+from database import BASE_DIR
+
 from utils import (
     extract_video_id,
     load_cookies_session,
@@ -51,7 +53,7 @@ def method1_youtube_transcript_api(url: str) -> dict:
 
     # filename is the video id: titles collide and the title lookup can fail
     title = sanitize_filename(get_video_title(url))
-    output_dir = "subtitles"
+    output_dir = str(BASE_DIR / "subtitles")
     os.makedirs(output_dir, exist_ok=True)
     output_file = os.path.join(output_dir, f"{video_id}.de.vtt")
 

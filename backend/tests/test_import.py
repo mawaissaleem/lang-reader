@@ -2,6 +2,7 @@ import os
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from fastapi import HTTPException
@@ -41,6 +42,10 @@ class TestGermanImport(unittest.TestCase):
         old = os.getcwd()
         self.addCleanup(os.chdir, old)
         os.chdir(tmp.name)
+        self.tmp = tmp.name
+        patcher = patch("main.BASE_DIR", Path(tmp.name))
+        patcher.start()
+        self.addCleanup(patcher.stop)
         self.vtt = os.path.join(tmp.name, "abc.vtt")
         with open(self.vtt, "w", encoding="utf-8") as f:
             f.write(VTT)
@@ -64,7 +69,17 @@ class TestGermanImport(unittest.TestCase):
         self.assertEqual(sub.id, r["id"])
         self.assertEqual(sub.word_count, 3)
         self.assertEqual(self.db.query(Video).one().id, r["video_id"])
-        self.assertTrue(os.path.exists(os.path.join("cleaned_subtitles", "abc.txt")))
+        self.assertTrue(os.path.exists(os.path.join(self.tmp, "cleaned_subtitles", "abc.txt")))
+
+    def test_text_is_readable_from_another_cwd_and_for_relative_paths(self):
+        from main import get_subtitle_text
+
+        r = self._call(self.ok, None)
+        os.chdir(tempfile.gettempdir())
+        self.assertEqual(get_subtitle_text(r["id"], db=self.db), {"text": "Hallo schöne Welt"})
+        # old rows store a path relative to backend/
+        self.db.query(Subtitle).one().txt_path = "cleaned_subtitles/abc.txt"
+        self.assertEqual(get_subtitle_text(r["id"], db=self.db), {"text": "Hallo schöne Welt"})
 
     def test_duplicate_returns_409(self):
         self._call(self.ok, None)

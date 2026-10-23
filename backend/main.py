@@ -16,7 +16,7 @@ from translators.pons import method1_pons
 from translators.libretranslate import method2_libretranslate
 from vtt_parser import extract_subtitles
 from utils import extract_video_id
-from database import get_db, run_migrations
+from database import BASE_DIR, get_db, run_migrations
 
 load_dotenv()  # must run before CORS_ORIGINS is read below
 
@@ -124,8 +124,8 @@ def get_german_subtitles(
     final_title = request.title or result.get("title") or "Unknown"
     try:
         stem = os.path.splitext(os.path.basename(vtt_path))[0]
-        os.makedirs("cleaned_subtitles", exist_ok=True)
-        txt_path = os.path.join("cleaned_subtitles", f"{stem}.txt")
+        os.makedirs(BASE_DIR / "cleaned_subtitles", exist_ok=True)
+        txt_path = str(BASE_DIR / "cleaned_subtitles" / f"{stem}.txt")
         cleaned_text = extract_subtitles(vtt_path)
         with open(txt_path, "w", encoding="utf-8") as f:
             f.write(cleaned_text)
@@ -541,8 +541,10 @@ def get_subtitle_text(subtitle_id: int, db: Session = Depends(get_db)):
     subtitle = db.query(Subtitle).filter(Subtitle.id == subtitle_id).first()
     if not subtitle:
         raise HTTPException(status_code=404, detail="Subtitle not found")
-    if not subtitle.txt_path or not os.path.exists(subtitle.txt_path):
+    # old rows hold paths relative to backend/; an absolute path wins the join
+    txt_path = BASE_DIR / subtitle.txt_path if subtitle.txt_path else None
+    if not txt_path or not txt_path.exists():
         raise HTTPException(status_code=404, detail="Text file not found")
-    with open(subtitle.txt_path, "r", encoding="utf-8") as f:
+    with open(txt_path, "r", encoding="utf-8") as f:
         content = f.read()
     return {"text": content}

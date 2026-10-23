@@ -1,6 +1,7 @@
 import os
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from extractors.yt_dlp import method2_yt_dlp
@@ -28,6 +29,9 @@ class YtDlpTest(unittest.TestCase):
         cwd = os.getcwd()
         self.addCleanup(os.chdir, cwd)
         os.chdir(self.tmp.name)
+        patcher = patch("extractors.yt_dlp.BASE_DIR", Path(self.tmp.name))
+        patcher.start()
+        self.addCleanup(patcher.stop)
         os.makedirs("subtitles")
         open("subtitles/stale.vtt", "w").close()
         self.info = {"title": "T", "subtitles": {}, "automatic_captions": {"de-DE": []}}
