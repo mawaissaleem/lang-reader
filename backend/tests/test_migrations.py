@@ -28,11 +28,14 @@ class MigrationTests(unittest.TestCase):
 
     @staticmethod
     def make_legacy(eng):
-        # a pre-Alembic DB predates the texts and translations tables and subtitles.word_count and user_words.source
-        Base.metadata.create_all(eng, tables=[t for n, t in Base.metadata.tables.items() if n not in ("texts", "translations")])
+        # a pre-Alembic DB predates the texts and translations tables and subtitles.word_count and user_words.source, .status and the context columns
+        Base.metadata.create_all(eng, tables=[t for n, t in Base.metadata.tables.items() if n not in ("texts", "translations", "sentence_translations")])
         with eng.begin() as c:
             c.exec_driver_sql("alter table subtitles drop column word_count")
             c.exec_driver_sql("alter table user_words drop column source")
+            c.exec_driver_sql("alter table user_words drop column status")
+            for col in ("context_sentence", "text_kind", "text_id"):
+                c.exec_driver_sql(f"alter table user_words drop column {col}")
 
     def version(self):
         with sqlite3.connect(self.path) as c:
@@ -152,6 +155,49 @@ class MigrationTests(unittest.TestCase):
             self.assertEqual(c.execute("select source from user_words").fetchall(), [(None,)])
         command.downgrade(cfg, "0004")
         self.assertNotIn("source", [c["name"] for c in inspect(create_engine(self.url)).get_columns("user_words")])
+
+    def test_0006_existing_user_words_become_known(self):
+        from alembic import command
+
+        cfg = Config(str(BASE_DIR / "alembic.ini"))
+        cfg.set_main_option("sqlalchemy.url", self.url)
+        command.upgrade(cfg, "0005")
+        with sqlite3.connect(self.path) as c:
+            c.execute("insert into dictionary (id, german_word, english_meanings, source) values (1, 'haus', '[]', 'pons')")
+            c.execute("insert into user_words (user_id, word_id) values (1, 1)")
+        command.upgrade(cfg, "0006")
+        with sqlite3.connect(self.path) as c:
+            self.assertEqual(c.execute("select status from user_words").fetchall(), [("known",)])
+        command.downgrade(cfg, "0005")
+        self.assertNotIn("status", [c["name"] for c in inspect(create_engine(self.url)).get_columns("user_words")])
+
+    def test_0007_adds_nullable_context_columns(self):
+        from alembic import command
+
+        cfg = Config(str(BASE_DIR / "alembic.ini"))
+        cfg.set_main_option("sqlalchemy.url", self.url)
+        command.upgrade(cfg, "0006")
+        with sqlite3.connect(self.path) as c:
+            c.execute("insert into dictionary (id, german_word, english_meanings, source) values (1, 'haus', '[]', 'pons')")
+            c.execute("insert into user_words (user_id, word_id) values (1, 1)")
+        command.upgrade(cfg, "0007")
+        with sqlite3.connect(self.path) as c:
+            self.assertEqual(c.execute("select context_sentence, text_kind, text_id from user_words").fetchall(), [(None, None, None)])
+        command.downgrade(cfg, "0006")
+        cols = [c["name"] for c in inspect(create_engine(self.url)).get_columns("user_words")]
+        self.assertNotIn("context_sentence", cols)
+
+    def test_0008_creates_sentence_translations(self):
+        from alembic import command
+
+        cfg = Config(str(BASE_DIR / "alembic.ini"))
+        cfg.set_main_option("sqlalchemy.url", self.url)
+        command.upgrade(cfg, "0007")
+        self.assertNotIn("sentence_translations", inspect(create_engine(self.url)).get_table_names())
+        command.upgrade(cfg, "0008")
+        self.assertIn("sentence_translations", inspect(create_engine(self.url)).get_table_names())
+        command.downgrade(cfg, "0007")
+        self.assertNotIn("sentence_translations", inspect(create_engine(self.url)).get_table_names())
 
     def test_rerun_is_noop(self):
         run_migrations(self.url)

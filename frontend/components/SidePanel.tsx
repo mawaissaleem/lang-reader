@@ -10,12 +10,15 @@ const SOURCES = [
   { id: "libretranslate", label: "LibreTranslate" },
 ];
 
+const ARTICLE_CLASS = { der: "text-blue-400", die: "text-rose-400", das: "text-green-400" };
+
 export default function SidePanel() {
   const {
     selectedWord, sidePanelOpen, setSidePanelOpen, setSelectedWord,
     wordResult, wordLoading, wordError, wordSaved, wordSaving, saveError, saveSelectedWord,
     translatorPriority, setTranslatorPriority,
     activeSource, setActiveSource, sourceLoading, sourceError, lookupSource,
+    selectedSentence, sentenceTranslation, sentenceLoading, sentenceError,
   } = useStore();
 
   const [showPref, setShowPref] = React.useState(false);
@@ -133,6 +136,12 @@ export default function SidePanel() {
                       </span>
                     )}
                     <h2 className="text-[26px] font-bold text-white/90 m-0 leading-tight tracking-tight" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>
+                      {wordResult.clicked.toLowerCase() !== wordResult.word.toLowerCase() && (
+                        <span className="text-[14px] font-normal text-white/35">{wordResult.clicked} → </span>
+                      )}
+                      {wordResult.article && (
+                        <span className={ARTICLE_CLASS[wordResult.article]}>{wordResult.article} </span>
+                      )}
                       {wordResult.word}
                     </h2>
                   </div>
@@ -188,6 +197,20 @@ export default function SidePanel() {
                     >
                       {sourceLoading ? "Looking up…" : `Look up in ${activeLabel}`}
                     </button>
+                  </div>
+                )}
+
+                {/* Sentence in German and English */}
+                {selectedSentence && (
+                  <div data-testid="sentence-box" className="bg-white/[0.03] border border-white/[0.07] rounded-xl p-4">
+                    <p className="text-[13px] text-white/80 leading-relaxed m-0 mb-2">{selectedSentence}</p>
+                    {sentenceLoading ? (
+                      <p className="text-[12px] text-white/35 m-0">Translating…</p>
+                    ) : sentenceError ? (
+                      <p className="text-[12px] text-white/35 m-0">Couldn&apos;t translate the sentence</p>
+                    ) : (
+                      <p className="text-[13px] text-blue-300/80 leading-relaxed m-0">{sentenceTranslation}</p>
+                    )}
                   </div>
                 )}
               </div>

@@ -57,3 +57,11 @@ describe("entry dispatch", () => {
     expect(f.mock.calls.map(c => c[0])).toEqual([expect.stringMatching(/\/texts\/5\/title$/), expect.stringMatching(/\/videos\/9\/title$/)]);
   });
 });
+
+describe("lookupWord sentence", () => {
+  it("sends the sentence as an encoded query param", async () => {
+    stubFetch(200, "{}");
+    await lookupWord("ging", 1, undefined, false, "Ich ging nach Hause.");
+    expect(vi.mocked(fetch).mock.calls[0][0]).toContain("&sentence=Ich%20ging%20nach%20Hause.");
+  });
+});

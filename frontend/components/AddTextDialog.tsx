@@ -33,7 +33,7 @@ export default function AddTextDialog({
     setError(null);
     try {
       const entry = await createText(title.trim(), input.trim());
-      setText(input.trim(), entry.title);
+      setText(input.trim(), entry.title, { kind: "text", id: entry.id });
       onLoadText?.(entry);
       setOpen(false);
       setTitle("");

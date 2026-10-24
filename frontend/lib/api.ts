@@ -1,5 +1,7 @@
 // lib/api.ts
 
+import type { WordStatus } from '@/types';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 
@@ -8,10 +10,12 @@ export async function lookupWord(
   userId: number,
   priority?: string,
   force?: boolean,
+  sentence?: string | null,
 ): Promise<WordLookupResponse> {
   let url = `${API_BASE_URL}/word/${encodeURIComponent(word)}?user_id=${userId}`;
   if (priority) url += `&priority=${encodeURIComponent(priority)}`;
   if (force) url += `&force=true`;
+  if (sentence) url += `&sentence=${encodeURIComponent(sentence)}`;
   const response = await fetch(url, {
     method: 'GET',
     headers: {
@@ -27,6 +31,15 @@ export async function lookupWord(
   return response.json();
 }
 
+export async function fetchSentenceTranslation(text: string): Promise<string> {
+  const response = await fetch(`${API_BASE_URL}/sentence?text=${encodeURIComponent(text)}`);
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || `Request failed with status ${response.status}`);
+  }
+  return (await response.json()).translation;
+}
+
 export interface UserWord {
   id: number;
   word: string;
@@ -36,6 +49,10 @@ export interface UserWord {
   review_count: number;
   added_at: string;
   source: string | null;
+  status: WordStatus;
+  context_sentence: string | null;
+  text_kind: "video" | "text" | null;
+  text_id: number | null;
 }
 
 export async function fetchUserWords(userId: number): Promise<UserWord[]> {
@@ -45,10 +62,15 @@ export async function fetchUserWords(userId: number): Promise<UserWord[]> {
 }
 
 
-export async function saveWord(wordId: number, userId: number, source?: string): Promise<{ message: string; already_saved: boolean }> {
+// kind uses the library entry "type": video = subtitle id, text = manual text id
+export interface SaveContext { context_sentence?: string; text_kind?: "video" | "text"; text_id?: number }
+
+export async function saveWord(wordId: number, userId: number, source?: string, context?: SaveContext): Promise<{ message: string; already_saved: boolean }> {
   const response = await fetch(
     `${API_BASE_URL}/user-words/${wordId}/save?user_id=${userId}${source ? `&source=${encodeURIComponent(source)}` : ""}`,
-    { method: "POST" }
+    context
+      ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(context) }
+      : { method: "POST" }
   );
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
@@ -57,10 +79,25 @@ export async function saveWord(wordId: number, userId: number, source?: string):
   return response.json();
 }
 
+export async function patchWordStatus(userWordId: number, status: WordStatus): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/user-words/${userWordId}/status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || `Request failed with status ${response.status}`);
+  }
+}
+
 export interface WordLookupResponse {
   id: number;
   source: string; // translator shown: 'pons' | 'libretranslate' | ...
-  word: string;
+  word: string; // base form (lemma)
+  clicked: string;
+  pos: string | null;
+  article: "der" | "die" | "das" | null; // nouns only, when spaCy found a gender
   english_meanings: string[];
   word_class: string | null;
   translations: Record<string, { meanings: string[]; word_class: string | null }>;

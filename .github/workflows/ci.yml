@@ -28,6 +28,7 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
       - run: pip install -r requirements.txt
+      - run: python -m spacy download de_core_news_sm
       - run: python -m unittest discover -s tests -v
 
   frontend:

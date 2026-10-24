@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/api", () => ({ lookupWord: vi.fn(), saveWord: vi.fn(), fetchUserWords: vi.fn() }));
+vi.mock("@/lib/api", () => ({ fetchSentenceTranslation: vi.fn(async () => ""), lookupWord: vi.fn(), saveWord: vi.fn(), fetchUserWords: vi.fn() }));
 
 import { lookupWord, saveWord } from "@/lib/api";
 import SidePanel from "@/components/SidePanel";
@@ -14,11 +14,11 @@ const both: T = {
   libretranslate: { meanings: ["home"], word_class: null },
 };
 const result = (translations: T) =>
-  ({ id: 7, word: "haus", source: "pons", english_meanings: ["house"], word_class: "noun", translations, preferred: "pons" }) as never;
+  ({ id: 7, word: "haus", clicked: "haus", source: "pons", english_meanings: ["house"], word_class: "noun", translations, preferred: "pons" }) as never;
 
 function open(translations: T = both) {
   useStore.setState({
-    sidePanelOpen: true, selectedWord: "haus", wordResult: result(translations),
+    sidePanelOpen: true, selectedWord: "haus", selectedSentence: null, wordResult: result(translations),
     activeSource: "pons", wordLoading: false, wordError: null, wordSaved: false, sourceError: null,
   });
   render(<SidePanel />);
@@ -29,6 +29,56 @@ beforeEach(() => {
   vi.mocked(saveWord).mockReset();
 });
 afterEach(cleanup);
+
+describe("SidePanel base form", () => {
+  it("shows clicked -> base form only when they differ", () => {
+    open();
+    expect(screen.queryByText(/→/)).toBeNull();
+    cleanup();
+    useStore.setState({ wordResult: { ...(result(both) as object), word: "gehen", clicked: "ging" } as never });
+    render(<SidePanel />);
+    expect(screen.getByText("ging →")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /gehen/ })).toBeTruthy();
+  });
+});
+
+describe("SidePanel article", () => {
+  it("colors the article by gender", () => {
+    open();
+    cleanup();
+    useStore.setState({ wordResult: { ...(result(both) as object), word: "Tisch", clicked: "Tisch", article: "der" } as never });
+    render(<SidePanel />);
+    const article = screen.getByText("der");
+    expect(article.className).toContain("text-blue-400");
+    expect(screen.getByRole("heading", { name: "der Tisch" })).toBeTruthy();
+  });
+
+  it("shows no article when there is none", () => {
+    open();
+    cleanup();
+    useStore.setState({ wordResult: { ...(result(both) as object), word: "Tisch", clicked: "Tisch", article: null } as never });
+    render(<SidePanel />);
+    expect(screen.getByRole("heading", { name: "Tisch" })).toBeTruthy();
+  });
+});
+
+describe("SidePanel sentence box", () => {
+  it("shows the German sentence with its English translation", () => {
+    open();
+    act(() => useStore.setState({ selectedSentence: "Das Haus ist alt.", sentenceTranslation: "The house is old.", sentenceLoading: false, sentenceError: false }));
+    expect(screen.getByText("Das Haus ist alt.")).toBeTruthy();
+    expect(screen.getByText("The house is old.")).toBeTruthy();
+  });
+
+  it("shows Translating… while loading and a quiet error on failure", () => {
+    open();
+    act(() => useStore.setState({ selectedSentence: "Das Haus ist alt.", sentenceTranslation: null, sentenceLoading: true, sentenceError: false }));
+    expect(screen.getByText("Translating…")).toBeTruthy();
+    act(() => useStore.setState({ sentenceLoading: false, sentenceError: true }));
+    expect(screen.getByText("Couldn't translate the sentence")).toBeTruthy();
+    expect(screen.getByText("house")).toBeTruthy();
+  });
+});
 
 describe("SidePanel source tabs", () => {
   it("switches tabs without re-querying", () => {
@@ -47,7 +97,7 @@ describe("SidePanel source tabs", () => {
     fireEvent.click(screen.getByRole("button", { name: "Look up in LibreTranslate" }));
     await screen.findByText("home");
     expect(lookupWord).toHaveBeenCalledTimes(1);
-    expect(lookupWord).toHaveBeenCalledWith("haus", 1, "libretranslate");
+    expect(lookupWord).toHaveBeenCalledWith("haus", 1, "libretranslate", false, null);
     expect(useStore.getState().wordResult?.translations.pons).toBeTruthy();
     expect(useStore.getState().activeSource).toBe("libretranslate");
   });
@@ -67,7 +117,7 @@ describe("SidePanel source tabs", () => {
     const pending = useStore.getState().lookupSource("libretranslate");
     expect(useStore.getState().sourceLoading).toBe(true);
 
-    const baum = { id: 8, word: "baum", source: "pons", translations: { pons: { meanings: ["tree"], word_class: "noun" } }, preferred: "pons" };
+    const baum = { id: 8, word: "baum", clicked: "baum", source: "pons", translations: { pons: { meanings: ["tree"], word_class: "noun" } }, preferred: "pons" };
     vi.mocked(lookupWord).mockResolvedValueOnce(baum as never);
     await useStore.getState().setSelectedWord("baum");
 
@@ -106,6 +156,6 @@ describe("SidePanel source tabs", () => {
     open();
     fireEvent.click(screen.getByRole("tab", { name: "LibreTranslate" }));
     fireEvent.click(screen.getByRole("button", { name: "Save to dictionary" }));
-    await waitFor(() => expect(saveWord).toHaveBeenCalledWith(7, 1, "libretranslate"));
+    await waitFor(() => expect(saveWord).toHaveBeenCalledWith(7, 1, "libretranslate", undefined));
   });
 });

@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/api", () => ({
+  fetchSentenceTranslation: vi.fn(async () => ""),
   lookupWord: vi.fn(),
   saveWord: vi.fn(),
   fetchUserWords: vi.fn(),
@@ -47,7 +48,7 @@ describe("translatorPriority hydration", () => {
     vi.mocked(lookupWord).mockResolvedValue({} as never);
     useStore.setState({ selectedWord: "Haus" });
     await useStore.getState().setTranslatorPriority("libretranslate");
-    expect(lookupWord).toHaveBeenCalledWith("Haus", expect.anything(), "libretranslate");
+    expect(lookupWord).toHaveBeenCalledWith("Haus", expect.anything(), "libretranslate", false, null);
   });
 });
 

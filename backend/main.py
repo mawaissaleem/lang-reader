@@ -1,12 +1,14 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Query
 from pydantic import BaseModel
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, List, Dict, Any, Tuple, Literal
 from youtube_transcript_api import TranscriptsDisabled
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 import os
+import hashlib
 from dotenv import load_dotenv
-from models import Video, Subtitle, Dictionary, Translation, UserWord, ManualText
+from models import Video, Subtitle, Dictionary, Translation, UserWord, ManualText, SentenceTranslation
 from datetime import datetime, timedelta, timezone
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -17,6 +19,7 @@ from translators.libretranslate import method2_libretranslate
 from vtt_parser import extract_subtitles
 from utils import extract_video_id
 from database import BASE_DIR, get_db, run_migrations
+from lemmatizer import load_model, analyze, NOUNS
 
 load_dotenv()  # must run before CORS_ORIGINS is read below
 
@@ -28,6 +31,7 @@ def parse_origins(value: str) -> List[str]:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     run_migrations()
+    load_model()
     yield
 
 
@@ -45,6 +49,16 @@ app.add_middleware(
 class VideoRequest(BaseModel):
     url: str
     title: Optional[str] = None
+
+
+class StatusUpdate(BaseModel):
+    status: Literal["learning1", "learning2", "learning3", "known", "ignored"]
+
+
+class SaveContext(BaseModel):
+    context_sentence: Optional[str] = None
+    text_kind: Optional[Literal["video", "text"]] = None
+    text_id: Optional[int] = None
 
 
 class TitleUpdate(BaseModel):
@@ -242,6 +256,29 @@ async def execute_translation_pipeline(
     return None, errors
 
 
+@app.get("/sentence")
+async def translate_sentence(text: str = Query(..., max_length=1000), db: Session = Depends(get_db)):
+    sentence = " ".join(text.split())
+    if not sentence:
+        raise HTTPException(status_code=422, detail="Sentence is empty")
+    key = hashlib.sha256(sentence.encode()).hexdigest()
+    row = db.query(SentenceTranslation).filter_by(sentence_hash=key).first()
+    if not row:
+        res = await method2_libretranslate(sentence, LIBRETRANSLATE_URL)
+        # failures are not cached: the next click retries
+        if not res.get("success"):
+            raise HTTPException(status_code=502, detail=res.get("error", "Translation failed"))
+        row = SentenceTranslation(sentence_hash=key, sentence=sentence, translation=res["translations"][0])
+        db.add(row)
+        try:
+            db.commit()
+        except IntegrityError:
+            # a concurrent request for the same sentence saved it first
+            db.rollback()
+            row = db.query(SentenceTranslation).filter_by(sentence_hash=key).one()
+    return {"sentence": sentence, "translation": row.translation}
+
+
 @app.get("/dictionary/{word}")
 async def get_word_meaning(word: str, priority: Optional[str] = None):
     word = word.strip().lower()
@@ -273,19 +310,35 @@ async def get_word_meaning(word: str, priority: Optional[str] = None):
 # ─────────────────────────────────────────
 # Word Lookup: Cache → Priority Translation Pipeline
 # ─────────────────────────────────────────
+NOUN_CLASSES = {"noun", "nomen", "substantiv"}  # PONS (de) and LibreTranslate/legacy (en) values
+
+
 @app.get("/word/{word}")
 async def lookup_word(
     word: str,
     user_id: int,  # unused: lookup never saves; kept for client compat
     priority: Optional[str] = None,
     force: bool = False,
+    sentence: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    word = word.strip().lower()
+    clicked = word.strip()
+    # translations, cache and saves all key on the base form
+    # key rule: nouns keep their capital (Bank != bank), every other word is lowercase
+    word, pos, article = analyze(clicked, sentence)
+    if pos not in NOUNS:
+        word = word.lower()
     now = datetime.now(timezone.utc)
     priority_order = parse_priority(priority)
 
     entry = db.query(Dictionary).filter(Dictionary.german_word == word).first()
+    if not entry and pos in NOUNS:
+        # legacy rows are all lowercase; a noun adopts its lowercase row (cache and saves follow) instead of starting over
+        # only a row that already reads as a noun; a saved verb (gehen) must keep its key
+        legacy = db.query(Dictionary).filter(Dictionary.german_word == word.lower()).first()
+        if legacy and (legacy.word_class or "").lower() in NOUN_CLASSES:
+            entry = legacy
+            entry.german_word = word
     cached = {t.source: t for t in entry.translations} if entry else {}
     preferred = priority_order[0]
     errors: Dict[str, str] = {}
@@ -354,6 +407,9 @@ async def lookup_word(
         "id": entry.id,
         "source": shown,
         "word": entry.german_word,
+        "clicked": clicked,
+        "pos": pos,
+        "article": article,
         "english_meanings": found[shown].meanings,
         "word_class": found[shown].word_class,
         "translations": {
@@ -401,9 +457,23 @@ def get_user_words(
             "last_reviewed_at": uw.last_reviewed_at,
             "added_at": uw.added_at,
             "notes": uw.notes,
+            "status": uw.status,
+            "context_sentence": uw.context_sentence,
+            "text_kind": uw.text_kind,
+            "text_id": uw.text_id,
         }
         for uw in user_words
     ]
+
+
+@app.patch("/user-words/{user_word_id}/status")
+def set_word_status(user_word_id: int, body: StatusUpdate, db: Session = Depends(get_db)):
+    uw = db.query(UserWord).filter(UserWord.id == user_word_id).first()
+    if not uw:
+        raise HTTPException(status_code=404, detail="Saved word not found")
+    uw.status = body.status
+    db.commit()
+    return {"id": uw.id, "status": uw.status}
 
 
 @app.post("/user-words/{word_id}/save")
@@ -411,8 +481,10 @@ async def save_word(
     word_id: int,
     user_id: int,
     source: Optional[str] = None,
+    body: Optional[SaveContext] = None,
     db: Session = Depends(get_db),
 ):
+    ctx = body or SaveContext()
     # Check if word exists in dictionary
     word = db.query(Dictionary).filter(Dictionary.id == word_id).first()
     if not word:
@@ -434,7 +506,12 @@ async def save_word(
         # re-saving from another tab switches the saved meaning to that source
         if source is not None:
             existing.source = source
-            db.commit()
+        # keep the first sentence; only fill it in if none was stored
+        if ctx.context_sentence and not existing.context_sentence:
+            existing.context_sentence = ctx.context_sentence
+            existing.text_kind = ctx.text_kind
+            existing.text_id = ctx.text_id
+        db.commit()
         return {"message": "Word already in your dictionary", "already_saved": True}
 
     now = datetime.now(timezone.utc)
@@ -442,6 +519,7 @@ async def save_word(
         user_id=user_id,
         word_id=word_id,
         source=source,
+        **ctx.model_dump(),
         last_reviewed_at=now,
         added_at=now,
     )

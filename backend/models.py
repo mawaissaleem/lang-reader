@@ -54,6 +54,18 @@ class ManualText(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
+class SentenceTranslation(Base):
+    """Cache of LibreTranslate sentence translations, keyed by sha256 of the normalized sentence"""
+
+    __tablename__ = "sentence_translations"
+
+    id = Column(Integer, primary_key=True)
+    sentence_hash = Column(String, unique=True, nullable=False)
+    sentence = Column(Text, nullable=False)
+    translation = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 class Dictionary(Base):
     """GLOBAL CACHE - one row per word, shared across ALL users"""
 
@@ -117,7 +129,11 @@ class UserWord(Base):
     review_count = Column(Integer, default=0)
     last_reviewed_at = Column(DateTime, nullable=True)
     notes = Column(Text, nullable=True)  # user's personal notes
+    status = Column(String, nullable=False, default="learning1")  # learning1|learning2|learning3|known|ignored
     source = Column(String, nullable=True)  # translation source whose meaning was saved; NULL for old rows
+    context_sentence = Column(Text, nullable=True)  # sentence the word was saved from
+    text_kind = Column(String, nullable=True)  # video (subtitle id) | text; same names as /library "type"
+    text_id = Column(Integer, nullable=True)
 
     # When did user add this word to their known list
     added_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

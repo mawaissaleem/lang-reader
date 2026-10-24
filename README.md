@@ -38,12 +38,14 @@ source .venv/bin/activate
 From repository root:
 ```bash
 pip install -r requirements.txt
+python -m spacy download de_core_news_sm
 ```
 
 Or from `backend/`:
 ```bash
 cd backend
 pip install -r requirements.txt
+python -m spacy download de_core_news_sm
 ```
 
 ### 3. Environment variables

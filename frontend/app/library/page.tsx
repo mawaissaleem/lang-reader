@@ -335,7 +335,7 @@ export default function LibraryPage() {
     setText("", undefined);
     fetchEntryText(openEntry)
       .then(t => {
-        setText(t, openEntry.title);
+        setText(t, openEntry.title, { kind: openEntry.type, id: openEntry.id });
         setReaderLoading(false);
       })
       .catch(err => {

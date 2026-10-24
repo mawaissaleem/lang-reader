@@ -98,3 +98,83 @@ class TestSaveSource(unittest.IsolatedAsyncioTestCase):
         row = get_user_words(1, db=self.db)[0]
         self.assertIsNone(row["source"])
         self.assertEqual(row["english_meanings"], self.db.query(UserWord).one().word.english_meanings)
+
+
+class TestWordStatus(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        from fastapi.testclient import TestClient
+        from sqlalchemy.pool import StaticPool
+        import main
+
+        engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        Base.metadata.create_all(bind=engine)
+        Session = sessionmaker(bind=engine)
+        self.db = Session()
+        main.app.dependency_overrides[main.get_db] = lambda: self.db
+        self.addCleanup(main.app.dependency_overrides.clear)
+        self.addCleanup(self.db.close)
+        self.client = TestClient(main.app)
+        with patch("main.method1_pons", new_callable=AsyncMock, return_value=PONS_OK):
+            word_id = (await lookup_word("kaffee", user_id=1, db=self.db))["id"]
+        await save_word(word_id, 1, db=self.db)
+        self.uw_id = self.db.query(UserWord).one().id
+
+    async def test_new_save_defaults_to_learning1(self):
+        self.assertEqual(get_user_words(1, db=self.db)[0]["status"], "learning1")
+
+    async def test_set_status_reads_back(self):
+        r = self.client.patch(f"/user-words/{self.uw_id}/status", json={"status": "known"})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(self.client.get("/user/1/words").json()[0]["status"], "known")
+
+    async def test_invalid_status_is_422(self):
+        r = self.client.patch(f"/user-words/{self.uw_id}/status", json={"status": "mastered"})
+        self.assertEqual(r.status_code, 422)
+
+    async def test_unknown_id_is_404(self):
+        r = self.client.patch("/user-words/999/status", json={"status": "known"})
+        self.assertEqual(r.status_code, 404)
+
+
+class TestSaveContext(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        from fastapi.testclient import TestClient
+        from sqlalchemy.pool import StaticPool
+        import main
+
+        engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        Base.metadata.create_all(bind=engine)
+        self.db = sessionmaker(bind=engine)()
+        main.app.dependency_overrides[main.get_db] = lambda: self.db
+        self.addCleanup(main.app.dependency_overrides.clear)
+        self.addCleanup(self.db.close)
+        self.client = TestClient(main.app)
+        with patch("main.method1_pons", new_callable=AsyncMock, return_value=PONS_OK):
+            self.word_id = (await lookup_word("kaffee", user_id=1, db=self.db))["id"]
+        self.url = f"/user-words/{self.word_id}/save?user_id=1"
+
+    async def test_save_stores_and_returns_context(self):
+        ctx = {"context_sentence": "Ich trinke Kaffee.", "text_kind": "text", "text_id": 4}
+        self.assertEqual(self.client.post(self.url, json=ctx).status_code, 200)
+        row = self.client.get("/user/1/words").json()[0]
+        self.assertEqual({k: row[k] for k in ctx}, ctx)
+
+    async def test_save_without_body_still_works(self):
+        self.assertEqual(self.client.post(self.url).status_code, 200)
+        self.assertIsNone(self.client.get("/user/1/words").json()[0]["context_sentence"])
+
+    async def test_invalid_kind_is_422(self):
+        r = self.client.post(self.url, json={"context_sentence": "x", "text_kind": "book", "text_id": 1})
+        self.assertEqual(r.status_code, 422)
+
+    async def test_resave_keeps_first_sentence(self):
+        self.client.post(self.url, json={"context_sentence": "Eins.", "text_kind": "text", "text_id": 1})
+        self.client.post(self.url, json={"context_sentence": "Zwei.", "text_kind": "video", "text_id": 2})
+        row = self.client.get("/user/1/words").json()[0]
+        self.assertEqual((row["context_sentence"], row["text_kind"], row["text_id"]), ("Eins.", "text", 1))
+
+    async def test_resave_fills_missing_sentence(self):
+        self.client.post(self.url)
+        self.client.post(self.url, json={"context_sentence": "Zwei.", "text_kind": "video", "text_id": 2})
+        row = self.client.get("/user/1/words").json()[0]
+        self.assertEqual((row["context_sentence"], row["text_kind"], row["text_id"]), ("Zwei.", "video", 2))

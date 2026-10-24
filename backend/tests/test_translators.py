@@ -99,6 +99,10 @@ class TestLookupWordFallback(unittest.IsolatedAsyncioTestCase):
         Base.metadata.create_all(bind=self.engine)
         self.SessionLocal = sessionmaker(bind=self.engine)
         self.db = self.SessionLocal()
+        # no spaCy here: other test modules may have loaded the real model into the lemmatizer
+        patcher = patch("lemmatizer.nlp", None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def tearDown(self):
         self.db.close()
