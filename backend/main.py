@@ -1,14 +1,19 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Depends, Query
+from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any, Tuple, Literal
 from youtube_transcript_api import TranscriptsDisabled
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+import asyncio
+import logging
 import os
 import hashlib
+import tempfile
 from dotenv import load_dotenv
-from models import Video, Subtitle, Dictionary, Translation, UserWord, ManualText, SentenceTranslation
+from models import Video, Subtitle, Dictionary, Translation, UserWord, ManualText, SentenceTranslation, Setting
 from datetime import datetime, timedelta, timezone
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -18,7 +23,8 @@ from translators.pons import method1_pons
 from translators.libretranslate import method2_libretranslate
 from vtt_parser import extract_subtitles
 from utils import extract_video_id
-from database import BASE_DIR, get_db, run_migrations
+from anki import invoke as anki_invoke, ensure_setup as anki_ensure_setup, send_pending, import_known, export_apkg, get_mapping, AnkiError
+from database import BASE_DIR, SessionLocal, get_db, run_migrations
 from lemmatizer import load_model, analyze, NOUNS
 
 load_dotenv()  # must run before CORS_ORIGINS is read below
@@ -28,11 +34,23 @@ def parse_origins(value: str) -> List[str]:
     return [o.strip() for o in value.split(",") if o.strip()]
 
 
+async def _send_pending_on_start():
+    db = SessionLocal()
+    try:
+        await send_pending(db)
+    except Exception as e:  # Anki closed is the normal case
+        logging.info("Startup Anki sync skipped: %s", e)
+    finally:
+        db.close()
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     run_migrations()
     load_model()
+    task = asyncio.create_task(_send_pending_on_start())  # background: a closed Anki must not delay startup
     yield
+    task.cancel()
 
 
 app = FastAPI(title="YouTube Subtitle Downloader", lifespan=lifespan)
@@ -189,6 +207,82 @@ def root():
 # ─────────────────────────────────────────
 # Bonus: View saved subtitles
 # ─────────────────────────────────────────
+@app.get("/anki/status")
+async def anki_status():
+    try:
+        return {"connected": True, "version": await anki_invoke("version")}
+    except AnkiError:
+        return {"connected": False, "version": None}
+
+
+@app.post("/anki/setup")
+async def anki_setup():
+    try:
+        return await anki_ensure_setup()
+    except AnkiError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@app.get("/anki/pending")
+def anki_pending(db: Session = Depends(get_db)):
+    return {"pending": db.query(UserWord).filter(UserWord.anki_status == "pending").count()}
+
+
+@app.post("/anki/sync")
+async def anki_sync(db: Session = Depends(get_db)):
+    try:
+        return await send_pending(db)
+    except AnkiError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+class AnkiMapping(BaseModel):
+    decks: List[str]
+    model: str
+    field: str
+
+
+@app.get("/anki/overview")
+async def anki_overview(db: Session = Depends(get_db)):
+    """Decks, note types and the saved mapping, for the settings screen."""
+    try:
+        return {"decks": await anki_invoke("deckNames"), "models": await anki_invoke("modelNames"), "mapping": get_mapping(db)}
+    except AnkiError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@app.get("/anki/fields")
+async def anki_fields(model: str):
+    try:
+        return await anki_invoke("modelFieldNames", modelName=model)
+    except AnkiError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@app.post("/anki/import")
+async def anki_import(body: AnkiMapping, user_id: int, db: Session = Depends(get_db)):
+    """Save the mapping and import its words as known. Read-only on Anki."""
+    if not body.decks:
+        raise HTTPException(status_code=422, detail="Pick at least one deck")
+    mapping = body.model_dump()
+    try:
+        result = await import_known(db, user_id, mapping)
+    except AnkiError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+    db.merge(Setting(key="anki_mapping", value=mapping))
+    db.commit()
+    return result
+
+
+@app.get("/anki/export.apkg")
+def anki_export(user_id: int, db: Session = Depends(get_db)):
+    """Fallback for no desktop Anki: the user's Anki-bound words as a deck to import by hand."""
+    fd, path = tempfile.mkstemp(suffix=".apkg")
+    os.close(fd)
+    export_apkg(db, user_id, path)
+    return FileResponse(path, media_type="application/octet-stream", filename="lang-reader.apkg", background=BackgroundTask(os.remove, path))
+
+
 @app.get("/videos")
 def list_videos(db: Session = Depends(get_db)):
     videos = db.query(Video).all()
@@ -481,6 +575,7 @@ async def save_word(
     word_id: int,
     user_id: int,
     source: Optional[str] = None,
+    anki: bool = False,
     body: Optional[SaveContext] = None,
     db: Session = Depends(get_db),
 ):
@@ -511,8 +606,10 @@ async def save_word(
             existing.context_sentence = ctx.context_sentence
             existing.text_kind = ctx.text_kind
             existing.text_id = ctx.text_id
+        if anki and existing.anki_status in ("none", "failed", "sent"):
+            existing.anki_status = "pending"
         db.commit()
-        return {"message": "Word already in your dictionary", "already_saved": True}
+        return {"message": "Word already in your dictionary", "already_saved": True, **await _try_send(db, existing, anki)}
 
     now = datetime.now(timezone.utc)
     user_word = UserWord(
@@ -522,10 +619,22 @@ async def save_word(
         **ctx.model_dump(),
         last_reviewed_at=now,
         added_at=now,
+        anki_status="pending" if anki else "none",
     )
     db.add(user_word)
     db.commit()
-    return {"message": "Word saved successfully", "already_saved": False}
+    return {"message": "Word saved successfully", "already_saved": False, **await _try_send(db, user_word, anki)}
+
+
+async def _try_send(db: Session, uw: UserWord, anki: bool) -> dict:
+    # the word is already saved; Anki being closed just leaves it pending
+    if anki and uw.anki_status == "pending":
+        try:
+            await send_pending(db)
+        except AnkiError:
+            pass
+        db.refresh(uw)
+    return {"anki_status": uw.anki_status}
 
 
 def _text_entry(t: ManualText):

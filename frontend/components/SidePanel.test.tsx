@@ -2,9 +2,9 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/api", () => ({ fetchSentenceTranslation: vi.fn(async () => ""), lookupWord: vi.fn(), saveWord: vi.fn(), fetchUserWords: vi.fn() }));
+vi.mock("@/lib/api", () => ({ fetchSentenceTranslation: vi.fn(async () => ""), lookupWord: vi.fn(), saveWord: vi.fn(), fetchUserWords: vi.fn(), fetchAnkiConnected: vi.fn(async () => true), fetchAnkiPending: vi.fn(async () => 2), syncAnki: vi.fn() }));
 
-import { lookupWord, saveWord } from "@/lib/api";
+import { fetchAnkiConnected, lookupWord, saveWord, syncAnki } from "@/lib/api";
 import SidePanel from "@/components/SidePanel";
 import useStore from "@/store/useStore";
 
@@ -27,6 +27,8 @@ function open(translations: T = both) {
 beforeEach(() => {
   vi.mocked(lookupWord).mockReset();
   vi.mocked(saveWord).mockReset();
+  vi.mocked(syncAnki).mockReset();
+  localStorage.clear();
 });
 afterEach(cleanup);
 
@@ -152,10 +154,59 @@ describe("SidePanel source tabs", () => {
   });
 
   it("saves the active tab's source", async () => {
-    vi.mocked(saveWord).mockResolvedValue({ message: "ok", already_saved: false });
+    vi.mocked(saveWord).mockResolvedValue({ message: "ok", already_saved: false, anki_status: "none" });
     open();
     fireEvent.click(screen.getByRole("tab", { name: "LibreTranslate" }));
-    fireEvent.click(screen.getByRole("button", { name: "Save to dictionary" }));
-    await waitFor(() => expect(saveWord).toHaveBeenCalledWith(7, 1, "libretranslate", undefined));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(saveWord).toHaveBeenCalledWith(7, 1, "libretranslate", undefined, false));
+  });
+});
+
+describe("SidePanel anki status", () => {
+  it("shows connected when the backend says so", async () => {
+    open();
+    await waitFor(() => expect(screen.getByTestId("anki-status").textContent).toBe("Anki connected"));
+  });
+
+  it("shows not connected otherwise", async () => {
+    vi.mocked(fetchAnkiConnected).mockResolvedValueOnce(false);
+    open();
+    await waitFor(() => expect(fetchAnkiConnected).toHaveBeenCalled());
+    expect(screen.getByTestId("anki-status").textContent).toBe("Anki not connected");
+  });
+});
+
+describe("SidePanel Anki outbox", () => {
+  it("Save + Anki sends the flag", async () => {
+    vi.mocked(saveWord).mockResolvedValue({ message: "ok", already_saved: false, anki_status: "pending" });
+    open();
+    fireEvent.click(screen.getByRole("button", { name: "Save + Anki" }));
+    await waitFor(() => expect(saveWord).toHaveBeenCalledWith(7, 1, "pons", undefined, true));
+  });
+
+  it("the default checkbox makes Save + Anki primary and persists", () => {
+    open();
+    const btn = () => screen.getByRole("button", { name: "Save + Anki" });
+    expect(btn().className).not.toContain("bg-blue-500 ");
+    fireEvent.click(screen.getByLabelText("Make Save + Anki the default"));
+    expect(btn().className).toContain("bg-blue-500 ");
+    expect(localStorage.getItem("ankiDefault")).toBe("1");
+  });
+
+  it("shows the pending count and Sync delivers", async () => {
+    vi.mocked(syncAnki).mockResolvedValue({ sent: 2, failed: 0, pending: 0 });
+    open();
+    await waitFor(() => expect(screen.getByTestId("anki-pending").textContent).toBe("2 cards waiting for Anki"));
+    fireEvent.click(screen.getByRole("button", { name: "Sync to Anki" }));
+    await screen.findByText("Sent 2");
+    expect(screen.getByTestId("anki-pending").textContent).toBe("0 cards waiting for Anki");
+  });
+
+  it("shows the error when Anki is closed", async () => {
+    vi.mocked(syncAnki).mockRejectedValue(new Error("Anki is not reachable"));
+    open();
+    await waitFor(() => expect(screen.getByTestId("anki-pending").textContent).toContain("2"));
+    fireEvent.click(screen.getByRole("button", { name: "Sync to Anki" }));
+    await screen.findByText("Anki is not reachable");
   });
 });

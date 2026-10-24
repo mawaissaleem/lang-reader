@@ -17,3 +17,4 @@ requests>=2.31.0
 python-dotenv>=1.0.0
 alembic>=1.13.0
 spacy>=3.8.0
+genanki>=0.13.1

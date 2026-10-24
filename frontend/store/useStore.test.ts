@@ -20,37 +20,45 @@ beforeEach(() => {
 
 describe("saveSelectedWord", () => {
   it("sends the clicked sentence and text ref", async () => {
-    vi.mocked(saveWord).mockResolvedValue({ message: "ok", already_saved: false });
+    vi.mocked(saveWord).mockResolvedValue({ message: "ok", already_saved: false, anki_status: "none" });
     vi.mocked(fetchUserWords).mockResolvedValue([]);
     useStore.setState({ selectedSentence: "Das Haus ist alt.", selectedTextRef: { kind: "text", id: 5 }, activeSource: "pons" });
     await useStore.getState().saveSelectedWord();
-    expect(saveWord).toHaveBeenCalledWith(7, 1, "pons", { context_sentence: "Das Haus ist alt.", text_kind: "text", text_id: 5 });
+    expect(saveWord).toHaveBeenCalledWith(7, 1, "pons", { context_sentence: "Das Haus ist alt.", text_kind: "text", text_id: 5 }, false);
   });
 
   it("keeps the text ref from click time when another text opens before save", async () => {
     vi.mocked(lookupWord).mockResolvedValue({ ...(result as object), translations: {}, preferred: "pons", source: "pons" } as never);
-    vi.mocked(saveWord).mockResolvedValue({ message: "ok", already_saved: false });
+    vi.mocked(saveWord).mockResolvedValue({ message: "ok", already_saved: false, anki_status: "none" });
     vi.mocked(fetchUserWords).mockResolvedValue([]);
     useStore.getState().setText("Der Hund bellt.", "A", { kind: "text", id: 1 });
     await useStore.getState().setSelectedWord("Haus", "Der Hund bellt.");
     useStore.getState().setText("Andere Geschichte.", "B", { kind: "video", id: 2 });
     await useStore.getState().saveSelectedWord();
-    expect(saveWord).toHaveBeenCalledWith(7, 1, "pons", { context_sentence: "Der Hund bellt.", text_kind: "text", text_id: 1 });
+    expect(saveWord).toHaveBeenCalledWith(7, 1, "pons", { context_sentence: "Der Hund bellt.", text_kind: "text", text_id: 1 }, false);
+  });
+
+  it("passes the anki flag and reports a rejected note", async () => {
+    vi.mocked(saveWord).mockResolvedValue({ message: "ok", already_saved: false, anki_status: "failed" });
+    vi.mocked(fetchUserWords).mockResolvedValue([]);
+    await useStore.getState().saveSelectedWord(true);
+    expect(vi.mocked(saveWord).mock.calls[0][4]).toBe(true);
+    expect(useStore.getState().saveError).toMatch(/Anki rejected/);
   });
 
   it("sends no context when no sentence was captured", async () => {
-    vi.mocked(saveWord).mockResolvedValue({ message: "ok", already_saved: false });
+    vi.mocked(saveWord).mockResolvedValue({ message: "ok", already_saved: false, anki_status: "none" });
     vi.mocked(fetchUserWords).mockResolvedValue([]);
     useStore.setState({ selectedSentence: null, activeSource: null });
     await useStore.getState().saveSelectedWord();
-    expect(saveWord).toHaveBeenCalledWith(7, 1, undefined, undefined);
+    expect(saveWord).toHaveBeenCalledWith(7, 1, undefined, undefined, false);
   });
 
   it("does not mark a newer word saved when the click changed during the save", async () => {
     vi.mocked(fetchUserWords).mockResolvedValue([]);
     vi.mocked(saveWord).mockImplementation(async () => {
       useStore.setState({ wordResult: { id: 8, word: "Baum", clicked: "Baum" } as never });
-      return { message: "ok", already_saved: false };
+      return { message: "ok", already_saved: false, anki_status: "none" };
     });
     await useStore.getState().saveSelectedWord();
     expect(useStore.getState().wordSaved).toBe(false);
@@ -58,7 +66,7 @@ describe("saveSelectedWord", () => {
   });
 
   it("marks word saved and known on success", async () => {
-    vi.mocked(saveWord).mockResolvedValue({ message: "ok", already_saved: false });
+    vi.mocked(saveWord).mockResolvedValue({ message: "ok", already_saved: false, anki_status: "none" });
     vi.mocked(fetchUserWords).mockResolvedValue([{ id: 3, word: "Haus", status: "learning1" }] as never);
     await useStore.getState().saveSelectedWord();
     const s = useStore.getState();
@@ -93,7 +101,7 @@ describe("lookup with sentence", () => {
   });
 
   it("saving an inflected click colors the clicked form after the reload", async () => {
-    vi.mocked(saveWord).mockResolvedValue({ message: "ok", already_saved: false });
+    vi.mocked(saveWord).mockResolvedValue({ message: "ok", already_saved: false, anki_status: "none" });
     vi.mocked(fetchUserWords).mockResolvedValue([{ id: 4, word: "gehen", status: "learning1" }] as never);
     useStore.setState({ wordResult: { id: 7, word: "gehen", clicked: "Ging" } as never, userWords: {} });
     await useStore.getState().saveSelectedWord();
@@ -124,7 +132,7 @@ describe("setWordStatus", () => {
 
   it("saves an unsaved word first, then sets the status", async () => {
     useStore.setState({ userWords: {} });
-    vi.mocked(saveWord).mockResolvedValue({ message: "ok", already_saved: false });
+    vi.mocked(saveWord).mockResolvedValue({ message: "ok", already_saved: false, anki_status: "none" });
     vi.mocked(fetchUserWords).mockResolvedValue([{ id: 9, word: "Haus", status: "learning1" }] as never);
     vi.mocked(patchWordStatus).mockResolvedValue();
     await useStore.getState().setWordStatus("learning3");

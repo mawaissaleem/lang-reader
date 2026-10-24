@@ -29,12 +29,12 @@ class MigrationTests(unittest.TestCase):
     @staticmethod
     def make_legacy(eng):
         # a pre-Alembic DB predates the texts and translations tables and subtitles.word_count and user_words.source, .status and the context columns
-        Base.metadata.create_all(eng, tables=[t for n, t in Base.metadata.tables.items() if n not in ("texts", "translations", "sentence_translations")])
+        Base.metadata.create_all(eng, tables=[t for n, t in Base.metadata.tables.items() if n not in ("texts", "translations", "sentence_translations", "settings")])
         with eng.begin() as c:
             c.exec_driver_sql("alter table subtitles drop column word_count")
             c.exec_driver_sql("alter table user_words drop column source")
             c.exec_driver_sql("alter table user_words drop column status")
-            for col in ("context_sentence", "text_kind", "text_id"):
+            for col in ("context_sentence", "text_kind", "text_id", "anki_status", "anki_note_id"):
                 c.exec_driver_sql(f"alter table user_words drop column {col}")
 
     def version(self):

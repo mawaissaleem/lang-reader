@@ -89,7 +89,7 @@ const useStore = create<StoreState>((set, get) => ({
       set({ sourceLoading: false, sourceError: err instanceof Error ? err.message : String(err) });
     }
   },
-  saveSelectedWord: async () => {
+  saveSelectedWord: async (anki = false) => {
     const { wordResult, activeSource, selectedSentence, selectedTextRef } = get();
     if (!wordResult?.id) return;
     set({ wordSaving: true, saveError: null });
@@ -97,14 +97,18 @@ const useStore = create<StoreState>((set, get) => ({
       ? { context_sentence: selectedSentence, text_kind: selectedTextRef?.kind, text_id: selectedTextRef?.id }
       : undefined;
     try {
-      await saveWord(wordResult.id, USER_ID, activeSource ?? undefined, context);
+      const saved = await saveWord(wordResult.id, USER_ID, activeSource ?? undefined, context, anki);
       // already_saved or not, reload to get the user_words id and status
       await get().loadUserWords(USER_ID);
       // shortcut: only the clicked form gets the base form's color; other inflections recolor after a later task
       const base = get().userWords[wordResult.word];
       if (base) set((st) => ({ userWords: { ...st.userWords, [clickedKey(wordResult)]: base } }));
       // a newer click may own the panel by now
-      set({ wordSaving: false, ...(get().wordResult?.id === wordResult.id && { wordSaved: true }) });
+      set({
+        wordSaving: false,
+        ...(get().wordResult?.id === wordResult.id && { wordSaved: true }),
+        ...(saved.anki_status === "failed" && { saveError: "Saved, but Anki rejected the note (maybe a duplicate)" }),
+      });
     } catch (err) {
       set({ wordSaving: false, saveError: err instanceof Error ? err.message : String(err) });
     }

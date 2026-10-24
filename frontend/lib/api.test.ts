@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createText, entryKey, fetchEntryText, fetchText, importFromYouTube, lookupWord, renameEntry, renameText, saveWord, type LibraryEntry } from "./api";
+import { createText, fetchAnkiConnected, entryKey, fetchEntryText, fetchText, importFromYouTube, lookupWord, renameEntry, renameText, saveWord, type LibraryEntry } from "./api";
 
 function stubFetch(status: number, body: string) {
   vi.stubGlobal(
@@ -63,5 +63,19 @@ describe("lookupWord sentence", () => {
     stubFetch(200, "{}");
     await lookupWord("ging", 1, undefined, false, "Ich ging nach Hause.");
     expect(vi.mocked(fetch).mock.calls[0][0]).toContain("&sentence=Ich%20ging%20nach%20Hause.");
+  });
+});
+
+describe("fetchAnkiConnected", () => {
+  it("is true only when connected", async () => {
+    stubFetch(200, JSON.stringify({ connected: true, version: 6 }));
+    expect(await fetchAnkiConnected()).toBe(true);
+    stubFetch(200, JSON.stringify({ connected: false, version: null }));
+    expect(await fetchAnkiConnected()).toBe(false);
+  });
+
+  it("is false when the backend is down", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+    expect(await fetchAnkiConnected()).toBe(false);
   });
 });

@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { fetchLibrary, fetchEntryText, renameEntry, entryKey, LibraryEntry as Entry } from "@/lib/api";
 import AddTextDialog from "@/components/AddTextDialog";
 import ImportYouTubeDialog from "@/components/ImportYouTubeDialog";
@@ -444,6 +445,8 @@ export default function LibraryPage() {
               {item}
             </button>
           ))}
+
+          <Link href="/settings" className="px-3.5 py-1.5 text-[13px] text-white/30 hover:text-white/70">Settings</Link>
 
           <ImportYouTubeDialog
             triggerClassName="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-white/10"

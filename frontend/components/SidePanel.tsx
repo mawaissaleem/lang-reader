@@ -4,6 +4,7 @@ import useStore from "@/store/useStore";
 import { X, BookOpen, HelpCircle, Loader2, Settings } from "lucide-react";
 import clsx from "clsx";
 import React from "react";
+import { fetchAnkiConnected, fetchAnkiPending, syncAnki } from "@/lib/api";
 
 const SOURCES = [
   { id: "pons", label: "PONS" },
@@ -22,6 +23,43 @@ export default function SidePanel() {
   } = useStore();
 
   const [showPref, setShowPref] = React.useState(false);
+  const [ankiConnected, setAnkiConnected] = React.useState(false);
+  // re-check each time the panel opens, so starting Anki is picked up
+  React.useEffect(() => {
+    if (sidePanelOpen) fetchAnkiConnected().then(setAnkiConnected);
+  }, [sidePanelOpen]);
+
+  const [pending, setPending] = React.useState(0);
+  const [syncing, setSyncing] = React.useState(false);
+  const [syncMsg, setSyncMsg] = React.useState<string | null>(null);
+  // safe to read at first render: the panel's body only mounts client-side, after a click
+  const [ankiDefault, setAnkiDefault] = React.useState(() => {
+    try { return localStorage.getItem("ankiDefault") === "1"; } catch { return false; }
+  });
+  function toggleDefault(v: boolean) {
+    setAnkiDefault(v);
+    try { localStorage.setItem("ankiDefault", v ? "1" : "0"); } catch {}
+  }
+  React.useEffect(() => {
+    if (sidePanelOpen) fetchAnkiPending().then(setPending);
+  }, [sidePanelOpen]);
+  async function save(anki: boolean) {
+    await saveSelectedWord(anki);
+    fetchAnkiPending().then(setPending);
+  }
+  async function sync() {
+    setSyncing(true);
+    setSyncMsg(null);
+    try {
+      const r = await syncAnki();
+      setPending(r.pending);
+      setSyncMsg(`Sent ${r.sent}${r.failed ? `, ${r.failed} rejected by Anki` : ""}`);
+    } catch (e) {
+      setSyncMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   // a source the backend returned but we don't know yet still gets a tab
   const tabs = [...SOURCES, ...Object.keys(wordResult?.translations ?? {}).filter((id) => !SOURCES.some((s) => s.id === id)).map((id) => ({ id, label: id }))];
@@ -223,19 +261,48 @@ export default function SidePanel() {
 
           {/* Save button — pinned to bottom */}
           <div className="px-5 py-4 border-t border-white/[0.07] flex-shrink-0">
+            <p data-testid="anki-status" className="flex items-center gap-1.5 text-[11px] text-white/40 m-0 mb-2">
+              <span className={clsx("w-1.5 h-1.5 rounded-full", ankiConnected ? "bg-green-400" : "bg-white/25")} />
+              {ankiConnected ? "Anki connected" : "Anki not connected"}
+            </p>
             {saveError && <p className="text-[12px] text-orange-400 m-0 mb-2">{saveError}</p>}
-            <button
-              onClick={saveSelectedWord}
-              disabled={wordSaving || wordSaved || !active}
-              className={clsx(
-                "w-full py-2.5 rounded-xl text-[13px] font-semibold transition-all",
-                wordSaved
-                  ? "bg-green-500/10 text-green-400 border border-green-400/25 cursor-default"
-                  : "bg-blue-500/15 text-blue-400 border border-blue-400/25 hover:bg-blue-500/25 disabled:opacity-60"
-              )}
-            >
-              {wordSaving ? "Saving…" : wordSaved ? "✓ Saved to dictionary" : "Save to dictionary"}
-            </button>
+            <div className="flex gap-2">
+              {[false, true].map((anki) => {
+                const primary = anki === ankiDefault;
+                return (
+                  <button
+                    key={String(anki)}
+                    onClick={() => save(anki)}
+                    disabled={wordSaving || wordSaved || !active}
+                    className={clsx(
+                      "flex-1 py-2.5 rounded-xl text-[13px] font-semibold transition-all",
+                      wordSaved
+                        ? "bg-green-500/10 text-green-400 border border-green-400/25 cursor-default"
+                        : primary
+                          ? "bg-blue-500 text-white hover:bg-blue-400 disabled:opacity-60"
+                          : "bg-blue-500/15 text-blue-400 border border-blue-400/25 hover:bg-blue-500/25 disabled:opacity-60"
+                    )}
+                  >
+                    {wordSaving ? "Saving…" : wordSaved ? "✓ Saved" : anki ? "Save + Anki" : "Save"}
+                  </button>
+                );
+              })}
+            </div>
+            <label className="flex items-center gap-1.5 text-[11px] text-white/40 mt-2 cursor-pointer">
+              <input type="checkbox" checked={ankiDefault} onChange={(e) => toggleDefault(e.target.checked)} />
+              Make Save + Anki the default
+            </label>
+            <div className="flex items-center justify-between gap-2 mt-2 text-[11px] text-white/40">
+              <span data-testid="anki-pending">{pending} {pending === 1 ? "card" : "cards"} waiting for Anki</span>
+              <button
+                onClick={sync}
+                disabled={syncing || pending === 0}
+                className="px-2 py-1 rounded-lg font-semibold text-blue-400 border border-blue-400/25 hover:bg-blue-500/25 disabled:opacity-50"
+              >
+                {syncing ? "Syncing…" : "Sync to Anki"}
+              </button>
+            </div>
+            {syncMsg && <p className="text-[11px] text-white/50 m-0 mt-1">{syncMsg}</p>}
           </div>
         </>
       )}

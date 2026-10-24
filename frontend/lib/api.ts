@@ -65,9 +65,9 @@ export async function fetchUserWords(userId: number): Promise<UserWord[]> {
 // kind uses the library entry "type": video = subtitle id, text = manual text id
 export interface SaveContext { context_sentence?: string; text_kind?: "video" | "text"; text_id?: number }
 
-export async function saveWord(wordId: number, userId: number, source?: string, context?: SaveContext): Promise<{ message: string; already_saved: boolean }> {
+export async function saveWord(wordId: number, userId: number, source?: string, context?: SaveContext, anki = false): Promise<{ message: string; already_saved: boolean; anki_status: "none" | "pending" | "sent" | "failed" }> {
   const response = await fetch(
-    `${API_BASE_URL}/user-words/${wordId}/save?user_id=${userId}${source ? `&source=${encodeURIComponent(source)}` : ""}`,
+    `${API_BASE_URL}/user-words/${wordId}/save?user_id=${userId}${source ? `&source=${encodeURIComponent(source)}` : ""}${anki ? "&anki=true" : ""}`,
     context
       ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(context) }
       : { method: "POST" }
@@ -202,4 +202,58 @@ export async function importFromYouTube(url: string, title?: string): Promise<Li
   }
 
   return response.json();
+}
+
+// A failed request (backend down) counts as "not connected" so the panel never shows an error for it.
+export async function fetchAnkiConnected(): Promise<boolean> {
+  try {
+    const r = await fetch(`${API_BASE_URL}/anki/status`);
+    return r.ok && (await r.json()).connected === true;
+  } catch {
+    return false;
+  }
+}
+
+export async function fetchAnkiPending(): Promise<number> {
+  try {
+    const r = await fetch(`${API_BASE_URL}/anki/pending`);
+    return r.ok ? (await r.json()).pending : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export async function syncAnki(): Promise<{ sent: number; failed: number; pending: number }> {
+  const response = await fetch(`${API_BASE_URL}/anki/sync`, { method: "POST" });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || `Request failed with status ${response.status}`);
+  }
+  return response.json();
+}
+
+export interface AnkiMapping { decks: string[]; model: string; field: string }
+
+async function ankiJson<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || `Request failed with status ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchAnkiOverview(): Promise<{ decks: string[]; models: string[]; mapping: AnkiMapping | null }> {
+  return ankiJson(await fetch(`${API_BASE_URL}/anki/overview`));
+}
+
+export async function fetchAnkiFields(model: string): Promise<string[]> {
+  return ankiJson(await fetch(`${API_BASE_URL}/anki/fields?model=${encodeURIComponent(model)}`));
+}
+
+export async function importAnkiKnown(userId: number, mapping: AnkiMapping): Promise<{ imported: number; already_known: number; skipped: number }> {
+  return ankiJson(await fetch(`${API_BASE_URL}/anki/import?user_id=${userId}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(mapping),
+  }));
 }

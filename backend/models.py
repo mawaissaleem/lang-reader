@@ -5,6 +5,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Boolean,
+    BigInteger,
     Text,
     JSON,
 )
@@ -134,6 +135,8 @@ class UserWord(Base):
     context_sentence = Column(Text, nullable=True)  # sentence the word was saved from
     text_kind = Column(String, nullable=True)  # video (subtitle id) | text; same names as /library "type"
     text_id = Column(Integer, nullable=True)
+    anki_status = Column(String, nullable=False, default="none")  # none | pending | sent | failed
+    anki_note_id = Column(BigInteger, nullable=True)
 
     # When did user add this word to their known list
     added_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
@@ -143,3 +146,12 @@ class UserWord(Base):
 
     # Ensure one entry per user per word
     __table_args__ = (UniqueConstraint("user_id", "word_id", name="unique_user_word"),)
+
+
+class Setting(Base):
+    """Small key/value store for app settings (e.g. the Anki field mapping)"""
+
+    __tablename__ = "settings"
+
+    key = Column(String, primary_key=True)
+    value = Column(JSON, nullable=False)
