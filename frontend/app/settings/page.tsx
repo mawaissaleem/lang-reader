@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { fetchAnkiOverview, fetchAnkiFields, importAnkiKnown } from "@/lib/api";
+import { fetchAnkiOverview, fetchAnkiFields, importAnkiKnown, fetchLlmModels, saveLlmModel, type LlmModels } from "@/lib/api";
 import useStore from "@/store/useStore";
 
 const USER_ID = 1;
@@ -18,6 +18,32 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ imported: number; already_known: number; skipped: number } | null>(null);
+
+  const [llm, setLlm] = useState<LlmModels | null>(null);
+  const [llmError, setLlmError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = () =>
+      fetchLlmModels()
+        .then((m) => { setLlm(m); setLlmError(null); })
+        .catch((e: Error) => { setLlm(null); setLlmError(e.message); });
+    load();
+    window.addEventListener("focus", load); // a model pulled in another window shows up on return
+    return () => window.removeEventListener("focus", load);
+  }, []);
+
+  async function chooseModel(name: string) {
+    try {
+      await saveLlmModel(name || null);
+      setLlm((cur) => cur && { ...cur, selected: name || null });
+      setLlmError(null);
+    } catch (e) {
+      setLlmError(e instanceof Error ? e.message : "Could not save the model");
+    }
+  }
+
+  const gb = (n: number) => `${(n / 1e9).toFixed(1)} GB`;
+  const missing = llm?.selected && !llm.models.some((m) => m.name === llm.selected);
 
   useEffect(() => {
     fetchAnkiOverview()
@@ -66,6 +92,17 @@ export default function SettingsPage() {
       </header>
       <main className="mx-auto max-w-xl px-6 py-12 flex flex-col gap-6">
         <h1 className="text-4xl text-white" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>Settings</h1>
+        <label className="flex flex-col gap-1 text-sm font-medium text-slate-200">
+          Model
+          <select className={select} value={missing ? "" : llm?.selected ?? ""} onChange={(e) => chooseModel(e.target.value)} disabled={!llm}>
+            <option value="">Default ({llm?.default ?? "none set"})</option>
+            {llm?.models.map((m) => <option key={m.name} value={m.name}>{m.name} ({gb(m.size)})</option>)}
+          </select>
+          <span className="text-xs font-normal text-slate-400">Used for AI answers in the reader. Every model in your Ollama is listed.</span>
+        </label>
+        {llmError && <p role="alert" className="text-sm text-red-400">{llmError}. Start Ollama and refocus this window.</p>}
+        {missing && <p className="text-sm text-amber-400">The saved model &quot;{llm?.selected}&quot; is no longer installed, so the default is used.</p>}
+
         <p className="text-sm text-slate-400">
           Import the German words from your Anki decks as known, so the reader highlights them. Anki is only read, never changed.
         </p>

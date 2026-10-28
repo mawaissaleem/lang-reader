@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createText, fetchAnkiConnected, entryKey, fetchEntryText, fetchText, importFromYouTube, lookupWord, renameEntry, renameText, saveWord, type LibraryEntry } from "./api";
+import { addSentenceCard, createText, fetchAiAnswer, fetchAnkiConnected, entryKey, fetchEntryText, fetchText, importFromYouTube, lookupWord, renameEntry, renameText, saveWord, type LibraryEntry } from "./api";
 
 function stubFetch(status: number, body: string) {
   vi.stubGlobal(
@@ -77,5 +77,48 @@ describe("fetchAnkiConnected", () => {
   it("is false when the backend is down", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
     expect(await fetchAnkiConnected()).toBe(false);
+  });
+});
+
+describe("fetchAiAnswer", () => {
+  const RES = { lemma: "x", pos: "verb", article: null, plural: null, meaning_in_context: "m", sentence_translation: "t", examples: [{ de: "a", en: "b" }], note: null };
+  const streamOf = (...chunks: string[]) =>
+    new Response(new ReadableStream({ start(c) { chunks.forEach((x) => c.enqueue(new TextEncoder().encode(x))); c.close(); } }));
+
+  it("splits lines across chunks, counts tokens, clears on retry, handles a final line without newline", async () => {
+    const final = JSON.stringify({ result: RES, model: "m1", cached: false });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(streamOf('{"token":"a"}\n{"tok', 'en":"b"}\n{"retry":true}\n{"token":"c"}\n', final)));
+    const log: string[] = [];
+    const a = await fetchAiAnswer("w", "s", { onToken: () => log.push("t"), onRetry: () => log.push("r") });
+    expect(log).toEqual(["t", "t", "r", "t"]);
+    expect(a).toEqual({ result: RES, model: "m1", cached: false });
+  });
+
+  it("throws the error line's message", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(streamOf('{"token":"a"}\n{"error":"Ollama down"}\n')));
+    await expect(fetchAiAnswer("w", "s")).rejects.toThrow("Ollama down");
+  });
+
+  it("throws on an HTTP error and on a stream with no result", async () => {
+    stubFetch(422, JSON.stringify({ detail: "Sentence is empty" }));
+    await expect(fetchAiAnswer("w", "s")).rejects.toThrow("Sentence is empty");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(streamOf('{"token":"a"}\n')));
+    await expect(fetchAiAnswer("w", "s")).rejects.toThrow("without a result");
+  });
+});
+
+describe("addSentenceCard", () => {
+  it("posts the card as JSON", async () => {
+    stubFetch(200, JSON.stringify({ anki_status: "sent", pending: 0 }));
+    const card = { sentence_de: "Das Haus.", sentence_en: "The house.", target_word: "Haus", source: "AI example" };
+    expect(await addSentenceCard(1, card)).toEqual({ anki_status: "sent", pending: 0 });
+    const [url, init] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toMatch(/\/anki\/sentences\?user_id=1$/);
+    expect(JSON.parse(init!.body as string)).toEqual(card);
+  });
+
+  it("throws the backend's error", async () => {
+    stubFetch(422, JSON.stringify({ detail: "bad" }));
+    await expect(addSentenceCard(1, {} as never)).rejects.toThrow("bad");
   });
 });

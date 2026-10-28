@@ -1,9 +1,20 @@
 export type HighlightMode = "underline" | "highlight";
 export type WordStatus = "learning1" | "learning2" | "learning3" | "known" | "ignored";
 
-import type { WordLookupResponse } from "@/lib/api";
+import type { AiAnswer, WordLookupResponse } from "@/lib/api";
 
 // which library entry the reader is showing (kind = LibraryEntry.type, id = LibraryEntry.id)
+export type AiEntry =
+  | { status: "loading"; startedAt: number; tokens: number }
+  | { status: "done"; answer: AiAnswer }
+  | { status: "error"; error: string };
+
+export const aiKey = (word: string, sentence: string) => `${word}\n${sentence}`;
+
+// Anki sentence-card state by target word + sentence; "adding" = request in flight, "error" = request failed
+export type SentenceCardState = "adding" | "pending" | "sent" | "failed" | "error";
+export const sentenceKey = (word: string, sentence: string) => `${word}\n${sentence}`;
+
 export interface TextRef { kind: "video" | "text"; id: number }
 
 export interface SelectedToken {
@@ -37,6 +48,11 @@ export interface StoreState {
   sourceLoading: boolean;
   sourceError: string | null;
   lookupSource: (source: string) => Promise<void>;
+  // AI answers by word + sentence: they outlive tab switches and word changes
+  ai: Record<string, AiEntry>;
+  askAi: () => Promise<void>;
+  sentenceCards: Record<string, SentenceCardState>;
+  addSentenceCard: (german: string, english: string, word: string, source: string, bold?: string[]) => Promise<void>;
   saveSelectedWord: (anki?: boolean) => Promise<void>;
   highlightMode: HighlightMode;
   setHighlightMode: (m: HighlightMode) => void;

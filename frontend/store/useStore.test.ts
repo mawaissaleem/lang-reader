@@ -6,9 +6,10 @@ vi.mock("@/lib/api", () => ({
   saveWord: vi.fn(),
   fetchUserWords: vi.fn(),
   patchWordStatus: vi.fn(),
+  addSentenceCard: vi.fn(),
 }));
 
-import { lookupWord, saveWord, fetchUserWords, patchWordStatus } from "@/lib/api";
+import { addSentenceCard, lookupWord, saveWord, fetchUserWords, patchWordStatus } from "@/lib/api";
 import useStore from "@/store/useStore";
 
 const result = { id: 7, word: "Haus", clicked: "Haus", english_meanings: ["house"] } as never;
@@ -25,6 +26,14 @@ describe("saveSelectedWord", () => {
     useStore.setState({ selectedSentence: "Das Haus ist alt.", selectedTextRef: { kind: "text", id: 5 }, activeSource: "pons" });
     await useStore.getState().saveSelectedWord();
     expect(saveWord).toHaveBeenCalledWith(7, 1, "pons", { context_sentence: "Das Haus ist alt.", text_kind: "text", text_id: 5 }, false);
+  });
+
+  it("sends no source on the AI tab", async () => {
+    vi.mocked(saveWord).mockResolvedValue({ message: "ok", already_saved: false, anki_status: "none" });
+    vi.mocked(fetchUserWords).mockResolvedValue([]);
+    useStore.setState({ selectedSentence: null, activeSource: "ai" });
+    await useStore.getState().saveSelectedWord();
+    expect(vi.mocked(saveWord).mock.calls[0][2]).toBeUndefined();
   });
 
   it("keeps the text ref from click time when another text opens before save", async () => {
@@ -138,5 +147,23 @@ describe("setWordStatus", () => {
     await useStore.getState().setWordStatus("learning3");
     expect(patchWordStatus).toHaveBeenCalledWith(9, "learning3");
     expect(useStore.getState().userWords.Haus.status).toBe("learning3");
+  });
+});
+
+describe("addSentenceCard", () => {
+  const key = "Haus\nDas Haus ist alt.";
+  const add = () => useStore.getState().addSentenceCard("Das Haus ist alt.", "The house is old.", "Haus", "AI example");
+
+  it("posts the card and keeps the returned state", async () => {
+    vi.mocked(addSentenceCard).mockResolvedValue({ anki_status: "pending", pending: 1 });
+    await add();
+    expect(addSentenceCard).toHaveBeenCalledWith(1, { sentence_de: "Das Haus ist alt.", sentence_en: "The house is old.", target_word: "Haus", source: "AI example", bold: [] });
+    expect(useStore.getState().sentenceCards[key]).toBe("pending");
+  });
+
+  it("marks a failed request so it can be retried", async () => {
+    vi.mocked(addSentenceCard).mockRejectedValue(new Error("down"));
+    await add();
+    expect(useStore.getState().sentenceCards[key]).toBe("error");
   });
 });

@@ -29,7 +29,7 @@ class MigrationTests(unittest.TestCase):
     @staticmethod
     def make_legacy(eng):
         # a pre-Alembic DB predates the texts and translations tables and subtitles.word_count and user_words.source, .status and the context columns
-        Base.metadata.create_all(eng, tables=[t for n, t in Base.metadata.tables.items() if n not in ("texts", "translations", "sentence_translations", "settings")])
+        Base.metadata.create_all(eng, tables=[t for n, t in Base.metadata.tables.items() if n not in ("texts", "translations", "sentence_translations", "settings", "llm_answers", "sentence_cards")])
         with eng.begin() as c:
             c.exec_driver_sql("alter table subtitles drop column word_count")
             c.exec_driver_sql("alter table user_words drop column source")
@@ -198,6 +198,18 @@ class MigrationTests(unittest.TestCase):
         self.assertIn("sentence_translations", inspect(create_engine(self.url)).get_table_names())
         command.downgrade(cfg, "0007")
         self.assertNotIn("sentence_translations", inspect(create_engine(self.url)).get_table_names())
+
+    def test_0012_creates_sentence_cards(self):
+        from alembic import command
+
+        cfg = Config(str(BASE_DIR / "alembic.ini"))
+        cfg.set_main_option("sqlalchemy.url", self.url)
+        command.upgrade(cfg, "0011")
+        self.assertNotIn("sentence_cards", inspect(create_engine(self.url)).get_table_names())
+        command.upgrade(cfg, "0012")
+        self.assertIn("sentence_cards", inspect(create_engine(self.url)).get_table_names())
+        command.downgrade(cfg, "0011")
+        self.assertNotIn("sentence_cards", inspect(create_engine(self.url)).get_table_names())
 
     def test_rerun_is_noop(self):
         run_migrations(self.url)

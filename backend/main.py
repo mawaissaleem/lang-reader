@@ -1,8 +1,8 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Depends, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from starlette.background import BackgroundTask
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any, Tuple, Literal
 from youtube_transcript_api import TranscriptsDisabled
 from sqlalchemy.exc import IntegrityError
@@ -11,9 +11,10 @@ import asyncio
 import logging
 import os
 import hashlib
+import json
 import tempfile
 from dotenv import load_dotenv
-from models import Video, Subtitle, Dictionary, Translation, UserWord, ManualText, SentenceTranslation, Setting
+from models import Video, Subtitle, Dictionary, Translation, UserWord, ManualText, SentenceTranslation, Setting, LLMAnswer, SentenceCard
 from datetime import datetime, timedelta, timezone
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -21,9 +22,10 @@ from extractors.transcript_api import method1_youtube_transcript_api
 from extractors.yt_dlp import method2_yt_dlp
 from translators.pons import method1_pons
 from translators.libretranslate import method2_libretranslate
+from translators import llm
 from vtt_parser import extract_subtitles
 from utils import extract_video_id
-from anki import invoke as anki_invoke, ensure_setup as anki_ensure_setup, send_pending, import_known, export_apkg, get_mapping, AnkiError
+from anki import invoke as anki_invoke, ensure_setup as anki_ensure_setup, send_pending, import_known, export_apkg, get_mapping, pending_count, AnkiError
 from database import BASE_DIR, SessionLocal, get_db, run_migrations
 from lemmatizer import load_model, analyze, NOUNS
 
@@ -225,7 +227,34 @@ async def anki_setup():
 
 @app.get("/anki/pending")
 def anki_pending(db: Session = Depends(get_db)):
-    return {"pending": db.query(UserWord).filter(UserWord.anki_status == "pending").count()}
+    return {"pending": pending_count(db)}
+
+
+class SentenceCardIn(BaseModel):
+    sentence_de: str = Field(min_length=1)
+    sentence_en: str = Field(min_length=1)
+    target_word: str = Field(min_length=1)
+    source: str = Field(min_length=1)
+    bold: list[str] = Field(default=[], max_length=20)  # clicked surface forms; empty bolds the lemma
+
+
+@app.post("/anki/sentences")
+async def anki_add_sentence(body: SentenceCardIn, user_id: int, db: Session = Depends(get_db)):
+    """Queue a Reader Sentence note (one per user + sentence + word) and try to send it now."""
+    sc = db.query(SentenceCard).filter_by(user_id=user_id, sentence_de=body.sentence_de, target_word=body.target_word).first()
+    if not sc:
+        sc = SentenceCard(user_id=user_id, **body.model_dump())
+        db.add(sc)
+    elif sc.anki_status == "failed":
+        sc.anki_status = "pending"  # clicking again retries
+    db.commit()
+    if sc.anki_status == "pending":
+        try:
+            await send_pending(db)
+        except AnkiError:
+            pass  # stays pending until Anki is open
+        db.refresh(sc)
+    return {"anki_status": sc.anki_status, "pending": pending_count(db)}
 
 
 @app.post("/anki/sync")
@@ -515,6 +544,99 @@ async def lookup_word(
     if errors:
         res["errors"] = errors
     return res
+
+
+@app.get("/word/{word}/ai")
+async def word_ai(word: str, sentence: str = Query(..., max_length=1000), db: Session = Depends(get_db)):
+    """NDJSON stream, one object per line: {"token": str} progress ({"retry": true} = attempt 1 was invalid, drop the tokens so far), then exactly one of
+    {"result": {...}, "model": str, "cached": bool} or {"error": str}."""
+    sentence = " ".join(sentence.split())
+    if not sentence:
+        raise HTTPException(status_code=422, detail="Sentence is empty")
+    clicked = word.strip()
+    lemma, pos, article = analyze(clicked, sentence)
+    if pos not in NOUNS:
+        lemma = lemma.lower()
+    saved = db.get(Setting, "llm_model")
+    env = os.getenv("OLLAMA_MODEL")
+    models = list(dict.fromkeys(m for m in (saved and saved.value, env) if m))  # saved model, then .env as fallback
+    key = hashlib.sha256(sentence.encode()).hexdigest()
+    entry = db.query(Dictionary).filter(Dictionary.german_word == lemma).first()
+    meanings = [m for t in (entry.translations if entry else []) for m in t.meanings]
+
+    def line(obj):
+        return json.dumps(obj, ensure_ascii=False) + "\n"
+
+    async def stream():
+        if not models:
+            yield line({"error": "No model set: choose one in settings or set OLLAMA_MODEL"})
+            return
+        for model in models:
+            row = db.query(LLMAnswer).filter_by(lemma=lemma, sentence_hash=key, model=model).first()
+            if row:
+                yield line({"result": row.result, "model": model, "cached": True})
+                return
+            prompt = llm.build_prompt(clicked, lemma, sentence, meanings)
+            try:
+                async for kind, val in llm.ask(model, prompt):
+                    if kind == "token":
+                        yield line({"token": val})
+                        continue
+                    if kind == "retry":
+                        yield line({"retry": True})
+                        continue
+                    # the app's lemmatizer beats the LLM on base form and article; failures are not cached
+                    val["lemma"] = lemma
+                    if pos in NOUNS and article:
+                        val["article"] = article
+                    db.add(LLMAnswer(lemma=lemma, sentence_hash=key, model=model, result=val))
+                    try:
+                        db.commit()
+                    except IntegrityError:  # a concurrent request saved it first
+                        db.rollback()
+                    yield line({"result": val, "model": model, "cached": False})
+                return
+            except llm.ModelMissing as e:
+                if model == models[-1]:
+                    yield line({"error": str(e)})
+            except llm.LLMError as e:
+                yield line({"error": str(e)})
+                return
+
+    return StreamingResponse(stream(), media_type="application/x-ndjson")
+
+
+class ModelChoice(BaseModel):
+    name: Optional[str] = None  # None clears the choice, back to OLLAMA_MODEL
+
+
+@app.get("/llm/models")
+async def llm_models(db: Session = Depends(get_db)):
+    try:
+        models = await llm.list_models()
+    except llm.LLMError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+    saved = db.get(Setting, "llm_model")
+    return {"models": models, "selected": saved.value if saved else None, "default": os.getenv("OLLAMA_MODEL")}
+
+
+@app.put("/llm/model")
+async def set_llm_model(body: ModelChoice, db: Session = Depends(get_db)):
+    if body.name is None:
+        saved = db.get(Setting, "llm_model")
+        if saved:
+            db.delete(saved)
+            db.commit()
+        return {"selected": None}
+    try:
+        names = [m["name"] for m in await llm.list_models()]
+    except llm.LLMError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+    if body.name not in names:
+        raise HTTPException(status_code=422, detail=f"Model '{body.name}' is not installed in Ollama")
+    db.merge(Setting(key="llm_model", value=body.name))
+    db.commit()
+    return {"selected": body.name}
 
 
 @app.get("/user/{user_id}/words")

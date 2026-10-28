@@ -8,7 +8,7 @@ import re
 import httpx
 
 from lemmatizer import NOUNS, analyze
-from models import Dictionary, ManualText, SentenceTranslation, Setting, Subtitle, UserWord
+from models import Dictionary, ManualText, SentenceCard, SentenceTranslation, Setting, Subtitle, UserWord
 from translators.pons import strip_html
 
 ANKI_URL = os.getenv("ANKI_CONNECT_URL", "http://localhost:8765")
@@ -124,6 +124,25 @@ def _build_note(db, uw: UserWord) -> dict:
     }
 
 
+def _build_sentence_note(sc: SentenceCard) -> dict:
+    de = html.escape(sc.sentence_de, quote=False)
+    # bold the clicked forms (reader) or else the lemma where it appears literally (AI examples)
+    forms = sorted({html.escape(f, quote=False) for f in (sc.bold or [sc.target_word]) if f.strip()}, key=len, reverse=True)
+    if forms:
+        de = re.sub(rf"(?<!\w)(?:{'|'.join(map(re.escape, forms))})(?!\w)", lambda m: f"<b>{m.group()}</b>", de, flags=re.I)
+    tags = ["reader"]
+    slug = re.sub(r"\W+", "-", sc.source.lower()).strip("-")
+    if slug:
+        tags.append(f"reader::src::{slug}")
+    return {
+        "deckName": DECKS[1],
+        "modelName": "Reader Sentence",
+        "fields": {"SentenceDE": de, "SentenceEN": html.escape(sc.sentence_en, quote=False), "TargetWord": sc.target_word, "Audio": "", "Source": sc.source},
+        "options": {"allowDuplicate": False},
+        "tags": tags,
+    }
+
+
 def _q(v: str) -> str:
     """Quote a value for Anki search: escape backslash, quote and the * _ wildcards."""
     return '"' + re.sub(r'([\\"*_])', r"\\\1", v) + '"'
@@ -140,7 +159,17 @@ async def _find_existing(note: dict):
     return next((n["noteId"] for n in infos if n["fields"]["Lemma"]["value"] == note["fields"]["Lemma"]), None)
 
 
-async def _add_or_update(note: dict, note_id, mapping=None):
+async def _find_sentence(note: dict):
+    """Id of the Reader Sentence note with this sentence (ignoring the <b> tags), or None."""
+    ids = await invoke("findNotes", query=f'note:{_q(note["modelName"])} {_q("TargetWord:" + note["fields"]["TargetWord"])}')
+    if not ids:
+        return None
+    want = strip_html(note["fields"]["SentenceDE"])
+    infos = await invoke("notesInfo", notes=ids)
+    return next((n["noteId"] for n in infos if strip_html(n["fields"]["SentenceDE"]["value"]) == want), None)
+
+
+async def _add_or_update(note: dict, note_id, mapping=None, find=_find_existing):
     """Update the known note (or one found by lemma) in place, else add. Returns the note id,
     or None when the word is already in the user's mapped deck (nothing is added or changed there)."""
     # Audio is left out so a later-attached recording is not wiped by an update.
@@ -153,7 +182,7 @@ async def _add_or_update(note: dict, note_id, mapping=None):
             raise
         except AnkiError:
             pass  # the note was deleted in Anki; fall back to find/add
-    found = await _find_existing(note)
+    found = await find(note)
     if found:
         await invoke("updateNoteFields", note={"id": found, "fields": fields})
         return found
@@ -162,34 +191,41 @@ async def _add_or_update(note: dict, note_id, mapping=None):
     return await invoke("addNote", note=note)
 
 
+def pending_count(db) -> int:
+    return db.query(UserWord).filter(UserWord.anki_status == "pending").count() + db.query(SentenceCard).filter(SentenceCard.anki_status == "pending").count()
+
+
 async def send_pending(db) -> dict:
-    """Send every pending word as a note. Raises AnkiError if Anki is unreachable or setup fails;
-    notes stay pending then. An AnkiConnect rejection marks that note failed (re-saving with Anki retries it)."""
+    """Send every pending word and sentence as a note. Raises AnkiError if setup fails;
+    notes stay pending when Anki is unreachable. An AnkiConnect rejection marks that note failed (re-saving with Anki retries it)."""
     async with _send_lock:
-        rows = db.query(UserWord).filter(UserWord.anki_status == "pending").all()
+        words = db.query(UserWord).filter(UserWord.anki_status == "pending").all()
+        sentences = db.query(SentenceCard).filter(SentenceCard.anki_status == "pending").all()
         sent = failed = 0
         mapping = get_mapping(db)
-        if rows:
+        if words or sentences:
             await ensure_setup()
-        for uw in rows:
+        # (row, label, note builder, duplicate finder, mapped-deck check)
+        jobs = [(w, w.word.german_word, lambda w=w: _build_note(db, w), _find_existing, mapping) for w in words]
+        jobs += [(s, s.target_word, lambda s=s: _build_sentence_note(s), _find_sentence, None) for s in sentences]
+        for row, label, build, find, m in jobs:
             try:
-                note_id = await _add_or_update(_build_note(db, uw), uw.anki_note_id, mapping)
+                note_id = await _add_or_update(build(), row.anki_note_id, m, find)
             except AnkiUnreachable:
                 break
             except AnkiError as e:
-                logging.warning("Anki rejected %r: %s", uw.word.german_word, e)
-                uw.anki_status, failed = "failed", failed + 1
+                logging.warning("Anki rejected %r: %s", label, e)
+                row.anki_status, failed = "failed", failed + 1
                 continue
             # note_id None = the user already studies this word; "sent" keeps it from being retried
-            uw.anki_status, uw.anki_note_id, sent = "sent", note_id, sent + 1
+            row.anki_status, row.anki_note_id, sent = "sent", note_id, sent + 1
         db.commit()
         if sent:
             try:
                 await invoke("sync")
             except AnkiError:
                 pass  # the notes are already in Anki; AnkiWeb sync can happen later
-        pending = db.query(UserWord).filter(UserWord.anki_status == "pending").count()
-        return {"sent": sent, "failed": failed, "pending": pending}
+        return {"sent": sent, "failed": failed, "pending": pending_count(db)}
 
 
 # ─── The user's existing cards (read-only: only deckNames, modelNames, modelFieldNames, findNotes, notesInfo) ───

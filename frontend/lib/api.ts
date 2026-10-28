@@ -232,6 +232,16 @@ export async function syncAnki(): Promise<{ sent: number; failed: number; pendin
   return response.json();
 }
 
+export interface SentenceCard { sentence_de: string; sentence_en: string; target_word: string; source: string; bold?: string[] }
+
+export async function addSentenceCard(userId: number, card: SentenceCard): Promise<{ anki_status: "pending" | "sent" | "failed"; pending: number }> {
+  return ankiJson(await fetch(`${API_BASE_URL}/anki/sentences?user_id=${userId}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(card),
+  }));
+}
+
 export interface AnkiMapping { decks: string[]; model: string; field: string }
 
 async function ankiJson<T>(response: Response): Promise<T> {
@@ -256,4 +266,62 @@ export async function importAnkiKnown(userId: number, mapping: AnkiMapping): Pro
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(mapping),
   }));
+}
+
+export interface LlmModels { models: { name: string; size: number }[]; selected: string | null; default: string | null }
+
+export async function fetchLlmModels(): Promise<LlmModels> {
+  return ankiJson(await fetch(`${API_BASE_URL}/llm/models`));
+}
+
+export async function saveLlmModel(name: string | null): Promise<void> {
+  await ankiJson(await fetch(`${API_BASE_URL}/llm/model`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  }));
+}
+
+export interface AiExample { de: string; en: string }
+export interface AiResult {
+  lemma: string; pos: string; article: string | null; plural: string | null;
+  meaning_in_context: string; sentence_translation: string; examples: AiExample[]; note: string | null;
+}
+export interface AiAnswer { result: AiResult; model: string; cached: boolean }
+
+// Streams /word/{word}/ai (NDJSON): onToken per token line, onRetry when the backend restarts after invalid JSON.
+// Resolves with the final result line, throws the error line's message.
+export async function fetchAiAnswer(
+  word: string,
+  sentence: string,
+  { onToken, onRetry, signal }: { onToken?: () => void; onRetry?: () => void; signal?: AbortSignal } = {},
+): Promise<AiAnswer> {
+  const response = await fetch(`${API_BASE_URL}/word/${encodeURIComponent(word)}/ai?sentence=${encodeURIComponent(sentence)}`, { signal });
+  if (!response.ok || !response.body) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || `Request failed with status ${response.status}`);
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  let answer: AiAnswer | null = null;
+  const handle = (raw: string) => {
+    if (!raw.trim()) return;
+    const msg = JSON.parse(raw);
+    if (msg.error) throw new Error(msg.error);
+    if (msg.result) answer = { result: msg.result, model: msg.model, cached: !!msg.cached };
+    else if (msg.retry) onRetry?.();
+    else if ("token" in msg) onToken?.();
+  };
+  for (;;) {
+    const { done, value } = await reader.read();
+    buf += decoder.decode(value, { stream: !done });
+    const lines = buf.split("\n");
+    buf = lines.pop() ?? ""; // a partial last line waits for the next chunk
+    lines.forEach(handle);
+    if (done) break;
+  }
+  handle(buf);
+  if (!answer) throw new Error("The answer ended without a result");
+  return answer;
 }

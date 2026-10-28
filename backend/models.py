@@ -67,6 +67,37 @@ class SentenceTranslation(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
+class LLMAnswer(Base):
+    """Cache of LLM answers per (lemma, sentence, model); a model switch never serves another model's answer"""
+
+    __tablename__ = "llm_answers"
+    __table_args__ = (UniqueConstraint("lemma", "sentence_hash", "model"),)
+
+    id = Column(Integer, primary_key=True)
+    lemma = Column(String, nullable=False)
+    sentence_hash = Column(String, nullable=False)
+    model = Column(String, nullable=False)
+    result = Column(JSON, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class SentenceCard(Base):
+    """Outbox for Reader Sentence notes: one row per (user, sentence, target word)"""
+
+    __tablename__ = "sentence_cards"
+    __table_args__ = (UniqueConstraint("user_id", "sentence_de", "target_word"),)
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    sentence_de = Column(Text, nullable=False)
+    sentence_en = Column(Text, nullable=False)
+    target_word = Column(String, nullable=False)  # the lemma
+    bold = Column(JSON, nullable=False, default=list)  # surface forms to bold; empty = the lemma
+    source = Column(String, nullable=False)  # "AI example" or the text title
+    anki_status = Column(String, nullable=False, default="pending")  # pending | sent | failed
+    anki_note_id = Column(BigInteger, nullable=True)
+
+
 class Dictionary(Base):
     """GLOBAL CACHE - one row per word, shared across ALL users"""
 

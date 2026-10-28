@@ -4,11 +4,14 @@ import useStore from "@/store/useStore";
 import { X, BookOpen, HelpCircle, Loader2, Settings } from "lucide-react";
 import clsx from "clsx";
 import React from "react";
+import AiTab from "@/components/AiTab";
+import SentenceAnkiButton from "@/components/SentenceAnkiButton";
 import { fetchAnkiConnected, fetchAnkiPending, syncAnki } from "@/lib/api";
 
 const SOURCES = [
   { id: "pons", label: "PONS" },
   { id: "libretranslate", label: "LibreTranslate" },
+  { id: "ai", label: "AI" },
 ];
 
 const ARTICLE_CLASS = { der: "text-blue-400", die: "text-rose-400", das: "text-green-400" };
@@ -19,7 +22,7 @@ export default function SidePanel() {
     wordResult, wordLoading, wordError, wordSaved, wordSaving, saveError, saveSelectedWord,
     translatorPriority, setTranslatorPriority,
     activeSource, setActiveSource, sourceLoading, sourceError, lookupSource,
-    selectedSentence, sentenceTranslation, sentenceLoading, sentenceError,
+    selectedSentence, sentenceTranslation, sentenceLoading, sentenceError, sentenceCards, title, selectedTokens,
   } = useStore();
 
   const [showPref, setShowPref] = React.useState(false);
@@ -43,6 +46,10 @@ export default function SidePanel() {
   React.useEffect(() => {
     if (sidePanelOpen) fetchAnkiPending().then(setPending);
   }, [sidePanelOpen]);
+  // a sentence card was added or retried: its state decides whether the count changed
+  React.useEffect(() => {
+    fetchAnkiPending().then(setPending);
+  }, [sentenceCards]);
   async function save(anki: boolean) {
     await saveSelectedWord(anki);
     fetchAnkiPending().then(setPending);
@@ -206,7 +213,9 @@ export default function SidePanel() {
                 </div>
 
                 {/* Meanings */}
-                {active ? (
+                {activeSource === "ai" ? (
+                  <AiTab />
+                ) : active ? (
                   <div role="tabpanel" className="bg-blue-500/[0.07] border border-blue-400/[0.15] rounded-xl p-4">
                     <p className="text-[10px] font-bold tracking-widest uppercase text-blue-400 mb-2.5">
                       English
@@ -238,8 +247,8 @@ export default function SidePanel() {
                   </div>
                 )}
 
-                {/* Sentence in German and English */}
-                {selectedSentence && (
+                {/* Sentence in German and English; the AI tab shows its own box */}
+                {selectedSentence && activeSource !== "ai" && (
                   <div data-testid="sentence-box" className="bg-white/[0.03] border border-white/[0.07] rounded-xl p-4">
                     <p className="text-[13px] text-white/80 leading-relaxed m-0 mb-2">{selectedSentence}</p>
                     {sentenceLoading ? (
@@ -248,6 +257,13 @@ export default function SidePanel() {
                       <p className="text-[12px] text-white/35 m-0">Couldn&apos;t translate the sentence</p>
                     ) : (
                       <p className="text-[13px] text-blue-300/80 leading-relaxed m-0">{sentenceTranslation}</p>
+                    )}
+                    {/* shortcut: the button appears once the translation has arrived, rather than fetching it on click */}
+                    {wordResult && sentenceTranslation && (
+                      <div className="mt-3">
+                        <SentenceAnkiButton de={selectedSentence} en={sentenceTranslation} word={wordResult.word} source={title || "Reader text"}
+                          bold={selectedTokens.length ? selectedTokens.map((t) => t.word) : selectedWord ? [selectedWord] : []} />
+                      </div>
                     )}
                   </div>
                 )}

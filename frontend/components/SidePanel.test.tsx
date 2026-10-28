@@ -2,9 +2,9 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/api", () => ({ fetchSentenceTranslation: vi.fn(async () => ""), lookupWord: vi.fn(), saveWord: vi.fn(), fetchUserWords: vi.fn(), fetchAnkiConnected: vi.fn(async () => true), fetchAnkiPending: vi.fn(async () => 2), syncAnki: vi.fn() }));
+vi.mock("@/lib/api", () => ({ fetchSentenceTranslation: vi.fn(async () => ""), lookupWord: vi.fn(), saveWord: vi.fn(), fetchUserWords: vi.fn(), fetchAnkiConnected: vi.fn(async () => true), fetchAnkiPending: vi.fn(async () => 2), syncAnki: vi.fn(), fetchAiAnswer: vi.fn(), addSentenceCard: vi.fn() }));
 
-import { fetchAnkiConnected, lookupWord, saveWord, syncAnki } from "@/lib/api";
+import { addSentenceCard, fetchAiAnswer, fetchAnkiConnected, lookupWord, saveWord, syncAnki } from "@/lib/api";
 import SidePanel from "@/components/SidePanel";
 import useStore from "@/store/useStore";
 
@@ -18,7 +18,7 @@ const result = (translations: T) =>
 
 function open(translations: T = both) {
   useStore.setState({
-    sidePanelOpen: true, selectedWord: "haus", selectedSentence: null, wordResult: result(translations),
+    sidePanelOpen: true, selectedWord: "haus", selectedSentence: null, selectedTokens: [], wordResult: result(translations),
     activeSource: "pons", wordLoading: false, wordError: null, wordSaved: false, sourceError: null,
   });
   render(<SidePanel />);
@@ -208,5 +208,114 @@ describe("SidePanel Anki outbox", () => {
     await waitFor(() => expect(screen.getByTestId("anki-pending").textContent).toContain("2"));
     fireEvent.click(screen.getByRole("button", { name: "Sync to Anki" }));
     await screen.findByText("Anki is not reachable");
+  });
+});
+
+describe("SidePanel AI tab", () => {
+  const answer = { result: { lemma: "haus", pos: "noun", article: "das", plural: "Häuser", meaning_in_context: "a building", sentence_translation: "The house is big.", examples: [{ de: "Das Haus ist alt.", en: "The house is old." }], note: "neuter noun" }, model: "qwen", cached: false };
+
+  function openAi(word = "haus") {
+    useStore.setState({ ai: {} });
+    open();
+    act(() => useStore.setState({ selectedWord: word, selectedSentence: "Das Haus ist groß.", activeSource: "ai" }));
+  }
+
+  beforeEach(() => vi.mocked(fetchAiAnswer).mockReset());
+
+  it("never asks on its own, shows loading then the result and the model", async () => {
+    let done!: (a: typeof answer) => void;
+    vi.mocked(fetchAiAnswer).mockReturnValue(new Promise((r) => (done = r)));
+    openAi();
+    expect(fetchAiAnswer).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Get examples" }));
+    expect(screen.getByText(/Asking the model/)).toBeTruthy();
+    await act(async () => done(answer));
+    expect(screen.getByText("a building")).toBeTruthy();
+    expect(screen.getByText("The house is old.")).toBeTruthy();
+    expect(screen.getByText("neuter noun")).toBeTruthy();
+    expect(screen.getByText("answered by qwen")).toBeTruthy();
+  });
+
+  it("keeps the in-flight request and result across tab switches", async () => {
+    let done!: (a: typeof answer) => void;
+    vi.mocked(fetchAiAnswer).mockReturnValue(new Promise((r) => (done = r)));
+    openAi();
+    fireEvent.click(screen.getByRole("button", { name: "Get examples" }));
+    fireEvent.click(screen.getByRole("tab", { name: "PONS" }));
+    fireEvent.click(screen.getByRole("tab", { name: "AI" }));
+    expect(screen.getByText(/Asking the model/)).toBeTruthy();
+    await act(async () => done(answer));
+    fireEvent.click(screen.getByRole("tab", { name: "PONS" }));
+    fireEvent.click(screen.getByRole("tab", { name: "AI" }));
+    expect(screen.getByText("a building")).toBeTruthy();
+    expect(fetchAiAnswer).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not show one word's answer for another word", async () => {
+    vi.mocked(fetchAiAnswer).mockResolvedValue(answer);
+    openAi();
+    fireEvent.click(screen.getByRole("button", { name: "Get examples" }));
+    await screen.findByText("a building");
+    act(() => useStore.setState({ selectedWord: "tisch" }));
+    expect(screen.queryByText("a building")).toBeNull();
+    expect(screen.getByRole("button", { name: "Get examples" })).toBeTruthy();
+  });
+
+  it("shows the error and retries", async () => {
+    vi.mocked(fetchAiAnswer).mockRejectedValueOnce(new Error("Ollama down")).mockResolvedValueOnce(answer);
+    openAi();
+    fireEvent.click(screen.getByRole("button", { name: "Get examples" }));
+    await screen.findByText("Ollama down");
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await screen.findByText("a building");
+    expect(fetchAiAnswer).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows the sentence once and adds an example to Anki", async () => {
+    vi.mocked(fetchAiAnswer).mockResolvedValue(answer);
+    vi.mocked(addSentenceCard).mockResolvedValue({ anki_status: "pending", pending: 3 });
+    openAi();
+    act(() => useStore.setState({ sentenceTranslation: "other translation" }));
+    fireEvent.click(screen.getByRole("button", { name: "Get examples" }));
+    await screen.findByText("a building");
+    expect(screen.getAllByText("Das Haus ist groß.")).toHaveLength(1);
+    expect(screen.queryByTestId("sentence-box")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "+ Anki" }));
+    await screen.findByText("Waiting for Anki");
+    expect(addSentenceCard).toHaveBeenCalledWith(1, { sentence_de: "Das Haus ist alt.", sentence_en: "The house is old.", target_word: "haus", source: "AI example", bold: [] });
+  });
+});
+
+describe("SidePanel reader sentence", () => {
+  beforeEach(() => vi.mocked(addSentenceCard).mockReset());
+
+  it("adds the highlighted sentence with the text title and base form", async () => {
+    vi.mocked(addSentenceCard).mockResolvedValue({ anki_status: "sent", pending: 0 });
+    useStore.setState({ title: "Mein Text", sentenceCards: {} });
+    open();
+    act(() => useStore.setState({ selectedSentence: "Das Haus ist alt.", sentenceTranslation: "The house is old." }));
+    fireEvent.click(screen.getByRole("button", { name: "+ Anki" }));
+    await screen.findByText("✓ In Anki");
+    expect(addSentenceCard).toHaveBeenCalledWith(1, { sentence_de: "Das Haus ist alt.", sentence_en: "The house is old.", target_word: "haus", source: "Mein Text", bold: ["haus"] });
+  });
+
+  it("sends the clicked surface forms to bold, not the base form", async () => {
+    vi.mocked(addSentenceCard).mockResolvedValue({ anki_status: "sent", pending: 0 });
+    useStore.setState({ title: "Mein Text", sentenceCards: {} });
+    open();
+    act(() => useStore.setState({
+      selectedSentence: "Er fängt morgen an.", sentenceTranslation: "He starts tomorrow.",
+      selectedTokens: [{ id: "0:1", word: "fängt" }, { id: "0:3", word: "an" }],
+    }));
+    fireEvent.click(screen.getByRole("button", { name: "+ Anki" }));
+    await screen.findByText("✓ In Anki");
+    expect(vi.mocked(addSentenceCard).mock.calls[0][1].bold).toEqual(["fängt", "an"]);
+  });
+
+  it("offers no button until the translation is there", () => {
+    useStore.setState({ sentenceCards: {} });
+    open();
+    act(() => useStore.setState({ selectedSentence: "Das Haus ist alt.", sentenceTranslation: null }));
+    expect(screen.queryByRole("button", { name: "+ Anki" })).toBeNull();
   });
 });

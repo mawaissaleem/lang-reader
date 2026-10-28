@@ -1,7 +1,7 @@
 import { create } from "zustand";
-import { StoreState, WordStatus } from "@/types";
+import { aiKey, sentenceKey, AiEntry, SentenceCardState, StoreState, WordStatus } from "@/types";
 import { clickedKey } from "@/lib/words";
-import { lookupWord, fetchSentenceTranslation, saveWord, fetchUserWords, patchWordStatus, type WordLookupResponse } from "@/lib/api";
+import { lookupWord, fetchSentenceTranslation, fetchAiAnswer, addSentenceCard, saveWord, fetchUserWords, patchWordStatus, type WordLookupResponse } from "@/lib/api";
 
 const USER_ID = 1;
 
@@ -89,6 +89,36 @@ const useStore = create<StoreState>((set, get) => ({
       set({ sourceLoading: false, sourceError: err instanceof Error ? err.message : String(err) });
     }
   },
+  ai: {},
+  askAi: async () => {
+    const { selectedWord, selectedSentence } = get();
+    if (!selectedWord || !selectedSentence) return;
+    const key = aiKey(selectedWord, selectedSentence);
+    if (get().ai[key]?.status === "loading" || get().ai[key]?.status === "done") return;
+    // keyed writes: a late answer lands on its own word and never on the panel's current one
+    const put = (e: AiEntry) => set((st) => ({ ai: { ...st.ai, [key]: e } }));
+    const count = (n: number) => set((st) => {
+      const cur = st.ai[key];
+      return cur?.status === "loading" ? { ai: { ...st.ai, [key]: { ...cur, tokens: n ? cur.tokens + n : 0 } } } : st;
+    });
+    put({ status: "loading", startedAt: Date.now(), tokens: 0 });
+    try {
+      put({ status: "done", answer: await fetchAiAnswer(selectedWord, selectedSentence, { onToken: () => count(1), onRetry: () => count(0) }) });
+    } catch (err) {
+      put({ status: "error", error: err instanceof Error ? err.message : String(err) });
+    }
+  },
+  sentenceCards: {},
+  addSentenceCard: async (german, english, word, source, bold = []) => {
+    const key = sentenceKey(word, german);
+    const put = (state: SentenceCardState) => set((st) => ({ sentenceCards: { ...st.sentenceCards, [key]: state } }));
+    put("adding");
+    try {
+      put((await addSentenceCard(USER_ID, { sentence_de: german, sentence_en: english, target_word: word, source, bold })).anki_status);
+    } catch {
+      put("error");
+    }
+  },
   saveSelectedWord: async (anki = false) => {
     const { wordResult, activeSource, selectedSentence, selectedTextRef } = get();
     if (!wordResult?.id) return;
@@ -97,7 +127,7 @@ const useStore = create<StoreState>((set, get) => ({
       ? { context_sentence: selectedSentence, text_kind: selectedTextRef?.kind, text_id: selectedTextRef?.id }
       : undefined;
     try {
-      const saved = await saveWord(wordResult.id, USER_ID, activeSource ?? undefined, context, anki);
+      const saved = await saveWord(wordResult.id, USER_ID, activeSource && activeSource !== "ai" ? activeSource : undefined, context, anki);
       // already_saved or not, reload to get the user_words id and status
       await get().loadUserWords(USER_ID);
       // shortcut: only the clicked form gets the base form's color; other inflections recolor after a later task
