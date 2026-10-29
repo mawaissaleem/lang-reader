@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import unittest
+from unittest.mock import patch
 
 import httpx
 from fastapi.testclient import TestClient
@@ -48,6 +49,10 @@ class Fake(FakeAnki):
 
 class SentenceApiTest(unittest.TestCase):
     def setUp(self):
+        # no real speech synthesis in these tests (audio has its own test file)
+        p = patch("anki.tts.get_audio", side_effect=anki.tts.TTSError("off"))
+        p.start()
+        self.addCleanup(p.stop)
         engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
         Base.metadata.create_all(bind=engine)
         self.Session = sessionmaker(bind=engine)

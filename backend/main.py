@@ -28,6 +28,7 @@ from utils import extract_video_id
 from anki import invoke as anki_invoke, ensure_setup as anki_ensure_setup, send_pending, import_known, export_apkg, get_mapping, pending_count, AnkiError
 from database import BASE_DIR, SessionLocal, get_db, run_migrations
 from lemmatizer import load_model, analyze, NOUNS
+import tts
 
 load_dotenv()  # must run before CORS_ORIGINS is read below
 
@@ -857,3 +858,15 @@ def get_subtitle_text(subtitle_id: int, db: Session = Depends(get_db)):
     with open(txt_path, "r", encoding="utf-8") as f:
         content = f.read()
     return {"text": content}
+
+
+@app.get("/tts")
+async def text_to_speech(text: str = Query(..., max_length=500)):
+    if not tts.normalize(text):
+        raise HTTPException(status_code=422, detail="text must not be empty")
+    try:
+        path = await tts.get_audio(text)
+    except tts.TTSError as e:
+        raise HTTPException(status_code=503, detail=f"Text-to-speech unavailable: {e}")
+    # short max-age: the URL has no voice, so a voice change must reach the browser
+    return FileResponse(path, media_type="audio/mpeg", headers={"Cache-Control": "public, max-age=86400"})

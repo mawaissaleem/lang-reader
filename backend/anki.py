@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import hashlib
 import html
 import logging
@@ -7,6 +8,7 @@ import re
 
 import httpx
 
+import tts
 from lemmatizer import NOUNS, analyze
 from models import Dictionary, ManualText, SentenceCard, SentenceTranslation, Setting, Subtitle, UserWord
 from translators.pons import strip_html
@@ -172,8 +174,8 @@ async def _find_sentence(note: dict):
 async def _add_or_update(note: dict, note_id, mapping=None, find=_find_existing):
     """Update the known note (or one found by lemma) in place, else add. Returns the note id,
     or None when the word is already in the user's mapped deck (nothing is added or changed there)."""
-    # Audio is left out so a later-attached recording is not wiped by an update.
-    fields = {k: v for k, v in note["fields"].items() if k != "Audio"}
+    # An empty Audio (TTS failed) is left out so an existing recording is not wiped by an update.
+    fields = {k: v for k, v in note["fields"].items() if k != "Audio" or v}
     if note_id:
         try:
             await invoke("updateNoteFields", note={"id": note_id, "fields": fields})
@@ -189,6 +191,31 @@ async def _add_or_update(note: dict, note_id, mapping=None, find=_find_existing)
     if mapping and await _in_mapped(mapping, note["fields"]["Lemma"]):
         return None
     return await invoke("addNote", note=note)
+
+
+async def attach_audio(note: dict) -> None:
+    """Speak the note's text, upload the mp3 to Anki and set Audio. TTS or upload rejection
+    leaves Audio empty (the card matters more); AnkiUnreachable propagates so the note stays pending."""
+    f = note["fields"]
+    if note["modelName"] == "Reader Word":
+        # the same text as the side panel's play button, so the disk cache is shared
+        text = f"{f['Article']} {f['Lemma']}".strip()
+        slug = re.sub(r"[^a-z0-9]+", "-", f["Lemma"].lower()).strip("-")
+    else:
+        text = html.unescape(strip_html(f["SentenceDE"]))
+        slug = "s"
+    # the hash of the spoken text keeps Essen/essen (case-insensitive media folders) and non-ASCII lemmas apart
+    name = f"reader_{slug}_{hashlib.sha256(' '.join(text.split()).encode()).hexdigest()[:10]}.mp3"
+    try:
+        path = await tts.get_audio(text)
+        # base64 instead of `path`: works even if Anki cannot read the backend's filesystem; re-storing is idempotent
+        await invoke("storeMediaFile", filename=name, data=base64.b64encode(path.read_bytes()).decode())
+    except AnkiUnreachable:
+        raise
+    except (tts.TTSError, AnkiError, OSError) as e:
+        logging.warning("No audio for %r: %s", text, e)
+        return
+    f["Audio"] = f"[sound:{name}]"
 
 
 def pending_count(db) -> int:
@@ -210,7 +237,9 @@ async def send_pending(db) -> dict:
         jobs += [(s, s.target_word, lambda s=s: _build_sentence_note(s), _find_sentence, None) for s in sentences]
         for row, label, build, find, m in jobs:
             try:
-                note_id = await _add_or_update(build(), row.anki_note_id, m, find)
+                note = build()
+                await attach_audio(note)
+                note_id = await _add_or_update(note, row.anki_note_id, m, find)
             except AnkiUnreachable:
                 break
             except AnkiError as e:
@@ -304,7 +333,8 @@ _DECK_ID, _MODEL_ID = 1830412501, 1830412502
 
 def export_apkg(db, user_id: int, path: str) -> int:
     """Write the user's Anki-bound words (anki_status != none) to an .apkg; returns the note count.
-    Words only: the Sentences deck/model is not filled by the AnkiConnect flow either."""
+    Words only: the Sentences deck/model is not filled by the AnkiConnect flow either.
+    shortcut: no audio in the package (mp3s would have to be bundled as media), add when .apkg users ask."""
     import genanki
 
     fields, cards = MODELS["Reader Word"]

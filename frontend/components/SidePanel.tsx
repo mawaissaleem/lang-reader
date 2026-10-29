@@ -5,6 +5,7 @@ import { X, BookOpen, HelpCircle, Loader2, Settings } from "lucide-react";
 import clsx from "clsx";
 import React from "react";
 import AiTab from "@/components/AiTab";
+import PlayButton from "@/components/PlayButton";
 import SentenceAnkiButton from "@/components/SentenceAnkiButton";
 import { fetchAnkiConnected, fetchAnkiPending, syncAnki } from "@/lib/api";
 
@@ -189,6 +190,8 @@ export default function SidePanel() {
                       )}
                       {wordResult.word}
                     </h2>
+                    {/* says the article too, like the card, so the gender is heard */}
+                    <PlayButton key={wordResult.word} text={`${wordResult.article ? wordResult.article + " " : ""}${wordResult.word}`} label="Play pronunciation" />
                   </div>
                 </div>
 
@@ -250,7 +253,9 @@ export default function SidePanel() {
                 {/* Sentence in German and English; the AI tab shows its own box */}
                 {selectedSentence && activeSource !== "ai" && (
                   <div data-testid="sentence-box" className="bg-white/[0.03] border border-white/[0.07] rounded-xl p-4">
-                    <p className="text-[13px] text-white/80 leading-relaxed m-0 mb-2">{selectedSentence}</p>
+                    <p className="text-[13px] text-white/80 leading-relaxed m-0 mb-2">
+                      <PlayButton key={selectedSentence} text={selectedSentence} label="Play sentence" /> {selectedSentence}
+                    </p>
                     {sentenceLoading ? (
                       <p className="text-[12px] text-white/35 m-0">Translating…</p>
                     ) : sentenceError ? (

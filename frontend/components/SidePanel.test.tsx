@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/api", () => ({ fetchSentenceTranslation: vi.fn(async () => ""), lookupWord: vi.fn(), saveWord: vi.fn(), fetchUserWords: vi.fn(), fetchAnkiConnected: vi.fn(async () => true), fetchAnkiPending: vi.fn(async () => 2), syncAnki: vi.fn(), fetchAiAnswer: vi.fn(), addSentenceCard: vi.fn() }));
+vi.mock("@/lib/api", () => ({ ttsUrl: (t: string) => `/tts?text=${t}`, fetchSentenceTranslation: vi.fn(async () => ""), lookupWord: vi.fn(), saveWord: vi.fn(), fetchUserWords: vi.fn(), fetchAnkiConnected: vi.fn(async () => true), fetchAnkiPending: vi.fn(async () => 2), syncAnki: vi.fn(), fetchAiAnswer: vi.fn(), addSentenceCard: vi.fn() }));
 
 import { addSentenceCard, fetchAiAnswer, fetchAnkiConnected, lookupWord, saveWord, syncAnki } from "@/lib/api";
 import SidePanel from "@/components/SidePanel";

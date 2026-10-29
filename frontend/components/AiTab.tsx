@@ -4,6 +4,7 @@ import React from "react";
 import { Loader2 } from "lucide-react";
 import useStore from "@/store/useStore";
 import { aiKey } from "@/types";
+import PlayButton from "@/components/PlayButton";
 import SentenceAnkiButton from "@/components/SentenceAnkiButton";
 
 const BTN = "px-3 py-1.5 rounded-lg text-[12px] font-semibold bg-blue-500/15 text-blue-400 border border-blue-400/25 hover:bg-blue-500/25";
@@ -48,13 +49,13 @@ export default function AiTab() {
     <div role="tabpanel" className="flex flex-col gap-4">
       <p className="text-[13px] text-white/80 leading-relaxed m-0">{result.meaning_in_context}</p>
       <div data-testid="ai-sentence" className="bg-white/[0.03] border border-white/[0.07] rounded-xl p-4">
-        <p className="text-[13px] text-white/80 leading-relaxed m-0 mb-2">{sentence}</p>
+        <p className="text-[13px] text-white/80 leading-relaxed m-0 mb-2"><PlayButton key={sentence} text={sentence} label="Play sentence" /> {sentence}</p>
         <p className="text-[13px] text-blue-300/80 leading-relaxed m-0">{result.sentence_translation}</p>
       </div>
       <ul className="flex flex-col gap-3 m-0 p-0 list-none">
         {result.examples.map((ex, i) => (
           <li key={i} data-testid="ai-example" className="flex flex-col gap-0.5">
-            <span className="text-[13px] text-white/80">{ex.de}</span>
+            <span className="text-[13px] text-white/80"><PlayButton text={ex.de} label="Play sentence" /> {ex.de}</span>
             <span className="text-[12px] text-white/45">{ex.en}</span>
             <SentenceAnkiButton de={ex.de} en={ex.en} word={result.lemma} source="AI example" />
           </li>

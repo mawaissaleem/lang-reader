@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import unittest
+from unittest.mock import patch
 
 import httpx
 from sqlalchemy import create_engine
@@ -62,6 +63,10 @@ def closed(req):
 
 class OutboxTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
+        # no real speech synthesis in these tests (audio has its own test file)
+        p = patch("anki.tts.get_audio", side_effect=anki.tts.TTSError("off"))
+        p.start()
+        self.addCleanup(p.stop)
         engine = create_engine("sqlite:///:memory:")
         Base.metadata.create_all(bind=engine)
         self.db = sessionmaker(bind=engine)()

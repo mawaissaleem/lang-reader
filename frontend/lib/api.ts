@@ -5,6 +5,8 @@ import type { WordStatus } from '@/types';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 
+export const ttsUrl = (text: string) => `${API_BASE_URL}/tts?text=${encodeURIComponent(text)}`;
+
 export async function lookupWord(
   word: string,
   userId: number,
