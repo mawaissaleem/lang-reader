@@ -2,7 +2,7 @@ import os
 import tempfile
 import unittest
 
-from vtt_parser import extract_subtitles
+from vtt_parser import extract_cues, extract_subtitles
 
 
 def run(cues):
@@ -34,6 +34,29 @@ class ExtractSubtitlesTest(unittest.TestCase):
     def test_consecutive_genuine_repeat_is_dropped(self):
         # indistinguishable from scrolling; accepted limitation
         self.assertEqual(run(["Danke.", "Danke."]), "Danke.")
+
+
+class ExtractCuesTest(unittest.TestCase):
+    def write(self, body):
+        d = tempfile.mkdtemp()
+        self.addCleanup(lambda: __import__("shutil").rmtree(d))
+        path = os.path.join(d, "a.vtt")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(body)
+        return path
+
+    def test_cues_keep_times_and_same_dedup(self):
+        path = self.write(
+            "WEBVTT\n\n00:00:01.500 --> 00:00:03.000\nA\nB\n\n"
+            "00:00:03.000 --> 00:00:04.250\nB\nC\n\n00:01:05.000 --> 00:01:06.000\nA\n"
+        )
+        cues = extract_cues(path)
+        self.assertEqual(cues, [
+            {"start": 1.5, "end": 3.0, "text": "A B"},
+            {"start": 3.0, "end": 4.25, "text": "C"},
+            {"start": 65.0, "end": 66.0, "text": "A"},
+        ])
+        self.assertEqual(extract_subtitles(path), "A B\nC\nA")
 
 
 if __name__ == "__main__":

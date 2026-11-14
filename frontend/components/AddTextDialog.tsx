@@ -2,7 +2,7 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import useStore from "@/store/useStore";
-import { createText, type LibraryEntry } from "@/lib/api";
+import { createText, fetchText, importTextFile, importTextUrl, type LibraryEntry } from "@/lib/api";
 import { Plus, X } from "lucide-react";
 
 interface AddTextDialogProps {
@@ -24,20 +24,32 @@ export default function AddTextDialog({
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [input, setInput] = useState("");
+  const [url, setUrl] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const canSubmit = !!(input.trim() || url.trim() || file);
+
   async function handleSubmit() {
-    if (!input.trim() || saving) return;
+    if (!canSubmit || saving) return;
     setSaving(true);
     setError(null);
     try {
-      const entry = await createText(title.trim(), input.trim());
-      setText(input.trim(), entry.title, { kind: "text", id: entry.id });
+      // imports are saved by the backend as a normal text, so fetch the content back
+      const entry = file
+        ? await importTextFile(file)
+        : url.trim()
+          ? await importTextUrl(url.trim())
+          : await createText(title.trim(), input.trim());
+      const content = file || url.trim() ? await fetchText(entry.id) : input.trim();
+      setText(content, entry.title, { kind: "text", id: entry.id });
       onLoadText?.(entry);
       setOpen(false);
       setTitle("");
       setInput("");
+      setUrl("");
+      setFile(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save text");
     } finally {
@@ -97,6 +109,29 @@ export default function AddTextDialog({
             />
           </div>
 
+          {/* Import */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-slate-200">Or import from a URL</label>
+              <input
+                type="url"
+                className="w-full rounded-2xl border border-white/10 bg-[#131820] px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="https://…"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-slate-200">Or a PDF / EPUB file</label>
+              <input
+                type="file"
+                accept=".pdf,.epub"
+                className="w-full rounded-2xl border border-white/10 bg-[#131820] px-4 py-2.5 text-sm text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-1 file:text-slate-200"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              />
+            </div>
+          </div>
+
           {error && <p className="text-sm text-red-400">{error}</p>}
 
           <div className="flex justify-end gap-3">
@@ -107,7 +142,7 @@ export default function AddTextDialog({
             </Dialog.Close>
             <button
               onClick={handleSubmit}
-              disabled={!input.trim() || saving}
+              disabled={!canSubmit || saving}
               className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {saving ? "Saving…" : "Load Text"}

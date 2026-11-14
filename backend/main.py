@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Depends, Query
+from fastapi import FastAPI, HTTPException, Depends, Query, UploadFile, File
 from fastapi.responses import FileResponse, StreamingResponse
 from starlette.background import BackgroundTask
 from pydantic import BaseModel, Field
@@ -23,11 +23,15 @@ from extractors.yt_dlp import method2_yt_dlp
 from translators.pons import method1_pons
 from translators.libretranslate import method2_libretranslate
 from translators import llm
-from vtt_parser import extract_subtitles
+from vtt_parser import extract_cues, extract_subtitles
 from utils import extract_video_id
-from anki import invoke as anki_invoke, ensure_setup as anki_ensure_setup, send_pending, import_known, export_apkg, get_mapping, pending_count, AnkiError
+from anki import invoke as anki_invoke, ensure_setup as anki_ensure_setup, send_pending, import_known, pull_intervals, export_apkg, get_mapping, pending_count, AnkiError
 from database import BASE_DIR, SessionLocal, get_db, run_migrations
 from lemmatizer import load_model, analyze, NOUNS
+import progress
+import history
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+import importer
 import tts
 
 load_dotenv()  # must run before CORS_ORIGINS is read below
@@ -262,6 +266,15 @@ async def anki_add_sentence(body: SentenceCardIn, user_id: int, db: Session = De
 async def anki_sync(db: Session = Depends(get_db)):
     try:
         return await send_pending(db)
+    except AnkiError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@app.post("/anki/pull")
+async def anki_pull(user_id: int, db: Session = Depends(get_db)):
+    """Promote word statuses from the Reader Word cards' Anki intervals."""
+    try:
+        return await pull_intervals(db, user_id)
     except AnkiError as e:
         raise HTTPException(status_code=502, detail=str(e))
 
@@ -688,7 +701,7 @@ def set_word_status(user_word_id: int, body: StatusUpdate, db: Session = Depends
     uw = db.query(UserWord).filter(UserWord.id == user_word_id).first()
     if not uw:
         raise HTTPException(status_code=404, detail="Saved word not found")
-    uw.status = body.status
+    history.set_status(db, uw, body.status)
     db.commit()
     return {"id": uw.id, "status": uw.status}
 
@@ -745,6 +758,7 @@ async def save_word(
         anki_status="pending" if anki else "none",
     )
     db.add(user_word)
+    history.record(db, user_id, word_id, user_word.status or "learning1")
     db.commit()
     return {"message": "Word saved successfully", "already_saved": False, **await _try_send(db, user_word, anki)}
 
@@ -774,13 +788,12 @@ def _text_entry(t: ManualText):
     }
 
 
-@app.post("/texts")
-def create_text(body: TextCreate, db: Session = Depends(get_db)):
-    content = body.content.strip()
+def _save_text(db: Session, title: Optional[str], content: str):
+    content = content.strip()
     if not content:
         raise HTTPException(status_code=422, detail="Text must not be empty")
     t = ManualText(
-        title=(body.title or "").strip() or "Untitled",
+        title=(title or "").strip() or "Untitled",
         content=content,
         word_count=len(content.split()),
     )
@@ -788,6 +801,35 @@ def create_text(body: TextCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(t)
     return _text_entry(t)
+
+
+@app.post("/texts")
+def create_text(body: TextCreate, db: Session = Depends(get_db)):
+    return _save_text(db, body.title, body.content)
+
+
+class UrlImport(BaseModel):
+    url: str
+
+
+@app.post("/texts/import-url")
+def import_text_url(body: UrlImport, db: Session = Depends(get_db)):
+    try:
+        title, text = importer.fetch_url(body.url)
+    except importer.ImportError_ as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return _save_text(db, title, text)
+
+
+@app.post("/texts/import-file")
+def import_text_file(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    # shortcut: Starlette spools the whole upload to a temp file before this 20 MB cap applies; upgrade with a request-size limit in a proxy or middleware
+    data = file.file.read(importer.MAX_UPLOAD + 1)
+    try:
+        title, text = importer.read_file(file.filename, data)
+    except importer.ImportError_ as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return _save_text(db, title or file.filename, text)
 
 
 @app.get("/texts/{text_id}")
@@ -846,6 +888,44 @@ def get_library(db: Session = Depends(get_db)):
     return items
 
 
+@app.get("/progress")
+def get_progress(user_id: int = 1, tz: str = "UTC", db: Session = Depends(get_db)):
+    """Known-words-over-time and the daily streak, with days cut in the caller's IANA timezone."""
+    try:
+        zone = ZoneInfo(tz)
+    except (ZoneInfoNotFoundError, ValueError):
+        raise HTTPException(status_code=400, detail=f"Unknown timezone: {tz}")
+    return history.build_progress(db, user_id, zone, datetime.now(zone).date())
+
+
+@app.get("/library/progress")
+def get_library_progress(user_id: int = 1, db: Session = Depends(get_db)):
+    """Known/learning/new counts per library item, keyed "<type>-<id>" like the frontend's entryKey."""
+    statuses = {
+        w: s
+        for w, s in db.query(Dictionary.german_word, UserWord.status)
+        .join(UserWord, UserWord.word_id == Dictionary.id)
+        .filter(UserWord.user_id == user_id)
+    }
+    out = {}
+    for v in db.query(Video).all():
+        if not v.subtitles:
+            continue
+        sub = max(v.subtitles, key=lambda s: s.created_at)  # the one /library lists
+        path = BASE_DIR / sub.txt_path if sub.txt_path else None
+        if not path or not path.exists():
+            continue
+        words = progress.cached_words(
+            ("video", sub.id), path.stat().st_mtime_ns, lambda p=path: p.read_text(encoding="utf-8")
+        )
+        out[f"video-{sub.id}"] = progress.count_status(words, statuses)
+    # shortcut: loads every manual text's content (ISSUES #28) and assumes texts are never edited, so the cache keys on id only; upgrade with an updated_at stamp if editing is added
+    for t in db.query(ManualText).all():
+        words = progress.cached_words(("text", t.id), None, lambda t=t: t.content)
+        out[f"text-{t.id}"] = progress.count_status(words, statuses)
+    return out
+
+
 @app.get("/subtitles/{subtitle_id}/text")
 def get_subtitle_text(subtitle_id: int, db: Session = Depends(get_db)):
     subtitle = db.query(Subtitle).filter(Subtitle.id == subtitle_id).first()
@@ -858,6 +938,22 @@ def get_subtitle_text(subtitle_id: int, db: Session = Depends(get_db)):
     with open(txt_path, "r", encoding="utf-8") as f:
         content = f.read()
     return {"text": content}
+
+
+@app.get("/subtitles/{subtitle_id}/cues")
+def get_subtitle_cues(subtitle_id: int, db: Session = Depends(get_db)):
+    """Timed lines re-read from the raw .vtt (old imports too); 404 if it is gone, so the client falls back to plain text."""
+    subtitle = db.query(Subtitle).filter(Subtitle.id == subtitle_id).first()
+    if not subtitle:
+        raise HTTPException(status_code=404, detail="Subtitle not found")
+    vtt_path = BASE_DIR / subtitle.vtt_path if subtitle.vtt_path else None
+    if not vtt_path or not vtt_path.exists():
+        raise HTTPException(status_code=404, detail="Subtitle file not found")
+    try:
+        cues = extract_cues(str(vtt_path))
+    except Exception:
+        raise HTTPException(status_code=404, detail="Subtitle file unreadable")
+    return {"url": subtitle.video.url, "cues": cues}
 
 
 @app.get("/tts")

@@ -1,6 +1,8 @@
 // lib/api.ts
 
 import type { WordStatus } from '@/types';
+import type { ProgressHistory } from "./history";
+import type { Cue } from '@/lib/video';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -107,6 +109,8 @@ export interface WordLookupResponse {
   errors?: Record<string, string>;
 }
 
+import type { Progress } from "@/lib/progress";
+
 export interface LibraryEntry {
   id: number;
   video_id: number | null;
@@ -125,11 +129,24 @@ export async function fetchLibrary(): Promise<LibraryEntry[]> {
   return response.json();
 }
 
+// keyed like entryKey; a text with no readable file is absent
+export async function fetchLibraryProgress(): Promise<Record<string, Progress>> {
+  const response = await fetch(`${API_BASE_URL}/library/progress`);
+  if (!response.ok) throw new Error(`Failed to fetch progress: ${response.status}`);
+  return response.json();
+}
+
 export async function fetchSubtitleText(subtitleId: number): Promise<string> {
   const response = await fetch(`${API_BASE_URL}/subtitles/${subtitleId}/text`);
   if (!response.ok) throw new Error("Failed to fetch text");
   const data = await response.json();
   return data.text;
+}
+
+// Timed lines for a video; null when the raw .vtt is gone (the reader then shows plain text)
+export async function fetchSubtitleCues(subtitleId: number): Promise<{ url: string; cues: Cue[] } | null> {
+  const response = await fetch(`${API_BASE_URL}/subtitles/${subtitleId}/cues`);
+  return response.ok ? response.json() : null;
 }
 
 export async function renameVideo(videoId: number, newTitle: string): Promise<{ id: number; title: string }> {
@@ -145,17 +162,25 @@ export async function renameVideo(videoId: number, newTitle: string): Promise<{ 
   return response.json();
 }
 
-export async function createText(title: string, content: string): Promise<LibraryEntry> {
-  const response = await fetch(`${API_BASE_URL}/texts`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title, content }),
-  });
+async function postText(path: string, init: RequestInit): Promise<LibraryEntry> {
+  const response = await fetch(`${API_BASE_URL}${path}`, { method: "POST", ...init });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.detail || `Request failed with status ${response.status}`);
   }
   return response.json();
+}
+
+export const createText = (title: string, content: string) =>
+  postText("/texts", { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title, content }) });
+
+export const importTextUrl = (url: string) =>
+  postText("/texts/import-url", { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
+
+export function importTextFile(file: File) {
+  const body = new FormData();
+  body.append("file", file);
+  return postText("/texts/import-file", { body });
 }
 
 export async function fetchText(id: number): Promise<string> {
@@ -232,6 +257,10 @@ export async function syncAnki(): Promise<{ sent: number; failed: number; pendin
     throw new Error(err.detail || `Request failed with status ${response.status}`);
   }
   return response.json();
+}
+
+export async function pullAnki(userId: number): Promise<{ changed: number; checked: number }> {
+  return ankiJson(await fetch(`${API_BASE_URL}/anki/pull?user_id=${userId}`, { method: "POST" }));
 }
 
 export interface SentenceCard { sentence_de: string; sentence_en: string; target_word: string; source: string; bold?: string[] }
@@ -326,4 +355,11 @@ export async function fetchAiAnswer(
   handle(buf);
   if (!answer) throw new Error("The answer ended without a result");
   return answer;
+}
+
+export async function fetchProgressHistory(userId: number): Promise<ProgressHistory> {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const response = await fetch(`${API_BASE_URL}/progress?user_id=${userId}&tz=${encodeURIComponent(tz)}`);
+  if (!response.ok) throw new Error(`Failed to fetch progress: ${response.status}`);
+  return response.json();
 }

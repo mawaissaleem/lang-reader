@@ -29,7 +29,7 @@ class MigrationTests(unittest.TestCase):
     @staticmethod
     def make_legacy(eng):
         # a pre-Alembic DB predates the texts and translations tables and subtitles.word_count and user_words.source, .status and the context columns
-        Base.metadata.create_all(eng, tables=[t for n, t in Base.metadata.tables.items() if n not in ("texts", "translations", "sentence_translations", "settings", "llm_answers", "sentence_cards")])
+        Base.metadata.create_all(eng, tables=[t for n, t in Base.metadata.tables.items() if n not in ("texts", "translations", "sentence_translations", "settings", "llm_answers", "sentence_cards", "word_events")])
         with eng.begin() as c:
             c.exec_driver_sql("alter table subtitles drop column word_count")
             c.exec_driver_sql("alter table user_words drop column source")

@@ -8,6 +8,7 @@ import re
 
 import httpx
 
+import history
 import tts
 from lemmatizer import NOUNS, analyze
 from models import Dictionary, ManualText, SentenceCard, SentenceTranslation, Setting, Subtitle, UserWord
@@ -257,6 +258,47 @@ async def send_pending(db) -> dict:
         return {"sent": sent, "failed": failed, "pending": pending_count(db)}
 
 
+# ─── Two-way: card intervals back into word status (read-only on Anki: notesInfo, cardsInfo) ───
+
+# (min interval in days, status), highest first. THE mapping to tune; 21 days is Anki's "mature".
+INTERVAL_STATUS = [(21, "known"), (7, "learning3"), (1, "learning2")]
+_RANK = {"learning1": 1, "learning2": 2, "learning3": 3, "known": 4}
+
+
+def status_for_interval(days: int):
+    """Status an Anki interval earns, or None for new/learning cards (interval <= 0)."""
+    return next((s for d, s in INTERVAL_STATUS if days >= d), None)
+
+
+async def pull_intervals(db, user_id: int) -> dict:
+    """Promote words from their Reader Word card intervals. Returns {changed, checked}.
+    Only promotes: a lapse (interval reset) in Anki must not erase progress made in the app.
+    Ignored words are never touched."""
+    words = db.query(UserWord).filter(UserWord.user_id == user_id, UserWord.anki_note_id.isnot(None), UserWord.status != "ignored").all()
+    by_note = {w.anki_note_id: w for w in words}
+    ids, note_cards = list(by_note), {}  # note id -> its card ids
+    for i in range(0, len(ids), 500):
+        for n in await invoke("notesInfo", notes=ids[i : i + 500]):
+            w = by_note.get(n.get("noteId"))
+            # Anki's field search is case-insensitive, so stay case-exact here (Essen vs essen)
+            if w and n["modelName"] == "Reader Word" and n["fields"]["Lemma"]["value"] == w.word.german_word:
+                note_cards[n["noteId"]] = n["cards"]
+    cards = [c for cs in note_cards.values() for c in cs]
+    ivl = {}
+    for i in range(0, len(cards), 500):
+        for c in await invoke("cardsInfo", cards=cards[i : i + 500]):
+            ivl[c.get("cardId")] = c.get("interval", 0)
+    changed = 0
+    for nid, cs in note_cards.items():
+        new = status_for_interval(max((ivl.get(c, 0) for c in cs), default=0))
+        w = by_note[nid]
+        if new and _RANK.get(new, 0) > _RANK.get(w.status, 0):
+            history.set_status(db, w, new)
+            changed += 1
+    db.commit()
+    return {"changed": changed, "checked": len(note_cards)}
+
+
 # ─── The user's existing cards (read-only: only deckNames, modelNames, modelFieldNames, findNotes, notesInfo) ───
 
 def get_mapping(db):
@@ -320,6 +362,7 @@ async def import_known(db, user_id: int, mapping: dict) -> dict:
             dictionary[w] = d.id
         if dictionary[w] not in have:
             db.add(UserWord(user_id=user_id, word_id=dictionary[w], status="known", anki_status="none"))
+            history.record(db, user_id, dictionary[w], "known")
             imported += 1
     db.commit()
     return {"imported": imported, "already_known": len(words) - imported, "skipped": skipped}

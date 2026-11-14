@@ -7,7 +7,7 @@ import React from "react";
 import AiTab from "@/components/AiTab";
 import PlayButton from "@/components/PlayButton";
 import SentenceAnkiButton from "@/components/SentenceAnkiButton";
-import { fetchAnkiConnected, fetchAnkiPending, syncAnki } from "@/lib/api";
+import { fetchAnkiConnected, fetchAnkiPending, pullAnki, syncAnki } from "@/lib/api";
 
 const SOURCES = [
   { id: "pons", label: "PONS" },
@@ -23,7 +23,7 @@ export default function SidePanel() {
     wordResult, wordLoading, wordError, wordSaved, wordSaving, saveError, saveSelectedWord,
     translatorPriority, setTranslatorPriority,
     activeSource, setActiveSource, sourceLoading, sourceError, lookupSource,
-    selectedSentence, sentenceTranslation, sentenceLoading, sentenceError, sentenceCards, title, selectedTokens,
+    selectedSentence, sentenceTranslation, sentenceLoading, sentenceError, sentenceCards, title, selectedTokens, loadUserWords,
   } = useStore();
 
   const [showPref, setShowPref] = React.useState(false);
@@ -62,6 +62,20 @@ export default function SidePanel() {
       const r = await syncAnki();
       setPending(r.pending);
       setSyncMsg(`Sent ${r.sent}${r.failed ? `, ${r.failed} rejected by Anki` : ""}`);
+    } catch (e) {
+      setSyncMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  async function pull() {
+    setSyncing(true);
+    setSyncMsg(null);
+    try {
+      const r = await pullAnki(1);
+      if (r.changed) await loadUserWords(1);
+      setSyncMsg(`${r.changed} of ${r.checked} words updated from Anki`);
     } catch (e) {
       setSyncMsg(e instanceof Error ? e.message : String(e));
     } finally {
@@ -315,6 +329,13 @@ export default function SidePanel() {
             </label>
             <div className="flex items-center justify-between gap-2 mt-2 text-[11px] text-white/40">
               <span data-testid="anki-pending">{pending} {pending === 1 ? "card" : "cards"} waiting for Anki</span>
+              <button
+                onClick={pull}
+                disabled={syncing}
+                className="px-2 py-1 rounded-lg font-semibold text-blue-400 border border-blue-400/25 hover:bg-blue-500/25 disabled:opacity-50"
+              >
+                Pull from Anki
+              </button>
               <button
                 onClick={sync}
                 disabled={syncing || pending === 0}

@@ -1,11 +1,14 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { fetchLibrary, fetchEntryText, renameEntry, entryKey, LibraryEntry as Entry } from "@/lib/api";
+import { fetchLibrary, fetchLibraryProgress, fetchEntryText, fetchSubtitleCues, renameEntry, entryKey, LibraryEntry as Entry } from "@/lib/api";
+import { knownPct, levelTag, type Progress } from "@/lib/progress";
 import AddTextDialog from "@/components/AddTextDialog";
 import ImportYouTubeDialog from "@/components/ImportYouTubeDialog";
 import TextDisplay from "@/components/TextDisplay";
 import SidePanel from "@/components/SidePanel";
+import VideoReader from "@/components/VideoReader";
+import type { Cue } from "@/lib/video";
 import useStore from "@/store/useStore";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -48,10 +51,12 @@ const EditIcon = () => (
 // ─── Card ─────────────────────────────────────────────────────────────────────
 function EntryCard({
   entry,
+  progress,
   onClick,
   onRename,
 }: {
   entry: Entry;
+  progress?: Progress;
   onClick: () => void;
   onRename: (entry: Entry, newTitle: string) => Promise<void>;
 }) {
@@ -260,6 +265,28 @@ function EntryCard({
                 {entry.language.toUpperCase()}
               </span>
             </div>
+            {progress && progress.total > 0 && (() => {
+              const tag = levelTag(progress);
+              const pct = (n: number) => `${(n / progress.total) * 100}%`;
+              return (
+                <div style={{ marginTop: "14px" }}>
+                  <div style={{ display: "flex", height: "5px", borderRadius: "3px", overflow: "hidden", background: "rgba(255,255,255,0.06)" }}>
+                    <div style={{ width: pct(progress.known), background: "#4f8eff" }} />
+                    <div style={{ width: pct(progress.learning), background: "#fbbf24" }} />
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "8px", fontSize: "12px", color: "rgba(255,255,255,0.45)" }}>
+                    <span>{knownPct(progress)}% known · {progress.new} new</span>
+                    {tag && (
+                      <span style={{
+                        fontSize: "11px", fontWeight: 600, padding: "2px 8px", borderRadius: "20px",
+                        color: tag === "Hard" ? "#ff8866" : "#7b9fff",
+                        background: tag === "Hard" ? "rgba(255,102,68,0.12)" : "rgba(79,142,255,0.12)",
+                      }}>{tag}</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           <div style={{ color: "rgba(255,255,255,0.2)", paddingTop: "4px", flexShrink: 0 }}>
@@ -302,7 +329,10 @@ export default function LibraryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [readerLoading, setReaderLoading] = useState(false);
+  const [progress, setProgress] = useState<Record<string, Progress>>({});
 
+
+  const [video, setVideo] = useState<{ url: string; cues: Cue[] } | null>(null);
 
   const setText = useStore(s => s.setText);
   const text = useStore(s => s.text);
@@ -324,6 +354,12 @@ export default function LibraryPage() {
 
 
 
+  // refetch on returning from the reader: statuses may have changed there
+  useEffect(() => {
+    if (openEntry) return;
+    fetchLibraryProgress().then(setProgress).catch(err => console.error("Progress load failed", err));
+  }, [openEntry, entries.length]);
+
   // Load user words once (same as root page)
   useEffect(() => {
     loadUserWords(1);
@@ -334,6 +370,8 @@ export default function LibraryPage() {
   useEffect(() => {
     if (!openEntry) return;
     setText("", undefined);
+    // timed lines are optional: without them a video opens as plain text
+    if (openEntry.type === "video") fetchSubtitleCues(openEntry.id).then(setVideo).catch(() => {});
     fetchEntryText(openEntry)
       .then(t => {
         setText(t, openEntry.title, { kind: openEntry.type, id: openEntry.id });
@@ -363,7 +401,7 @@ export default function LibraryPage() {
         {/* Header */}
         <header className="border-b border-white/[0.06] px-6 py-4 flex items-center gap-3 bg-[#0d0d0f]">
           <button
-            onClick={() => setOpenEntry(null)}
+            onClick={() => { setOpenEntry(null); setVideo(null); }}
             className="flex items-center gap-2 text-sm text-white/40 hover:text-white/80 transition-colors"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -388,6 +426,8 @@ export default function LibraryPage() {
               <div className="flex items-center justify-center h-full text-gray-400 text-sm">
                 No text found for this entry.
               </div>
+            ) : video?.cues.length ? (
+              <VideoReader url={video.url} cues={video.cues} />
             ) : (
               <TextDisplay />
             )}
@@ -446,6 +486,7 @@ export default function LibraryPage() {
             </button>
           ))}
 
+          <Link href="/progress" className="px-3.5 py-1.5 text-[13px] text-white/30 hover:text-white/70">Progress</Link>
           <Link href="/settings" className="px-3.5 py-1.5 text-[13px] text-white/30 hover:text-white/70">Settings</Link>
 
           <ImportYouTubeDialog
@@ -521,6 +562,7 @@ export default function LibraryPage() {
             <EntryCard
               key={entryKey(entry)}
               entry={entry}
+              progress={progress[entryKey(entry)]}
               onClick={() => { setReaderLoading(true); setOpenEntry(entry); }}
               onRename={handleRename}
             />

@@ -179,6 +179,18 @@ class UserWord(Base):
     __table_args__ = (UniqueConstraint("user_id", "word_id", name="unique_user_word"),)
 
 
+class WordEvent(Base):
+    """History: one row each time a word is saved or its status changes (written only by history.py)"""
+
+    __tablename__ = "word_events"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    word_id = Column(Integer, nullable=False)
+    status = Column(String, nullable=False)
+    at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+
 class Setting(Base):
     """Small key/value store for app settings (e.g. the Anki field mapping)"""
 

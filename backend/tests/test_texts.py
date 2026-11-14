@@ -37,6 +37,28 @@ class TextEndpointTests(unittest.TestCase):
     def create(self, title="T", content="eins zwei drei"):
         return self.client.post("/texts", json={"title": title, "content": content})
 
+    def add_subtitle(self, vtt_path):
+        with self.Session() as db:
+            v = Video(url="https://www.youtube.com/watch?v=abc", title="V")
+            db.add(v)
+            db.flush()
+            s = Subtitle(video_id=v.id, extraction_method="yt_dlp", vtt_path=vtt_path, word_count=1)
+            db.add(s)
+            db.commit()
+            return s.id
+
+    def test_cues_from_vtt(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile("w", suffix=".vtt", delete=False, encoding="utf-8") as f:
+            f.write("WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nHallo Welt\n")
+        self.addCleanup(os.remove, f.name)
+        r = self.client.get(f"/subtitles/{self.add_subtitle(f.name)}/cues")
+        self.assertEqual(r.json(), {"url": "https://www.youtube.com/watch?v=abc", "cues": [{"start": 1.0, "end": 2.0, "text": "Hallo Welt"}]})
+
+    def test_cues_missing_vtt_404(self):
+        self.assertEqual(self.client.get(f"/subtitles/{self.add_subtitle('/nope.vtt')}/cues").status_code, 404)
+        self.assertEqual(self.client.get("/subtitles/999/cues").status_code, 404)
+
     def test_create_appears_in_library(self):
         r = self.create()
         self.assertEqual(r.status_code, 200)

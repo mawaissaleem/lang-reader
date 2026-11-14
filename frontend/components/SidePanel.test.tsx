@@ -2,9 +2,9 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/api", () => ({ ttsUrl: (t: string) => `/tts?text=${t}`, fetchSentenceTranslation: vi.fn(async () => ""), lookupWord: vi.fn(), saveWord: vi.fn(), fetchUserWords: vi.fn(), fetchAnkiConnected: vi.fn(async () => true), fetchAnkiPending: vi.fn(async () => 2), syncAnki: vi.fn(), fetchAiAnswer: vi.fn(), addSentenceCard: vi.fn() }));
+vi.mock("@/lib/api", () => ({ ttsUrl: (t: string) => `/tts?text=${t}`, fetchSentenceTranslation: vi.fn(async () => ""), lookupWord: vi.fn(), saveWord: vi.fn(), fetchUserWords: vi.fn(), fetchAnkiConnected: vi.fn(async () => true), fetchAnkiPending: vi.fn(async () => 2), syncAnki: vi.fn(), pullAnki: vi.fn(), fetchAiAnswer: vi.fn(), addSentenceCard: vi.fn() }));
 
-import { addSentenceCard, fetchAiAnswer, fetchAnkiConnected, lookupWord, saveWord, syncAnki } from "@/lib/api";
+import { addSentenceCard, fetchAiAnswer, fetchAnkiConnected, fetchUserWords, lookupWord, pullAnki, saveWord, syncAnki } from "@/lib/api";
 import SidePanel from "@/components/SidePanel";
 import useStore from "@/store/useStore";
 
@@ -200,6 +200,15 @@ describe("SidePanel Anki outbox", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sync to Anki" }));
     await screen.findByText("Sent 2");
     expect(screen.getByTestId("anki-pending").textContent).toBe("0 cards waiting for Anki");
+  });
+
+  it("Pull from Anki reports how many words changed", async () => {
+    vi.mocked(pullAnki).mockResolvedValue({ changed: 3, checked: 5 });
+    vi.mocked(fetchUserWords).mockReset().mockResolvedValue([]);
+    open();
+    fireEvent.click(screen.getByRole("button", { name: "Pull from Anki" }));
+    await screen.findByText("3 of 5 words updated from Anki");
+    expect(fetchUserWords).toHaveBeenCalledWith(1);
   });
 
   it("shows the error when Anki is closed", async () => {
