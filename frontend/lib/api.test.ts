@@ -7,6 +7,11 @@ import {
   entryKey,
   fetchEntryText,
   fetchText,
+  fetchLibrary,
+  fetchLibraryProgress,
+  fetchProgressHistory,
+  fetchSubtitleText,
+  fetchUserWords,
   importFromYouTube,
   lookupWord,
   renameEntry,
@@ -91,6 +96,44 @@ describe("entry dispatch", () => {
       expect.stringMatching(/\/texts\/5\/title$/),
       expect.stringMatching(/\/videos\/9\/title$/),
     ]);
+  });
+});
+
+describe("lookupWord url", () => {
+  it("does not send a user id", async () => {
+    stubFetch(200, "{}");
+    await lookupWord("Haus");
+    expect(vi.mocked(fetch).mock.calls[0][0]).not.toContain("user_id");
+  });
+});
+
+describe("fetch helpers that used a fixed error message", () => {
+  const helpers: [string, () => Promise<unknown>, string][] = [
+    ["fetchUserWords", () => fetchUserWords(1), "Failed to fetch user words"],
+    ["fetchLibrary", () => fetchLibrary(), "Failed to fetch library: 500"],
+    [
+      "fetchLibraryProgress",
+      () => fetchLibraryProgress(),
+      "Failed to fetch progress: 500",
+    ],
+    ["fetchSubtitleText", () => fetchSubtitleText(1), "Failed to fetch text"],
+    [
+      "fetchProgressHistory",
+      () => fetchProgressHistory(1),
+      "Failed to fetch progress: 500",
+    ],
+  ];
+
+  describe.each(helpers)("%s", (_name, call, fallback) => {
+    it("shows the server's detail", async () => {
+      stubFetch(500, JSON.stringify({ detail: "Database is locked" }));
+      await expect(call()).rejects.toThrow("Database is locked");
+    });
+
+    it("keeps its own message when the server sends no detail", async () => {
+      stubFetch(500, "<html>boom</html>");
+      await expect(call()).rejects.toThrow(fallback);
+    });
   });
 });
 

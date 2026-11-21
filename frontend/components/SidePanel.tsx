@@ -12,6 +12,7 @@ import {
   fetchAnkiPending,
   pullAnki,
   syncAnki,
+  USER_ID,
 } from "@/lib/api";
 
 const SOURCES = [
@@ -111,10 +112,10 @@ export default function SidePanel() {
     setSyncing(true);
     setSyncMsg(null);
     try {
-      const r = await pullAnki(1);
+      const r = await pullAnki(USER_ID);
       setSyncMsg(`${r.changed} of ${r.checked} words updated from Anki`);
       // statuses are already saved: a failed reload must not turn the message into an error
-      if (r.changed) await loadUserWords(1).catch(() => {});
+      if (r.changed) await loadUserWords(USER_ID).catch(() => {});
     } catch (e) {
       setSyncMsg(e instanceof Error ? e.message : String(e));
     } finally {

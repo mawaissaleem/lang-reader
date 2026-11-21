@@ -9,6 +9,8 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/api", () => ({
+  API_BASE_URL: "http://localhost:8000",
+  USER_ID: 1,
   fetchAnkiOverview: vi.fn(),
   fetchAnkiFields: vi.fn(),
   importAnkiKnown: vi.fn(),

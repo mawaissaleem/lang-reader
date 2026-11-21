@@ -17,9 +17,8 @@ import {
   fetchUserWords,
   patchWordStatus,
   type WordLookupResponse,
+  USER_ID,
 } from "@/lib/api";
-
-const USER_ID = 1;
 
 // open on the preferred source when it has a result, else on whatever was returned
 const openTab = (d: WordLookupResponse) =>

@@ -12,10 +12,11 @@ import {
   type RunningModel,
   saveLlmModel,
   type LlmModels,
+  API_BASE_URL,
+  USER_ID,
 } from "@/lib/api";
 import useStore from "@/store/useStore";
 
-const USER_ID = 1;
 const select =
   "w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white";
 
@@ -269,7 +270,7 @@ export default function SettingsPage() {
           No desktop Anki?{" "}
           <a
             className="text-blue-400 hover:underline"
-            href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/anki/export.apkg?user_id=${USER_ID}`}
+            href={`${API_BASE_URL}/anki/export.apkg?user_id=${USER_ID}`}
           >
             Export .apkg
           </a>{" "}

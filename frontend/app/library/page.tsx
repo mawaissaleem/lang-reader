@@ -1,14 +1,14 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { fetchLibrary, entryKey } from "@/lib/api";
+import { fetchLibrary, entryKey, USER_ID } from "@/lib/api";
 import AddTextDialog from "@/components/AddTextDialog";
 import ImportYouTubeDialog from "@/components/ImportYouTubeDialog";
 import EntryCard from "@/components/library/EntryCard";
 import FilterPill from "@/components/library/FilterPill";
 import ReaderView from "@/components/library/ReaderView";
-import { useEntryReader } from "@/hooks/useEntryReader";
-import { useLibraryEntries } from "@/hooks/useLibraryEntries";
+import { useEntryReader } from "@/lib/useEntryReader";
+import { useLibraryEntries } from "@/lib/useLibraryEntries";
 import useStore from "@/store/useStore";
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
@@ -24,7 +24,7 @@ export default function LibraryPage() {
 
   // Load user words once (same as root page)
   useEffect(() => {
-    loadUserWords(1);
+    loadUserWords(USER_ID);
     loadTranslatorPriority();
   }, [loadUserWords, loadTranslatorPriority]);
 

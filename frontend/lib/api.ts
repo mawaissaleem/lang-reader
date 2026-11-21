@@ -4,7 +4,28 @@ import type { WordStatus } from "@/types";
 import type { ProgressHistory } from "./history";
 import type { Cue } from "@/lib/video";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+/** Backend base URL, from NEXT_PUBLIC_API_URL. */
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+/** The single user this app serves; every API and store call that needs a user id passes this. */
+export const USER_ID = 1;
+
+/**
+ * Parses a JSON response, or throws an Error carrying the server's `detail`.
+ * `fallback` is the message used when the server sends no detail.
+ */
+async function readJson<T>(response: Response, fallback?: string): Promise<T> {
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(
+      error.detail ||
+        fallback ||
+        `Request failed with status ${response.status}`,
+    );
+  }
+  return response.json();
+}
 
 export const ttsUrl = (text: string) =>
   `${API_BASE_URL}/tts?text=${encodeURIComponent(text)}`;
@@ -28,27 +49,14 @@ export async function lookupWord(
     },
   });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      error.detail || `Request failed with status ${response.status}`,
-    );
-  }
-
-  return response.json();
+  return readJson(response);
 }
 
 export async function fetchSentenceTranslation(text: string): Promise<string> {
   const response = await fetch(
     `${API_BASE_URL}/sentence?text=${encodeURIComponent(text)}`,
   );
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      error.detail || `Request failed with status ${response.status}`,
-    );
-  }
-  return (await response.json()).translation;
+  return (await readJson<{ translation: string }>(response)).translation;
 }
 
 export interface UserWord {
@@ -68,8 +76,7 @@ export interface UserWord {
 
 export async function fetchUserWords(userId: number): Promise<UserWord[]> {
   const response = await fetch(`${API_BASE_URL}/user/${userId}/words`);
-  if (!response.ok) throw new Error("Failed to fetch user words");
-  return response.json();
+  return readJson(response, "Failed to fetch user words");
 }
 
 // kind uses the library entry "type": video = subtitle id, text = manual text id
@@ -100,13 +107,7 @@ export async function saveWord(
         }
       : { method: "POST" },
   );
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      error.detail || `Request failed with status ${response.status}`,
-    );
-  }
-  return response.json();
+  return readJson(response);
 }
 
 export async function patchWordStatus(
@@ -121,12 +122,8 @@ export async function patchWordStatus(
       body: JSON.stringify({ status }),
     },
   );
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      error.detail || `Request failed with status ${response.status}`,
-    );
-  }
+  // this endpoint returns no body we need; readJson only runs to throw the server's error
+  if (!response.ok) await readJson(response);
 }
 
 export interface WordLookupResponse {
@@ -162,9 +159,7 @@ export interface LibraryEntry {
 
 export async function fetchLibrary(): Promise<LibraryEntry[]> {
   const response = await fetch(`${API_BASE_URL}/library`);
-  if (!response.ok)
-    throw new Error(`Failed to fetch library: ${response.status}`);
-  return response.json();
+  return readJson(response, `Failed to fetch library: ${response.status}`);
 }
 
 // keyed like entryKey; a text with no readable file is absent
@@ -172,15 +167,15 @@ export async function fetchLibraryProgress(): Promise<
   Record<string, Progress>
 > {
   const response = await fetch(`${API_BASE_URL}/library/progress`);
-  if (!response.ok)
-    throw new Error(`Failed to fetch progress: ${response.status}`);
-  return response.json();
+  return readJson(response, `Failed to fetch progress: ${response.status}`);
 }
 
 export async function fetchSubtitleText(subtitleId: number): Promise<string> {
   const response = await fetch(`${API_BASE_URL}/subtitles/${subtitleId}/text`);
-  if (!response.ok) throw new Error("Failed to fetch text");
-  const data = await response.json();
+  const data = await readJson<{ text: string }>(
+    response,
+    "Failed to fetch text",
+  );
   return data.text;
 }
 
@@ -201,13 +196,7 @@ export async function renameVideo(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ title: newTitle }),
   });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(
-      err.detail || `Request failed with status ${response.status}`,
-    );
-  }
-  return response.json();
+  return readJson(response);
 }
 
 async function postText(
@@ -218,13 +207,7 @@ async function postText(
     method: "POST",
     ...init,
   });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(
-      err.detail || `Request failed with status ${response.status}`,
-    );
-  }
-  return response.json();
+  return readJson(response);
 }
 
 export const createText = (title: string, content: string) =>
@@ -247,13 +230,7 @@ export function importTextFile(file: File) {
 
 export async function fetchText(id: number): Promise<string> {
   const response = await fetch(`${API_BASE_URL}/texts/${id}`);
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(
-      err.detail || `Request failed with status ${response.status}`,
-    );
-  }
-  return (await response.json()).text;
+  return (await readJson<{ text: string }>(response)).text;
 }
 
 export async function renameText(
@@ -265,13 +242,7 @@ export async function renameText(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ title: newTitle }),
   });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(
-      err.detail || `Request failed with status ${response.status}`,
-    );
-  }
-  return response.json();
+  return readJson(response);
 }
 
 // Entry ids are per-type (subtitle id vs text id), so type is part of identity.
@@ -297,14 +268,7 @@ export async function importFromYouTube(
     body: JSON.stringify(body),
   });
 
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(
-      err.detail || `Request failed with status ${response.status}`,
-    );
-  }
-
-  return response.json();
+  return readJson(response);
 }
 
 // A failed request (backend down) counts as "not connected" so the panel never shows an error for it.
@@ -332,19 +296,13 @@ export async function syncAnki(): Promise<{
   pending: number;
 }> {
   const response = await fetch(`${API_BASE_URL}/anki/sync`, { method: "POST" });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(
-      err.detail || `Request failed with status ${response.status}`,
-    );
-  }
-  return response.json();
+  return readJson(response);
 }
 
 export async function pullAnki(
   userId: number,
 ): Promise<{ changed: number; checked: number }> {
-  return ankiJson(
+  return readJson(
     await fetch(`${API_BASE_URL}/anki/pull?user_id=${userId}`, {
       method: "POST",
     }),
@@ -363,7 +321,7 @@ export async function addSentenceCard(
   userId: number,
   card: SentenceCard,
 ): Promise<{ anki_status: "pending" | "sent" | "failed"; pending: number }> {
-  return ankiJson(
+  return readJson(
     await fetch(`${API_BASE_URL}/anki/sentences?user_id=${userId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -378,26 +336,16 @@ export interface AnkiMapping {
   field: string;
 }
 
-async function ankiJson<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(
-      err.detail || `Request failed with status ${response.status}`,
-    );
-  }
-  return response.json();
-}
-
 export async function fetchAnkiOverview(): Promise<{
   decks: string[];
   models: string[];
   mapping: AnkiMapping | null;
 }> {
-  return ankiJson(await fetch(`${API_BASE_URL}/anki/overview`));
+  return readJson(await fetch(`${API_BASE_URL}/anki/overview`));
 }
 
 export async function fetchAnkiFields(model: string): Promise<string[]> {
-  return ankiJson(
+  return readJson(
     await fetch(
       `${API_BASE_URL}/anki/fields?model=${encodeURIComponent(model)}`,
     ),
@@ -408,7 +356,7 @@ export async function importAnkiKnown(
   userId: number,
   mapping: AnkiMapping,
 ): Promise<{ imported: number; already_known: number; skipped: number }> {
-  return ankiJson(
+  return readJson(
     await fetch(`${API_BASE_URL}/anki/import?user_id=${userId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -424,11 +372,11 @@ export interface LlmModels {
 }
 
 export async function fetchLlmModels(): Promise<LlmModels> {
-  return ankiJson(await fetch(`${API_BASE_URL}/llm/models`));
+  return readJson(await fetch(`${API_BASE_URL}/llm/models`));
 }
 
 export async function saveLlmModel(name: string | null): Promise<void> {
-  await ankiJson(
+  await readJson(
     await fetch(`${API_BASE_URL}/llm/model`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -443,14 +391,14 @@ export interface RunningModel {
 }
 
 export async function fetchRunningModels(): Promise<RunningModel[]> {
-  const r = await ankiJson<{ models: RunningModel[] }>(
+  const r = await readJson<{ models: RunningModel[] }>(
     await fetch(`${API_BASE_URL}/llm/running`),
   );
   return r.models;
 }
 
 export async function unloadLlmModel(name: string): Promise<void> {
-  await ankiJson(
+  await readJson(
     await fetch(`${API_BASE_URL}/llm/unload`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -503,11 +451,10 @@ export async function fetchAiAnswer(
     `${API_BASE_URL}/word/${encodeURIComponent(word)}/ai?sentence=${encodeURIComponent(sentence)}`,
     { signal },
   );
-  if (!response.ok || !response.body) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      error.detail || `Request failed with status ${response.status}`,
-    );
+  // readJson throws the server's error text for a non-2xx response
+  if (!response.ok) await readJson(response);
+  if (!response.body) {
+    throw new Error("The response had no body");
   }
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -542,7 +489,5 @@ export async function fetchProgressHistory(
   const response = await fetch(
     `${API_BASE_URL}/progress?user_id=${userId}&tz=${encodeURIComponent(tz)}`,
   );
-  if (!response.ok)
-    throw new Error(`Failed to fetch progress: ${response.status}`);
-  return response.json();
+  return readJson(response, `Failed to fetch progress: ${response.status}`);
 }

@@ -1,10 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { fetchProgressHistory } from "@/lib/api";
+import { fetchProgressHistory, USER_ID } from "@/lib/api";
 import { axisLabels, chartPoints, type ProgressHistory } from "@/lib/history";
 
-const USER_ID = 1;
 const W = 600;
 const H = 200;
 

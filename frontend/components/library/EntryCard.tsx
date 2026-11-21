@@ -124,6 +124,7 @@ export default function EntryCard({
           borderRadius: "16px",
           padding: "24px 28px",
           transition: "all 0.2s ease",
+          cursor: editing ? "default" : "pointer",
           position: "relative",
           overflow: "hidden",
         }}
