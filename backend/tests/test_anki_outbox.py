@@ -11,7 +11,8 @@ from sqlalchemy.orm import sessionmaker
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import anki
-from main import save_word, anki_sync, anki_pending
+from routers.anki import anki_sync, anki_pending
+from routers.words import save_word
 from fastapi import HTTPException
 from models import Base, Dictionary, ManualText, Translation, UserWord
 from tests.test_anki import FakeAnki, client_for
@@ -149,7 +150,7 @@ class OutboxTest(unittest.IsolatedAsyncioTestCase):
         )
         self.db.commit()
         text_id = self.db.query(ManualText).one().id
-        from main import SaveContext
+        from routers.words import SaveContext
 
         fake = Fake()
         with client_for(fake):

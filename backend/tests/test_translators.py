@@ -14,7 +14,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from models import Base, Dictionary, UserWord
 from translators.pons import method1_pons
 from translators.libretranslate import method2_libretranslate
-from main import lookup_word, get_word_meaning
+from routers.translation import get_word_meaning
+from routers.words import lookup_word
 
 
 class TestTranslators(unittest.IsolatedAsyncioTestCase):
@@ -125,8 +126,10 @@ class TestLookupWordFallback(unittest.IsolatedAsyncioTestCase):
         }
 
         with (
-            patch("main.method1_pons", new_callable=AsyncMock) as mock_p,
-            patch("main.method2_libretranslate", new_callable=AsyncMock) as mock_l,
+            patch("routers.translation.method1_pons", new_callable=AsyncMock) as mock_p,
+            patch(
+                "routers.translation.method2_libretranslate", new_callable=AsyncMock
+            ) as mock_l,
         ):
             mock_p.return_value = mock_pons
             mock_l.return_value = mock_lt
@@ -155,8 +158,10 @@ class TestLookupWordFallback(unittest.IsolatedAsyncioTestCase):
         mock_lt = {"success": False, "status_code": None, "error": "Unreachable"}
 
         with (
-            patch("main.method1_pons", new_callable=AsyncMock) as mock_p,
-            patch("main.method2_libretranslate", new_callable=AsyncMock) as mock_l,
+            patch("routers.translation.method1_pons", new_callable=AsyncMock) as mock_p,
+            patch(
+                "routers.translation.method2_libretranslate", new_callable=AsyncMock
+            ) as mock_l,
         ):
             mock_p.return_value = mock_pons
             mock_l.return_value = mock_lt
@@ -179,8 +184,10 @@ class TestLookupWordFallback(unittest.IsolatedAsyncioTestCase):
         }
 
         with (
-            patch("main.method1_pons", new_callable=AsyncMock) as mock_p,
-            patch("main.method2_libretranslate", new_callable=AsyncMock) as mock_l,
+            patch("routers.translation.method1_pons", new_callable=AsyncMock) as mock_p,
+            patch(
+                "routers.translation.method2_libretranslate", new_callable=AsyncMock
+            ) as mock_l,
         ):
             mock_p.return_value = mock_pons
             mock_l.return_value = mock_lt
@@ -204,8 +211,10 @@ class TestLookupWordFallback(unittest.IsolatedAsyncioTestCase):
         }
 
         with (
-            patch("main.method1_pons", new_callable=AsyncMock) as mock_p,
-            patch("main.method2_libretranslate", new_callable=AsyncMock) as mock_l,
+            patch("routers.translation.method1_pons", new_callable=AsyncMock) as mock_p,
+            patch(
+                "routers.translation.method2_libretranslate", new_callable=AsyncMock
+            ) as mock_l,
         ):
             mock_p.return_value = {
                 "success": False,
@@ -234,8 +243,12 @@ class TestLookupWordFallback(unittest.IsolatedAsyncioTestCase):
         }
 
         with (
-            patch("main.method1_pons", new_callable=AsyncMock) as mock_p_func,
-            patch("main.method2_libretranslate", new_callable=AsyncMock) as mock_l_func,
+            patch(
+                "routers.translation.method1_pons", new_callable=AsyncMock
+            ) as mock_p_func,
+            patch(
+                "routers.translation.method2_libretranslate", new_callable=AsyncMock
+            ) as mock_l_func,
         ):
             mock_p_func.return_value = mock_p
             mock_l_func.return_value = mock_lt
@@ -267,8 +280,12 @@ class TestLookupWordFallback(unittest.IsolatedAsyncioTestCase):
         }
 
         with (
-            patch("main.method1_pons", new_callable=AsyncMock) as mock_p_func,
-            patch("main.method2_libretranslate", new_callable=AsyncMock) as mock_l_func,
+            patch(
+                "routers.translation.method1_pons", new_callable=AsyncMock
+            ) as mock_p_func,
+            patch(
+                "routers.translation.method2_libretranslate", new_callable=AsyncMock
+            ) as mock_l_func,
         ):
             mock_p_func.return_value = mock_p_initial
             mock_l_func.return_value = mock_lt_updated

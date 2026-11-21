@@ -11,7 +11,7 @@ from sqlalchemy.orm import sessionmaker
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from models import Base, Translation
-from main import lookup_word
+from routers.words import lookup_word
 
 
 def ok(source, meaning):
@@ -34,12 +34,12 @@ class TestTranslationsPerSource(unittest.IsolatedAsyncioTestCase):
         Base.metadata.create_all(bind=engine)
         self.db = sessionmaker(bind=engine)()
         p = patch(
-            "main.method1_pons",
+            "routers.translation.method1_pons",
             new_callable=AsyncMock,
             return_value=ok("pons", "coffee"),
         )
         l = patch(
-            "main.method2_libretranslate",
+            "routers.translation.method2_libretranslate",
             new_callable=AsyncMock,
             return_value=ok("libretranslate", "java"),
         )

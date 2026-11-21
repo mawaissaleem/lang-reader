@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from models import Base, UserWord
 from fastapi import HTTPException
-from main import get_user_words, lookup_word, save_word
+from routers.words import get_user_words, lookup_word, save_word
 
 PONS_OK = {
     "success": True,
@@ -32,7 +32,11 @@ class TestLookupDoesNotSave(unittest.IsolatedAsyncioTestCase):
         self.db.close()
 
     async def _lookup(self):
-        with patch("main.method1_pons", new_callable=AsyncMock, return_value=PONS_OK):
+        with patch(
+            "routers.translation.method1_pons",
+            new_callable=AsyncMock,
+            return_value=PONS_OK,
+        ):
             return await lookup_word("kaffee", user_id=1, db=self.db)
 
     async def test_fresh_lookup_creates_no_user_word(self):
@@ -66,9 +70,13 @@ class TestSaveSource(unittest.IsolatedAsyncioTestCase):
         self.db = sessionmaker(bind=engine)()
         self.addCleanup(self.db.close)
         with (
-            patch("main.method1_pons", new_callable=AsyncMock, return_value=PONS_OK),
             patch(
-                "main.method2_libretranslate",
+                "routers.translation.method1_pons",
+                new_callable=AsyncMock,
+                return_value=PONS_OK,
+            ),
+            patch(
+                "routers.translation.method2_libretranslate",
                 new_callable=AsyncMock,
                 return_value=LT_OK,
             ),
@@ -116,6 +124,7 @@ class TestWordStatus(unittest.IsolatedAsyncioTestCase):
         from fastapi.testclient import TestClient
         from sqlalchemy.pool import StaticPool
         import main
+        import database
 
         engine = create_engine(
             "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
@@ -123,11 +132,15 @@ class TestWordStatus(unittest.IsolatedAsyncioTestCase):
         Base.metadata.create_all(bind=engine)
         Session = sessionmaker(bind=engine)
         self.db = Session()
-        main.app.dependency_overrides[main.get_db] = lambda: self.db
+        main.app.dependency_overrides[database.get_db] = lambda: self.db
         self.addCleanup(main.app.dependency_overrides.clear)
         self.addCleanup(self.db.close)
         self.client = TestClient(main.app)
-        with patch("main.method1_pons", new_callable=AsyncMock, return_value=PONS_OK):
+        with patch(
+            "routers.translation.method1_pons",
+            new_callable=AsyncMock,
+            return_value=PONS_OK,
+        ):
             word_id = (await lookup_word("kaffee", user_id=1, db=self.db))["id"]
         await save_word(word_id, 1, db=self.db)
         self.uw_id = self.db.query(UserWord).one().id
@@ -158,17 +171,22 @@ class TestSaveContext(unittest.IsolatedAsyncioTestCase):
         from fastapi.testclient import TestClient
         from sqlalchemy.pool import StaticPool
         import main
+        import database
 
         engine = create_engine(
             "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
         )
         Base.metadata.create_all(bind=engine)
         self.db = sessionmaker(bind=engine)()
-        main.app.dependency_overrides[main.get_db] = lambda: self.db
+        main.app.dependency_overrides[database.get_db] = lambda: self.db
         self.addCleanup(main.app.dependency_overrides.clear)
         self.addCleanup(self.db.close)
         self.client = TestClient(main.app)
-        with patch("main.method1_pons", new_callable=AsyncMock, return_value=PONS_OK):
+        with patch(
+            "routers.translation.method1_pons",
+            new_callable=AsyncMock,
+            return_value=PONS_OK,
+        ):
             self.word_id = (await lookup_word("kaffee", user_id=1, db=self.db))["id"]
         self.url = f"/user-words/{self.word_id}/save?user_id=1"
 

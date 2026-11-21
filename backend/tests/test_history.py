@@ -18,6 +18,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import anki
 import history
 import main
+from routers import words
+import database
 from database import run_migrations
 from models import Base, Dictionary, UserWord, WordEvent
 
@@ -61,7 +63,7 @@ class TestWriters(Base_):
 
     def test_patch_endpoint_and_save_write_events(self):
         uw = self.word()
-        main.app.dependency_overrides[main.get_db] = lambda: self.db
+        main.app.dependency_overrides[database.get_db] = lambda: self.db
         self.addCleanup(main.app.dependency_overrides.clear)
         r = TestClient(main.app).patch(
             f"/user-words/{uw.id}/status", json={"status": "known"}
@@ -75,8 +77,8 @@ class TestWriters(Base_):
         d = Dictionary(german_word="Baum", english_meanings=[], source="pons")
         self.db.add(d)
         self.db.commit()
-        asyncio.run(main.save_word(d.id, 1, db=self.db))
-        asyncio.run(main.save_word(d.id, 1, db=self.db))
+        asyncio.run(words.save_word(d.id, 1, db=self.db))
+        asyncio.run(words.save_word(d.id, 1, db=self.db))
         self.assertEqual(self.db.query(WordEvent).count(), 1)
 
     def test_save_word_logs_learning1(self):
@@ -85,7 +87,7 @@ class TestWriters(Base_):
         d = Dictionary(german_word="Baum", english_meanings=[], source="pons")
         self.db.add(d)
         self.db.commit()
-        asyncio.run(main.save_word(d.id, 1, db=self.db))
+        asyncio.run(words.save_word(d.id, 1, db=self.db))
         self.assertEqual(
             [(e.word_id, e.status) for e in self.db.query(WordEvent)],
             [(d.id, "learning1")],
@@ -189,7 +191,7 @@ class TestProgress(Base_):
         )  # 15:30 on the 16th, 02:00 on the 17th
 
     def test_endpoint_ok_and_bad_tz(self):
-        main.app.dependency_overrides[main.get_db] = lambda: self.db
+        main.app.dependency_overrides[database.get_db] = lambda: self.db
         self.addCleanup(main.app.dependency_overrides.clear)
         c = TestClient(main.app)
         self.assertEqual(

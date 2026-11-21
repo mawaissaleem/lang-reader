@@ -10,7 +10,7 @@ from sqlalchemy.pool import StaticPool
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from models import Base, Video, Subtitle
-from main import get_library
+from routers.library import get_library
 
 
 class TestLibrary(unittest.TestCase):

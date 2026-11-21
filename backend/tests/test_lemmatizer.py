@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import lemmatizer
 from models import Base, Dictionary, Translation, UserWord
-from main import lookup_word, save_word
+from routers.words import lookup_word, save_word
 
 
 class TestLemmatize(unittest.TestCase):
@@ -144,7 +144,7 @@ class TestLookupUsesLemma(unittest.IsolatedAsyncioTestCase):
                 "raw_response": {},
             }
         )
-        with patch("main.method1_pons", pons):
+        with patch("routers.translation.method1_pons", pons):
             r = await lookup_word(
                 "ging",
                 user_id=1,
@@ -171,7 +171,7 @@ class TestLookupUsesLemma(unittest.IsolatedAsyncioTestCase):
                 "raw_response": {},
             }
         )
-        with patch("main.method1_pons", pons):
+        with patch("routers.translation.method1_pons", pons):
             r = await lookup_word(
                 "fängt an",
                 user_id=1,
@@ -196,7 +196,7 @@ class TestLookupUsesLemma(unittest.IsolatedAsyncioTestCase):
                 "raw_response": {},
             }
         )
-        with patch("main.method1_pons", pons):
+        with patch("routers.translation.method1_pons", pons):
             noun = await lookup_word(
                 "Essen",
                 user_id=1,
@@ -229,7 +229,7 @@ class TestLookupUsesLemma(unittest.IsolatedAsyncioTestCase):
         db.add(old)
         db.commit()
         pons = AsyncMock()
-        with patch("main.method1_pons", pons):
+        with patch("routers.translation.method1_pons", pons):
             r = await lookup_word(
                 "Tisch",
                 user_id=1,
@@ -265,7 +265,7 @@ class TestLookupUsesLemma(unittest.IsolatedAsyncioTestCase):
                 "raw_response": {},
             }
         )
-        with patch("main.method1_pons", pons):
+        with patch("routers.translation.method1_pons", pons):
             r = await lookup_word(
                 "Gehen",
                 user_id=1,

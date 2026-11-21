@@ -13,7 +13,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import anki
 import main
-from models import Base, Dictionary, Translation, UserWord
+import database
+from models import Base, Dictionary, Setting, Translation, UserWord
 from tests.test_anki import client_for
 
 MAPPING = {"decks": ["Goethe"], "model": "Vocab", "field": "de_word"}
@@ -152,7 +153,7 @@ class MappedDuplicateTest(unittest.IsolatedAsyncioTestCase):
         self.db.add(d)
         self.db.flush()
         self.db.add(UserWord(user_id=1, word_id=d.id, anki_status="pending"))
-        self.db.add(main.Setting(key="anki_mapping", value=MAPPING))
+        self.db.add(Setting(key="anki_mapping", value=MAPPING))
         self.db.commit()
 
     def tearDown(self):
@@ -194,7 +195,7 @@ class EndpointTest(unittest.TestCase):
             finally:
                 db.close()
 
-        main.app.dependency_overrides[main.get_db] = get_db
+        main.app.dependency_overrides[database.get_db] = get_db
         self.client = TestClient(main.app)
         self.addCleanup(main.app.dependency_overrides.clear)
 

@@ -11,7 +11,7 @@ from sqlalchemy.orm import sessionmaker
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import anki
-from main import anki_pull
+from routers.anki import anki_pull
 from models import Base, Dictionary, UserWord
 from tests.test_anki import client_for
 

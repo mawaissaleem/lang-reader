@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import anki
 import main
+import database
 from models import Base, SentenceCard
 from tests.test_anki import FakeAnki, client_for
 from tests.test_anki_outbox import closed
@@ -85,7 +86,7 @@ class SentenceApiTest(unittest.TestCase):
             finally:
                 db.close()
 
-        main.app.dependency_overrides[main.get_db] = get_db
+        main.app.dependency_overrides[database.get_db] = get_db
         self.client = TestClient(main.app)
         self.addCleanup(main.app.dependency_overrides.clear)
 

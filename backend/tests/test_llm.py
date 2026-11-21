@@ -118,7 +118,7 @@ class AiEndpointTest(unittest.TestCase):
                 lambda **kw: real(transport=httpx.MockTransport(handler), **kw),
             ),
             patch.dict(os.environ, {"OLLAMA_MODEL": "env-model"}),
-            patch("main.analyze", lambda w, s=None: ("anfangen", "VERB", None)),
+            patch("routers.llm.analyze", lambda w, s=None: ("anfangen", "VERB", None)),
         ):
             p.start()
             self.addCleanup(p.stop)
@@ -354,7 +354,7 @@ class ModelsEndpointTest(unittest.TestCase):
                 "translators.llm.httpx.AsyncClient",
                 lambda **kw: real(transport=httpx.MockTransport(gen), **kw),
             ),
-            patch("main.analyze", lambda w, s=None: ("anfangen", "VERB", None)),
+            patch("routers.llm.analyze", lambda w, s=None: ("anfangen", "VERB", None)),
         ):
             r = self.client.get(
                 "/word/fängt/ai", params={"sentence": "Der Film fängt an."}

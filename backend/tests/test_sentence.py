@@ -14,7 +14,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from models import Base
 from database import get_db
-from main import app, translate_sentence
+from main import app
+from routers.translation import translate_sentence
 
 OK = {"success": True, "translations": ["He starts tomorrow."]}
 
@@ -45,7 +46,9 @@ class TestSentenceEndpoint(unittest.TestCase):
 
     def test_second_request_is_served_from_cache(self):
         with patch(
-            "main.method2_libretranslate", new_callable=AsyncMock, return_value=OK
+            "routers.translation.method2_libretranslate",
+            new_callable=AsyncMock,
+            return_value=OK,
         ) as m:
             r1 = self.get("Er fängt morgen an.")
             r2 = self.get("  Er fängt   morgen an. ")  # same sentence after normalizing
@@ -63,7 +66,9 @@ class TestSentenceEndpoint(unittest.TestCase):
     def test_failure_is_502_and_not_cached(self):
         bad = {"success": False, "error": "down"}
         with patch(
-            "main.method2_libretranslate", new_callable=AsyncMock, side_effect=[bad, OK]
+            "routers.translation.method2_libretranslate",
+            new_callable=AsyncMock,
+            side_effect=[bad, OK],
         ) as m:
             self.assertEqual(self.get("Hallo Welt.").status_code, 502)
             self.assertEqual(self.get("Hallo Welt.").status_code, 200)
@@ -88,7 +93,10 @@ class TestSentenceConcurrency(unittest.IsolatedAsyncioTestCase):
             )  # both requests miss the cache before either commits
             return OK
 
-        with patch("main.method2_libretranslate", new=AsyncMock(side_effect=slow)):
+        with patch(
+            "routers.translation.method2_libretranslate",
+            new=AsyncMock(side_effect=slow),
+        ):
             r1, r2 = await asyncio.gather(
                 translate_sentence("Hallo Welt.", s1),
                 translate_sentence("Hallo Welt.", s2),

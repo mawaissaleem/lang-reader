@@ -13,7 +13,7 @@ from sqlalchemy.pool import StaticPool
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from models import Base, Video, Subtitle
-from main import VideoRequest, get_german_subtitles
+from routers.imports import VideoRequest, get_german_subtitles
 
 NOT_FOUND = {
     "status": "not_found",
@@ -43,9 +43,11 @@ class TestGermanImport(unittest.TestCase):
         self.addCleanup(os.chdir, old)
         os.chdir(tmp.name)
         self.tmp = tmp.name
-        patcher = patch("main.BASE_DIR", Path(tmp.name))
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        # both routers resolve BASE_DIR in their own module
+        for module in ("routers.imports", "routers.library"):
+            patcher = patch(f"{module}.BASE_DIR", Path(tmp.name))
+            patcher.start()
+            self.addCleanup(patcher.stop)
         self.vtt = os.path.join(tmp.name, "abc.vtt")
         with open(self.vtt, "w", encoding="utf-8") as f:
             f.write(VTT)
@@ -53,8 +55,8 @@ class TestGermanImport(unittest.TestCase):
 
     def _call(self, m1, m2):
         with (
-            patch("main.method1_youtube_transcript_api", return_value=m1),
-            patch("main.method2_yt_dlp", return_value=m2),
+            patch("routers.imports.method1_youtube_transcript_api", return_value=m1),
+            patch("routers.imports.method2_yt_dlp", return_value=m2),
         ):
             return get_german_subtitles(
                 VideoRequest(url=URL, title="Mein Titel"), db=self.db
@@ -89,7 +91,7 @@ class TestGermanImport(unittest.TestCase):
         )
 
     def test_text_is_readable_from_another_cwd_and_for_relative_paths(self):
-        from main import get_subtitle_text
+        from routers.library import get_subtitle_text
 
         r = self._call(self.ok, None)
         os.chdir(tempfile.gettempdir())
@@ -126,7 +128,9 @@ class TestGermanImport(unittest.TestCase):
         self.assertEqual(r["extraction_method"], "yt_dlp")
 
     def test_cleaning_failure_returns_500_and_saves_nothing(self):
-        with patch("main.extract_subtitles", side_effect=ValueError("bad vtt")):
+        with patch(
+            "routers.imports.extract_subtitles", side_effect=ValueError("bad vtt")
+        ):
             with self.assertRaises(HTTPException) as cm:
                 self._call(self.ok, None)
         self.assertEqual(cm.exception.status_code, 500)

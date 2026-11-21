@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import progress
 from models import Base, Dictionary, ManualText, Subtitle, UserWord, Video
-from main import get_library_progress
+from routers.progress import get_library_progress
 
 
 class TestCounting(unittest.TestCase):
