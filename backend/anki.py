@@ -1,6 +1,5 @@
 import asyncio
 import base64
-import hashlib
 import html
 import logging
 import os
@@ -20,7 +19,7 @@ from models import (
     Subtitle,
     UserWord,
 )
-from translators.pons import strip_html
+from utils import sentence_hash, strip_html
 
 ANKI_URL = os.getenv("ANKI_CONNECT_URL", "http://localhost:8765")
 
@@ -46,6 +45,26 @@ async def invoke(action: str, **params):
     if body.get("error"):
         raise AnkiError(body["error"])
     return body.get("result")
+
+
+async def get_version():
+    """AnkiConnect version number, used as the connection check."""
+    return await invoke("version")
+
+
+async def list_decks():
+    """Names of all decks in Anki."""
+    return await invoke("deckNames")
+
+
+async def list_note_types():
+    """Names of all note types (models) in Anki."""
+    return await invoke("modelNames")
+
+
+async def note_type_fields(note_type: str):
+    """Field names of one Anki note type."""
+    return await invoke("modelFieldNames", modelName=note_type)
 
 
 DECKS = ["German::Reader::Words", "German::Reader::Sentences"]
@@ -136,7 +155,7 @@ def _build_note(db, uw: UserWord) -> dict:
         text = db.get(ManualText, uw.text_id)
         title = text and text.title
     sentence = uw.context_sentence or ""
-    key = hashlib.sha256(" ".join(sentence.split()).encode()).hexdigest()
+    key = sentence_hash(sentence)
     en = (
         db.query(SentenceTranslation).filter_by(sentence_hash=key).first()
         if sentence
@@ -282,7 +301,7 @@ async def attach_audio(note: dict) -> None:
         text = html.unescape(strip_html(f["SentenceDE"]))
         slug = "s"
     # the hash of the spoken text keeps Essen/essen (case-insensitive media folders) and non-ASCII lemmas apart
-    name = f"reader_{slug}_{hashlib.sha256(' '.join(text.split()).encode()).hexdigest()[:10]}.mp3"
+    name = f"reader_{slug}_{sentence_hash(text)[:10]}.mp3"
     try:
         path = await tts.get_audio(text)
         # base64 instead of `path`: works even if Anki cannot read the backend's filesystem; re-storing is idempotent

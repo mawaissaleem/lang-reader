@@ -12,6 +12,7 @@ from database import BASE_DIR, get_db
 from extractors.transcript_api import method1_youtube_transcript_api
 from extractors.yt_dlp import method2_yt_dlp
 from models import Subtitle, Video
+from routers.library import _video_entry
 from utils import extract_video_id
 from vtt_parser import extract_subtitles
 
@@ -113,15 +114,4 @@ def get_german_subtitles(
             detail=f"Failed to process subtitles: {type(e).__name__}: {e}",
         )
 
-    return {
-        "id": subtitle.id,
-        "video_id": video.id,
-        "type": "video",
-        "source": "youtube",
-        "title": video.title,
-        "url": video.url,
-        "language": subtitle.language,
-        "extraction_method": subtitle.extraction_method,
-        "word_count": subtitle.word_count,
-        "created_at": subtitle.created_at,
-    }
+    return _video_entry(video)

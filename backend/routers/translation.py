@@ -1,6 +1,5 @@
 """Routes for translating sentences and looking up dictionary meanings through the PONS and LibreTranslate providers."""
 
-import hashlib
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -9,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from database import get_db
+from utils import sentence_hash
 from models import SentenceTranslation
 from translators.libretranslate import method2_libretranslate
 from translators.pons import method1_pons
@@ -65,7 +65,7 @@ async def translate_sentence(
     sentence = " ".join(text.split())
     if not sentence:
         raise HTTPException(status_code=422, detail="Sentence is empty")
-    key = hashlib.sha256(sentence.encode()).hexdigest()
+    key = sentence_hash(sentence)
     row = db.query(SentenceTranslation).filter_by(sentence_hash=key).first()
     if not row:
         res = await method2_libretranslate(sentence, LIBRETRANSLATE_URL)

@@ -43,6 +43,11 @@ SCHEMA = {
 }
 
 
+def models_to_try(saved_model, env_model):
+    """Models to try in order: the saved Settings choice first, then the OLLAMA_MODEL default, no duplicates."""
+    return list(dict.fromkeys(m for m in (saved_model, env_model) if m))
+
+
 def build_prompt(word, lemma, sentence, meanings):
     lines = "\n".join(f"- {m}" for m in meanings)
     return (

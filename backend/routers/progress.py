@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from database import BASE_DIR, get_db
+from routers.library import latest_subtitle
 from models import Dictionary, ManualText, UserWord, Video
 
 router = APIRouter()
@@ -37,7 +38,7 @@ def get_library_progress(user_id: int = 1, db: Session = Depends(get_db)):
     for v in db.query(Video).all():
         if not v.subtitles:
             continue
-        sub = max(v.subtitles, key=lambda s: s.created_at)  # the one /library lists
+        sub = latest_subtitle(v)
         path = BASE_DIR / sub.txt_path if sub.txt_path else None
         if not path or not path.exists():
             continue

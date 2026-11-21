@@ -11,7 +11,10 @@ from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
 
 from anki import (
-    invoke as anki_invoke,
+    get_version,
+    list_decks,
+    list_note_types,
+    note_type_fields,
     ensure_setup as anki_ensure_setup,
     send_pending,
     import_known,
@@ -30,7 +33,7 @@ router = APIRouter()
 @router.get("/anki/status")
 async def anki_status():
     try:
-        return {"connected": True, "version": await anki_invoke("version")}
+        return {"connected": True, "version": await get_version()}
     except AnkiError:
         return {"connected": False, "version": None}
 
@@ -113,8 +116,8 @@ async def anki_overview(db: Session = Depends(get_db)):
     """Decks, note types and the saved mapping, for the settings screen."""
     try:
         return {
-            "decks": await anki_invoke("deckNames"),
-            "models": await anki_invoke("modelNames"),
+            "decks": await list_decks(),
+            "models": await list_note_types(),
             "mapping": get_mapping(db),
         }
     except AnkiError as e:
@@ -124,7 +127,7 @@ async def anki_overview(db: Session = Depends(get_db)):
 @router.get("/anki/fields")
 async def anki_fields(model: str):
     try:
-        return await anki_invoke("modelFieldNames", modelName=model)
+        return await note_type_fields(model)
     except AnkiError as e:
         raise HTTPException(status_code=502, detail=str(e))
 

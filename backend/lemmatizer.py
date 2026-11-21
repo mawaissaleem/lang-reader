@@ -90,3 +90,11 @@ def analyze(
             ARTICLES.get(next(iter(tok.morph.get("Gender")), "")),
         )
     return lemma, tok.pos_, None
+
+
+def word_key(
+    word: str, sentence: str | None = None
+) -> tuple[str, str | None, str | None]:
+    """(cache key, part of speech, article) for `word`: the base form, capitalized for nouns (Bank != bank), lowercase otherwise."""
+    base, pos, article = analyze(word, sentence)
+    return (base if pos in NOUNS else base.lower()), pos, article

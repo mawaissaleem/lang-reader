@@ -1,6 +1,5 @@
 """Routes for the local LLM (Ollama): streamed word explanations and model selection."""
 
-import hashlib
 import json
 import os
 from typing import Optional
@@ -11,8 +10,9 @@ from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from utils import sentence_hash
 from database import get_db
-from lemmatizer import NOUNS, analyze
+from lemmatizer import NOUNS, word_key
 from models import Dictionary, LLMAnswer, Setting
 from translators import llm
 
@@ -31,15 +31,10 @@ async def word_ai(
     if not sentence:
         raise HTTPException(status_code=422, detail="Sentence is empty")
     clicked = word.strip()
-    lemma, pos, article = analyze(clicked, sentence)
-    if pos not in NOUNS:
-        lemma = lemma.lower()
+    lemma, pos, article = word_key(clicked, sentence)
     saved = db.get(Setting, "llm_model")
-    env = os.getenv("OLLAMA_MODEL")
-    models = list(
-        dict.fromkeys(m for m in (saved and saved.value, env) if m)
-    )  # saved model, then .env as fallback
-    key = hashlib.sha256(sentence.encode()).hexdigest()
+    models = llm.models_to_try(saved and saved.value, os.getenv("OLLAMA_MODEL"))
+    key = sentence_hash(sentence)
     entry = db.query(Dictionary).filter(Dictionary.german_word == lemma).first()
     meanings = [m for t in (entry.translations if entry else []) for m in t.meanings]
 

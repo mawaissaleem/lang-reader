@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 import history
 from anki import AnkiError, send_pending
 from database import get_db
-from lemmatizer import NOUNS, analyze
+from lemmatizer import NOUNS, word_key
 from models import Dictionary, Translation, UserWord
 from routers.translation import (
     execute_translation_pipeline,
@@ -52,9 +52,7 @@ async def lookup_word(
     clicked = word.strip()
     # translations, cache and saves all key on the base form
     # key rule: nouns keep their capital (Bank != bank), every other word is lowercase
-    word, pos, article = analyze(clicked, sentence)
-    if pos not in NOUNS:
-        word = word.lower()
+    word, pos, article = word_key(clicked, sentence)
     now = datetime.now(timezone.utc)
     priority_order = parse_priority(priority)
 

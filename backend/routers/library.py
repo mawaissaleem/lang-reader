@@ -54,6 +54,28 @@ def update_video_title(video_id: int, body: TitleUpdate, db: Session = Depends(g
     return {"id": video.id, "title": video.title}
 
 
+def latest_subtitle(v: Video):
+    """The video's newest subtitle, the one the library lists."""
+    return max(v.subtitles, key=lambda s: s.created_at)
+
+
+def _video_entry(v: Video):
+    """Library entry for a video that has at least one subtitle."""
+    sub = latest_subtitle(v)
+    return {
+        "id": sub.id,
+        "video_id": v.id,
+        "type": "video",
+        "source": "youtube",
+        "title": v.title or "Untitled",
+        "url": v.url,
+        "language": sub.language,
+        "extraction_method": sub.extraction_method,
+        "word_count": sub.word_count,
+        "created_at": sub.created_at,
+    }
+
+
 def _text_entry(t: ManualText):
     return {
         "id": t.id,
@@ -143,22 +165,7 @@ def get_library(db: Session = Depends(get_db)):
         if not v.subtitles:
             continue
 
-        latest_subtitle = max(v.subtitles, key=lambda s: s.created_at)
-
-        items.append(
-            {
-                "id": latest_subtitle.id,
-                "video_id": v.id,
-                "type": "video",
-                "source": "youtube",
-                "title": v.title or "Untitled",
-                "url": v.url,
-                "language": latest_subtitle.language,
-                "extraction_method": latest_subtitle.extraction_method,
-                "word_count": latest_subtitle.word_count,
-                "created_at": latest_subtitle.created_at,
-            }
-        )
+        items.append(_video_entry(v))
 
     for t in db.query(ManualText).all():
         items.append(_text_entry(t))

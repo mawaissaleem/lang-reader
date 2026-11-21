@@ -1,5 +1,9 @@
-import requests
+"""Small shared helpers: YouTube URL handling, filenames, cookies, HTML stripping and sentence hashing."""
+
+import hashlib
 import re
+
+import requests
 
 
 def extract_video_id(url: str) -> str:
@@ -54,3 +58,13 @@ def to_vtt_time(seconds: float) -> str:
     m = int((seconds % 3600) // 60)
     s = seconds % 60
     return f"{h:02d}:{m:02d}:{s:06.3f}"
+
+
+def strip_html(text: str) -> str:
+    """Remove HTML tags and surrounding whitespace."""
+    return re.sub(r"<[^>]+>", "", text).strip()
+
+
+def sentence_hash(sentence: str) -> str:
+    """Cache key for a sentence: sha256 of its whitespace-normalized text."""
+    return hashlib.sha256(" ".join(sentence.split()).encode()).hexdigest()

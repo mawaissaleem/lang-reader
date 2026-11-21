@@ -1,10 +1,7 @@
-import re
 import httpx
 from typing import Optional, Dict, Any
 
-
-def strip_html(text: str) -> str:
-    return re.sub(r"<[^>]+>", "", text).strip()
+from utils import strip_html
 
 
 async def method1_pons(word: str, api_key: Optional[str]) -> Dict[str, Any]:
