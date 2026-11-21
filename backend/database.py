@@ -14,7 +14,6 @@ engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 
-
 def run_migrations(url: str = DATABASE_URL) -> None:
     """Bring the DB to the latest schema. Called once at app startup."""
     cfg = Config(str(BASE_DIR / "alembic.ini"))

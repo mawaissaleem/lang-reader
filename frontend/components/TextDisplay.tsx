@@ -1,9 +1,10 @@
 "use client";
 import useStore from "@/store/useStore";
 import WordToken from "@/components/WordToken";
-import { useEffect } from "react";
+import ReaderFooter from "@/components/ReaderFooter";
+import { useStatusHotkeys } from "@/lib/useStatusHotkeys";
 import { sentenceAt } from "@/lib/words";
-import { NEW_CLASS, STATUS_CLASS, statusForKey } from "@/lib/status";
+import { NEW_CLASS, STATUS_CLASS } from "@/lib/status";
 
 const LEGEND: [string, string, string][] = [
   ["New", NEW_CLASS, "·"],
@@ -19,15 +20,7 @@ export default function TextDisplay() {
   const title = useStore((s) => s.title);
   const highlightMode = useStore((s) => s.highlightMode);
   const setHighlightMode = useStore((s) => s.setHighlightMode);
-  const setWordStatus = useStore((s) => s.setWordStatus);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const status = statusForKey(e);
-      if (status) setWordStatus(status);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [setWordStatus]);
+  useStatusHotkeys();
   const paragraphs = text.split(/\n+/).filter(Boolean);
 
   return (
@@ -100,6 +93,7 @@ export default function TextDisplay() {
           );
         })}
       </div>
+      <ReaderFooter text={text} />
     </div>
   );
 }

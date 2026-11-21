@@ -10,7 +10,10 @@ import main
 
 def client_for(handler):
     real = httpx.AsyncClient
-    return patch("anki.httpx.AsyncClient", lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
+    return patch(
+        "anki.httpx.AsyncClient",
+        lambda **kw: real(transport=httpx.MockTransport(handler), **kw),
+    )
 
 
 class InvokeTest(unittest.IsolatedAsyncioTestCase):
@@ -26,7 +29,9 @@ class InvokeTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn(b'"version":6', seen["body"].replace(b" ", b""))
 
     async def test_error_field_raises(self):
-        with client_for(lambda r: httpx.Response(200, json={"result": None, "error": "boom"})):
+        with client_for(
+            lambda r: httpx.Response(200, json={"result": None, "error": "boom"})
+        ):
             with self.assertRaises(anki.AnkiError):
                 await anki.invoke("x")
 
@@ -41,7 +46,9 @@ class InvokeTest(unittest.IsolatedAsyncioTestCase):
 
 class StatusTest(unittest.TestCase):
     def test_open(self):
-        with client_for(lambda r: httpx.Response(200, json={"result": 6, "error": None})):
+        with client_for(
+            lambda r: httpx.Response(200, json={"result": 6, "error": None})
+        ):
             r = TestClient(main.app).get("/anki/status")
         self.assertEqual(r.json(), {"connected": True, "version": 6})
 
@@ -62,6 +69,7 @@ class FakeAnki:
 
     def __call__(self, req):
         import json
+
         body = json.loads(req.content)
         a, p = body["action"], body["params"]
         self.calls.append((a, p))
@@ -93,7 +101,9 @@ class SetupTest(unittest.IsolatedAsyncioTestCase):
         with client_for(fake):
             await anki.ensure_setup()
         models = {p["modelName"]: p for a, p in fake.calls if a == "createModel"}
-        self.assertEqual(models["Reader Word"]["inOrderFields"][:2], ["Lemma", "Article"])
+        self.assertEqual(
+            models["Reader Word"]["inOrderFields"][:2], ["Lemma", "Article"]
+        )
         self.assertEqual(len(models["Reader Word"]["cardTemplates"]), 2)
         self.assertEqual(models["Reader Sentence"]["inOrderFields"][0], "SentenceDE")
         self.assertEqual(len(models["Reader Sentence"]["cardTemplates"]), 2)
@@ -104,7 +114,10 @@ class SetupTest(unittest.IsolatedAsyncioTestCase):
             r = await anki.ensure_setup()
         self.assertEqual(r["models"], ["Reader Sentence"])
         self.assertNotIn("createDeck", fake.actions())
-        self.assertEqual([p["modelName"] for a, p in fake.calls if a == "createModel"], ["Reader Sentence"])
+        self.assertEqual(
+            [p["modelName"] for a, p in fake.calls if a == "createModel"],
+            ["Reader Sentence"],
+        )
 
 
 class SetupEndpointTest(unittest.TestCase):

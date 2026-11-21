@@ -18,7 +18,9 @@ class TTSError(Exception):
 
 
 def voice_path() -> Path:
-    return BASE_DIR / os.getenv("PIPER_VOICE", "voices/de_DE-thorsten-medium.onnx")  # absolute env value wins
+    return BASE_DIR / os.getenv(
+        "PIPER_VOICE", "voices/de_DE-thorsten-medium.onnx"
+    )  # absolute env value wins
 
 
 def cache_dir() -> Path:
@@ -37,18 +39,25 @@ def cache_path(text: str) -> Path:
 async def _run(args: list, stdin: bytes = b""):
     try:
         p = await asyncio.create_subprocess_exec(
-            *map(str, args), stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE)
+            *map(str, args),
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.PIPE,
+        )
     except FileNotFoundError as e:
         raise TTSError(f"{args[0]} not found") from e
     try:
         _, err = await asyncio.wait_for(p.communicate(stdin), TIMEOUT)
-    except asyncio.TimeoutError:  # a hung process would block every later request behind the lock
+    except (
+        asyncio.TimeoutError
+    ):  # a hung process would block every later request behind the lock
         p.kill()
         await p.wait()
         raise TTSError("timed out")
     if p.returncode:
-        raise TTSError(f"{Path(args[0]).name} failed: {err.decode(errors='replace')[-300:]}")
+        raise TTSError(
+            f"{Path(args[0]).name} failed: {err.decode(errors='replace')[-300:]}"
+        )
 
 
 async def synth(text: str, out: Path):
@@ -69,7 +78,9 @@ async def get_audio(text: str) -> Path:
         if path.exists():
             return path
         path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp.mp3")  # .mp3 so ffmpeg infers the format
+        tmp = path.with_name(
+            f".{path.name}.{os.getpid()}.tmp.mp3"
+        )  # .mp3 so ffmpeg infers the format
         try:
             await synth(text, tmp)
             os.replace(tmp, path)  # atomic: readers never see a half-written file

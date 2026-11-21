@@ -22,22 +22,35 @@ def read_notes(path):
     with tempfile.TemporaryDirectory() as d:
         zipfile.ZipFile(path).extractall(d)
         con = sqlite3.connect(os.path.join(d, "collection.anki2"))
-        rows = con.execute("select guid, flds, tags from notes order by guid").fetchall()
+        rows = con.execute(
+            "select guid, flds, tags from notes order by guid"
+        ).fetchall()
         con.close()
         return rows
 
 
 class ExportTest(unittest.TestCase):
     def setUp(self):
-        engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        engine = create_engine(
+            "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+        )
         Base.metadata.create_all(bind=engine)
         self.db = sessionmaker(bind=engine)()
-        for i, (word, status) in enumerate([("Haus", "pending"), ("Baum", "sent"), ("Tisch", "none")]):
+        for i, (word, status) in enumerate(
+            [("Haus", "pending"), ("Baum", "sent"), ("Tisch", "none")]
+        ):
             d = Dictionary(german_word=word, english_meanings=["x"], source="pons")
             d.translations.append(Translation(source="pons", meanings=["x"]))
             self.db.add(d)
             self.db.flush()
-            self.db.add(UserWord(user_id=1, word_id=d.id, anki_status=status, context_sentence=f"Das ist {word}."))
+            self.db.add(
+                UserWord(
+                    user_id=1,
+                    word_id=d.id,
+                    anki_status=status,
+                    context_sentence=f"Das ist {word}.",
+                )
+            )
         self.db.commit()
         main.app.dependency_overrides[get_db] = lambda: self.db
         self.client = TestClient(main.app)

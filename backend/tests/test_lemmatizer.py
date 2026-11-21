@@ -39,7 +39,9 @@ class TestLemmatize(unittest.TestCase):
             self.assertEqual(lemmatizer.lemmatize(phrase, sentence), lemma, phrase)
 
     def test_other_phrase_stays_as_written(self):
-        self.assertEqual(lemmatizer.lemmatize("rote Bank", "Die rote Bank ist alt."), "rote Bank")
+        self.assertEqual(
+            lemmatizer.lemmatize("rote Bank", "Die rote Bank ist alt."), "rote Bank"
+        )
 
     def test_stem_changing_verbs_are_not_made_up(self):
         for word, sentence, ok in [
@@ -66,13 +68,17 @@ class TestLemmatize(unittest.TestCase):
 
     def test_missing_table_keeps_clicked_verb(self):
         with patch.object(lemmatizer, "lookup", {}):
-            self.assertEqual(lemmatizer.lemmatize("gibst", "Du gibst mir das Buch."), "gibst")
+            self.assertEqual(
+                lemmatizer.lemmatize("gibst", "Du gibst mir das Buch."), "gibst"
+            )
 
     def test_bare_word_without_sentence(self):
         self.assertEqual(lemmatizer.lemmatize("ging"), "gehen")
 
     def test_nouns_keep_capitalization(self):
-        self.assertEqual(lemmatizer.lemmatize("Häuser", "Die Häuser sind groß."), "Haus")
+        self.assertEqual(
+            lemmatizer.lemmatize("Häuser", "Die Häuser sind groß."), "Haus"
+        )
 
     def test_case_insensitive_match_in_sentence(self):
         self.assertEqual(lemmatizer.lemmatize("haus", "Das Haus ist alt."), "Haus")
@@ -89,7 +95,9 @@ class TestLemmatize(unittest.TestCase):
             self.assertEqual(lemmatizer.analyze(word, sentence), expected, word)
 
     def test_verb_has_no_article(self):
-        self.assertEqual(lemmatizer.analyze("essen", "Wir essen Brot.")[1:], ("VERB", None))
+        self.assertEqual(
+            lemmatizer.analyze("essen", "Wir essen Brot.")[1:], ("VERB", None)
+        )
 
 
 class TestNoModel(unittest.TestCase):
@@ -98,12 +106,18 @@ class TestNoModel(unittest.TestCase):
             self.assertEqual(lemmatizer.lemmatize("ging", "Ich ging."), "ging")
 
     def test_load_failure_does_not_raise(self):
-        with patch.object(lemmatizer, "nlp", None), patch.dict(sys.modules, {"spacy": None}):
+        with (
+            patch.object(lemmatizer, "nlp", None),
+            patch.dict(sys.modules, {"spacy": None}),
+        ):
             lemmatizer.load_model()
             self.assertIsNone(lemmatizer.nlp)
 
     def test_missing_table_file_does_not_raise(self):
-        with patch.object(lemmatizer, "lookup", {}), patch.object(lemmatizer, "LOOKUP_PATH", "/nonexistent.json.gz"):
+        with (
+            patch.object(lemmatizer, "lookup", {}),
+            patch.object(lemmatizer, "LOOKUP_PATH", "/nonexistent.json.gz"),
+        ):
             lemmatizer.load_model()
             self.assertEqual(lemmatizer.lookup, {})
 
@@ -120,10 +134,24 @@ class TestLookupUsesLemma(unittest.IsolatedAsyncioTestCase):
         Base.metadata.create_all(bind=engine)
         db = sessionmaker(bind=engine)()
         self.addCleanup(db.close)
-        pons = AsyncMock(return_value={"success": True, "word": "gehen", "translations": ["go"],
-                                       "word_class": "verb", "source": "pons", "raw_response": {}})
+        pons = AsyncMock(
+            return_value={
+                "success": True,
+                "word": "gehen",
+                "translations": ["go"],
+                "word_class": "verb",
+                "source": "pons",
+                "raw_response": {},
+            }
+        )
         with patch("main.method1_pons", pons):
-            r = await lookup_word("ging", user_id=1, priority="pons", sentence="Ich ging nach Hause.", db=db)
+            r = await lookup_word(
+                "ging",
+                user_id=1,
+                priority="pons",
+                sentence="Ich ging nach Hause.",
+                db=db,
+            )
         self.assertEqual((r["word"], r["clicked"]), ("gehen", "ging"))
         self.assertEqual(pons.await_args.args[0], "gehen")
         self.assertEqual(db.query(Dictionary).one().german_word, "gehen")
@@ -133,10 +161,24 @@ class TestLookupUsesLemma(unittest.IsolatedAsyncioTestCase):
         Base.metadata.create_all(bind=engine)
         db = sessionmaker(bind=engine)()
         self.addCleanup(db.close)
-        pons = AsyncMock(return_value={"success": True, "word": "anfangen", "translations": ["begin"],
-                                       "word_class": "verb", "source": "pons", "raw_response": {}})
+        pons = AsyncMock(
+            return_value={
+                "success": True,
+                "word": "anfangen",
+                "translations": ["begin"],
+                "word_class": "verb",
+                "source": "pons",
+                "raw_response": {},
+            }
+        )
         with patch("main.method1_pons", pons):
-            r = await lookup_word("fängt an", user_id=1, priority="pons", sentence="Er fängt morgen an.", db=db)
+            r = await lookup_word(
+                "fängt an",
+                user_id=1,
+                priority="pons",
+                sentence="Er fängt morgen an.",
+                db=db,
+            )
         self.assertEqual((r["word"], r["clicked"]), ("anfangen", "fängt an"))
         self.assertEqual(pons.await_args.args[0], "anfangen")
 
@@ -145,11 +187,26 @@ class TestLookupUsesLemma(unittest.IsolatedAsyncioTestCase):
         Base.metadata.create_all(bind=engine)
         db = sessionmaker(bind=engine)()
         self.addCleanup(db.close)
-        pons = AsyncMock(return_value={"success": True, "translations": ["food"], "word_class": "noun",
-                                       "source": "pons", "raw_response": {}})
+        pons = AsyncMock(
+            return_value={
+                "success": True,
+                "translations": ["food"],
+                "word_class": "noun",
+                "source": "pons",
+                "raw_response": {},
+            }
+        )
         with patch("main.method1_pons", pons):
-            noun = await lookup_word("Essen", user_id=1, priority="pons", sentence="Das Essen ist gut.", db=db)
-            verb = await lookup_word("essen", user_id=1, priority="pons", sentence="Wir essen Brot.", db=db)
+            noun = await lookup_word(
+                "Essen",
+                user_id=1,
+                priority="pons",
+                sentence="Das Essen ist gut.",
+                db=db,
+            )
+            verb = await lookup_word(
+                "essen", user_id=1, priority="pons", sentence="Wir essen Brot.", db=db
+            )
         self.assertEqual((noun["word"], noun["article"]), ("Essen", "das"))
         self.assertEqual((verb["word"], verb["article"]), ("essen", None))
         self.assertNotEqual(noun["id"], verb["id"])
@@ -162,13 +219,24 @@ class TestLookupUsesLemma(unittest.IsolatedAsyncioTestCase):
         Base.metadata.create_all(bind=engine)
         db = sessionmaker(bind=engine)()
         self.addCleanup(db.close)
-        old = Dictionary(german_word="tisch", english_meanings=["table"], source="pons", word_class="Nomen")
+        old = Dictionary(
+            german_word="tisch",
+            english_meanings=["table"],
+            source="pons",
+            word_class="Nomen",
+        )
         old.translations.append(Translation(source="pons", meanings=["table"]))
         db.add(old)
         db.commit()
         pons = AsyncMock()
         with patch("main.method1_pons", pons):
-            r = await lookup_word("Tisch", user_id=1, priority="pons", sentence="Der Tisch ist groß.", db=db)
+            r = await lookup_word(
+                "Tisch",
+                user_id=1,
+                priority="pons",
+                sentence="Der Tisch ist groß.",
+                db=db,
+            )
         pons.assert_not_awaited()
         self.assertEqual((r["id"], r["word"], r["article"]), (old.id, "Tisch", "der"))
         self.assertEqual(db.query(Dictionary).count(), 1)
@@ -178,15 +246,33 @@ class TestLookupUsesLemma(unittest.IsolatedAsyncioTestCase):
         Base.metadata.create_all(bind=engine)
         db = sessionmaker(bind=engine)()
         self.addCleanup(db.close)
-        old = Dictionary(german_word="gehen", english_meanings=["go"], source="pons", word_class="verb")
+        old = Dictionary(
+            german_word="gehen",
+            english_meanings=["go"],
+            source="pons",
+            word_class="verb",
+        )
         old.translations.append(Translation(source="pons", meanings=["go"]))
         db.add(old)
         db.commit()
         await save_word(old.id, user_id=1, db=db)
-        pons = AsyncMock(return_value={"success": True, "translations": ["walking"], "word_class": "noun",
-                                       "source": "pons", "raw_response": {}})
+        pons = AsyncMock(
+            return_value={
+                "success": True,
+                "translations": ["walking"],
+                "word_class": "noun",
+                "source": "pons",
+                "raw_response": {},
+            }
+        )
         with patch("main.method1_pons", pons):
-            r = await lookup_word("Gehen", user_id=1, priority="pons", sentence="Das Gehen fällt ihm schwer.", db=db)
+            r = await lookup_word(
+                "Gehen",
+                user_id=1,
+                priority="pons",
+                sentence="Das Gehen fällt ihm schwer.",
+                db=db,
+            )
         self.assertEqual(r["word"], "Gehen")
         self.assertNotEqual(r["id"], old.id)
         self.assertEqual(db.query(UserWord).one().word.german_word, "gehen")

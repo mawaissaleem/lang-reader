@@ -124,9 +124,10 @@ class TestLookupWordFallback(unittest.IsolatedAsyncioTestCase):
             "raw_response": {"translatedText": "coffee"},
         }
 
-        with patch("main.method1_pons", new_callable=AsyncMock) as mock_p, patch(
-            "main.method2_libretranslate", new_callable=AsyncMock
-        ) as mock_l:
+        with (
+            patch("main.method1_pons", new_callable=AsyncMock) as mock_p,
+            patch("main.method2_libretranslate", new_callable=AsyncMock) as mock_l,
+        ):
             mock_p.return_value = mock_pons
             mock_l.return_value = mock_lt
 
@@ -153,9 +154,10 @@ class TestLookupWordFallback(unittest.IsolatedAsyncioTestCase):
         mock_pons = {"success": False, "status_code": 204, "error": "Not found"}
         mock_lt = {"success": False, "status_code": None, "error": "Unreachable"}
 
-        with patch("main.method1_pons", new_callable=AsyncMock) as mock_p, patch(
-            "main.method2_libretranslate", new_callable=AsyncMock
-        ) as mock_l:
+        with (
+            patch("main.method1_pons", new_callable=AsyncMock) as mock_p,
+            patch("main.method2_libretranslate", new_callable=AsyncMock) as mock_l,
+        ):
             mock_p.return_value = mock_pons
             mock_l.return_value = mock_lt
 
@@ -176,9 +178,10 @@ class TestLookupWordFallback(unittest.IsolatedAsyncioTestCase):
             "raw_response": {"translatedText": "hello"},
         }
 
-        with patch("main.method1_pons", new_callable=AsyncMock) as mock_p, patch(
-            "main.method2_libretranslate", new_callable=AsyncMock
-        ) as mock_l:
+        with (
+            patch("main.method1_pons", new_callable=AsyncMock) as mock_p,
+            patch("main.method2_libretranslate", new_callable=AsyncMock) as mock_l,
+        ):
             mock_p.return_value = mock_pons
             mock_l.return_value = mock_lt
 
@@ -200,9 +203,10 @@ class TestLookupWordFallback(unittest.IsolatedAsyncioTestCase):
             "raw_response": {"translatedText": "coffee"},
         }
 
-        with patch("main.method1_pons", new_callable=AsyncMock) as mock_p, patch(
-            "main.method2_libretranslate", new_callable=AsyncMock
-        ) as mock_l:
+        with (
+            patch("main.method1_pons", new_callable=AsyncMock) as mock_p,
+            patch("main.method2_libretranslate", new_callable=AsyncMock) as mock_l,
+        ):
             mock_p.return_value = {
                 "success": False,
                 "status_code": 204,
@@ -229,9 +233,10 @@ class TestLookupWordFallback(unittest.IsolatedAsyncioTestCase):
             "raw_response": {"hits": []},
         }
 
-        with patch("main.method1_pons", new_callable=AsyncMock) as mock_p_func, patch(
-            "main.method2_libretranslate", new_callable=AsyncMock
-        ) as mock_l_func:
+        with (
+            patch("main.method1_pons", new_callable=AsyncMock) as mock_p_func,
+            patch("main.method2_libretranslate", new_callable=AsyncMock) as mock_l_func,
+        ):
             mock_p_func.return_value = mock_p
             mock_l_func.return_value = mock_lt
 
@@ -261,9 +266,10 @@ class TestLookupWordFallback(unittest.IsolatedAsyncioTestCase):
             "raw_response": {"translatedText": "tea (lt)"},
         }
 
-        with patch("main.method1_pons", new_callable=AsyncMock) as mock_p_func, patch(
-            "main.method2_libretranslate", new_callable=AsyncMock
-        ) as mock_l_func:
+        with (
+            patch("main.method1_pons", new_callable=AsyncMock) as mock_p_func,
+            patch("main.method2_libretranslate", new_callable=AsyncMock) as mock_l_func,
+        ):
             mock_p_func.return_value = mock_p_initial
             mock_l_func.return_value = mock_lt_updated
 

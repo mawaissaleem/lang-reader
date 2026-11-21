@@ -25,5 +25,5 @@ body {
   /* background-color: hsl(var(--background)); */
   background-color: #0d0d0f;
   color: hsl(var(--foreground));
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }

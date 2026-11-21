@@ -15,8 +15,14 @@ from main import lookup_word
 
 
 def ok(source, meaning):
-    return {"success": True, "word": "kaffee", "translations": [meaning],
-            "word_class": None, "source": source, "raw_response": {}}
+    return {
+        "success": True,
+        "word": "kaffee",
+        "translations": [meaning],
+        "word_class": None,
+        "source": source,
+        "raw_response": {},
+    }
 
 
 FAIL = {"success": False, "status_code": 500, "error": "down"}
@@ -27,14 +33,24 @@ class TestTranslationsPerSource(unittest.IsolatedAsyncioTestCase):
         engine = create_engine("sqlite:///:memory:")
         Base.metadata.create_all(bind=engine)
         self.db = sessionmaker(bind=engine)()
-        p = patch("main.method1_pons", new_callable=AsyncMock, return_value=ok("pons", "coffee"))
-        l = patch("main.method2_libretranslate", new_callable=AsyncMock, return_value=ok("libretranslate", "java"))
+        p = patch(
+            "main.method1_pons",
+            new_callable=AsyncMock,
+            return_value=ok("pons", "coffee"),
+        )
+        l = patch(
+            "main.method2_libretranslate",
+            new_callable=AsyncMock,
+            return_value=ok("libretranslate", "java"),
+        )
         self.pons, self.lt = p.start(), l.start()
         self.addCleanup(patch.stopall)
         self.addCleanup(self.db.close)
 
     def look(self, priority, force=False):
-        return lookup_word("kaffee", user_id=1, priority=priority, force=force, db=self.db)
+        return lookup_word(
+            "kaffee", user_id=1, priority=priority, force=force, db=self.db
+        )
 
     async def test_both_sources_are_kept(self):
         await self.look("pons")
@@ -118,7 +134,9 @@ class TestTranslationsPerSource(unittest.IsolatedAsyncioTestCase):
         self.pons.return_value = FAIL
         await self.look("pons")
         r = await self.look("pons")
-        self.assertEqual(self.db.query(Translation).filter_by(source="pons").one().meanings, [])
+        self.assertEqual(
+            self.db.query(Translation).filter_by(source="pons").one().meanings, []
+        )
         self.assertEqual(list(r["translations"]), ["libretranslate"])
 
     async def test_force_refetches_preferred_despite_fresh_marker(self):

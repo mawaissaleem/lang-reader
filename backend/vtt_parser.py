@@ -27,7 +27,13 @@ def extract_cues(vtt_file):
         unique_lines = [line for line in lines if line and line not in prev]
         prev = set(lines)
         if unique_lines:
-            cues.append({"start": vtt_seconds(caption.start), "end": vtt_seconds(caption.end), "text": " ".join(unique_lines)})
+            cues.append(
+                {
+                    "start": vtt_seconds(caption.start),
+                    "end": vtt_seconds(caption.end),
+                    "text": " ".join(unique_lines),
+                }
+            )
     return cues
 
 

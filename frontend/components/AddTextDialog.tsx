@@ -2,7 +2,13 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import useStore from "@/store/useStore";
-import { createText, fetchText, importTextFile, importTextUrl, type LibraryEntry } from "@/lib/api";
+import {
+  createText,
+  fetchText,
+  importTextFile,
+  importTextUrl,
+  type LibraryEntry,
+} from "@/lib/api";
 import { Plus, X } from "lucide-react";
 
 interface AddTextDialogProps {
@@ -42,7 +48,8 @@ export default function AddTextDialog({
         : url.trim()
           ? await importTextUrl(url.trim())
           : await createText(title.trim(), input.trim());
-      const content = file || url.trim() ? await fetchText(entry.id) : input.trim();
+      const content =
+        file || url.trim() ? await fetchText(entry.id) : input.trim();
       setText(content, entry.title, { kind: "text", id: entry.id });
       onLoadText?.(entry);
       setOpen(false);
@@ -61,7 +68,10 @@ export default function AddTextDialog({
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger asChild>
         <button
-          className={triggerClassName ?? "flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"}
+          className={
+            triggerClassName ??
+            "flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
+          }
           style={triggerStyle}
         >
           {triggerIcon ?? <Plus size={16} />}
@@ -82,7 +92,8 @@ export default function AddTextDialog({
             </Dialog.Close>
           </div>
           <Dialog.Description className="text-sm text-slate-400">
-            Paste any German text below. Known words will be highlighted automatically.
+            Paste any German text below. Known words will be highlighted
+            automatically.
           </Dialog.Description>
 
           {/* Title field */}
@@ -112,7 +123,9 @@ export default function AddTextDialog({
           {/* Import */}
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-slate-200">Or import from a URL</label>
+              <label className="text-sm font-medium text-slate-200">
+                Or import from a URL
+              </label>
               <input
                 type="url"
                 className="w-full rounded-2xl border border-white/10 bg-[#131820] px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -122,7 +135,9 @@ export default function AddTextDialog({
               />
             </div>
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-slate-200">Or a PDF / EPUB file</label>
+              <label className="text-sm font-medium text-slate-200">
+                Or a PDF / EPUB file
+              </label>
               <input
                 type="file"
                 accept=".pdf,.epub"

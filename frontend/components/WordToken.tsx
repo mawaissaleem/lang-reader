@@ -12,7 +12,12 @@ interface Props {
   id?: string; // "paragraph:index", needed for Shift+click multi-word selection
 }
 
-export default function WordToken({ word, highlightMode, sentence, id }: Props) {
+export default function WordToken({
+  word,
+  highlightMode,
+  sentence,
+  id,
+}: Props) {
   const clean = cleanWord(word);
   const setSelectedWord = useStore((s) => s.setSelectedWord);
   const status = useStore((s) => entryFor(s.userWords, clean)?.status);
@@ -20,7 +25,9 @@ export default function WordToken({ word, highlightMode, sentence, id }: Props) 
   const isSelected = useStore((s) =>
     s.selectedTokens.length > 1
       ? s.selectedTokens.some((t) => t.id === id)
-      : s.selectedWord === clean || (s.selectedWord === s.selectedWord?.toLowerCase() && s.selectedWord === clean.toLowerCase()),
+      : s.selectedWord === clean ||
+        (s.selectedWord === s.selectedWord?.toLowerCase() &&
+          s.selectedWord === clean.toLowerCase()),
   );
   const extendSelection = useStore((s) => s.extendSelection);
 
@@ -37,7 +44,8 @@ export default function WordToken({ word, highlightMode, sentence, id }: Props) 
       }}
       className={clsx(
         "cursor-pointer rounded px-0.5 transition-all duration-150",
-        isSelected && "ring-2 ring-blue-400 ring-offset-1 ring-offset-[#111114] rounded",
+        isSelected &&
+          "ring-2 ring-blue-400 ring-offset-1 ring-offset-[#111114] rounded",
         status ? STATUS_CLASS[status][highlightMode] : NEW_CLASS,
         "hover:opacity-70",
       )}

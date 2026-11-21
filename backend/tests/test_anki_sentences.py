@@ -18,7 +18,12 @@ from models import Base, SentenceCard
 from tests.test_anki import FakeAnki, client_for
 from tests.test_anki_outbox import closed
 
-BODY = {"sentence_de": "Das Haus ist groß.", "sentence_en": "The house is big.", "target_word": "Haus", "source": "AI example"}
+BODY = {
+    "sentence_de": "Das Haus ist groß.",
+    "sentence_en": "The house is big.",
+    "target_word": "Haus",
+    "source": "AI example",
+}
 
 
 class Fake(FakeAnki):
@@ -40,9 +45,23 @@ class Fake(FakeAnki):
             self.notes[nid] = dict(p["note"]["fields"])
             return ok(nid)
         if a == "findNotes":
-            return ok([i for i, f in self.notes.items() if anki._q("TargetWord:" + f["TargetWord"]) in p["query"]])
+            return ok(
+                [
+                    i
+                    for i, f in self.notes.items()
+                    if anki._q("TargetWord:" + f["TargetWord"]) in p["query"]
+                ]
+            )
         if a == "notesInfo":
-            return ok([{"noteId": i, "fields": {k: {"value": v} for k, v in self.notes[i].items()}} for i in p["notes"]])
+            return ok(
+                [
+                    {
+                        "noteId": i,
+                        "fields": {k: {"value": v} for k, v in self.notes[i].items()},
+                    }
+                    for i in p["notes"]
+                ]
+            )
         self.notes[p["note"]["id"]].update(p["note"]["fields"])
         return ok()
 
@@ -53,7 +72,9 @@ class SentenceApiTest(unittest.TestCase):
         p = patch("anki.tts.get_audio", side_effect=anki.tts.TTSError("off"))
         p.start()
         self.addCleanup(p.stop)
-        engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        engine = create_engine(
+            "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+        )
         Base.metadata.create_all(bind=engine)
         self.Session = sessionmaker(bind=engine)
 
@@ -74,32 +95,67 @@ class SentenceApiTest(unittest.TestCase):
     def test_note_has_bold_target_fields_tags_deck_and_model(self):
         fake = Fake()
         with client_for(fake):
-            r = self.add(sentence_de="Das haus ist <groß> & alt.", sentence_en="It's big.")
+            r = self.add(
+                sentence_de="Das haus ist <groß> & alt.", sentence_en="It's big."
+            )
         self.assertEqual(r.json(), {"anki_status": "sent", "pending": 0})
         note = next(p for a, p in fake.calls if a == "addNote")["note"]
-        self.assertEqual((note["deckName"], note["modelName"]), ("German::Reader::Sentences", "Reader Sentence"))
+        self.assertEqual(
+            (note["deckName"], note["modelName"]),
+            ("German::Reader::Sentences", "Reader Sentence"),
+        )
         self.assertEqual(note["tags"], ["reader", "reader::src::ai-example"])
-        self.assertEqual(note["fields"], {
-            "SentenceDE": "Das <b>haus</b> ist &lt;groß&gt; &amp; alt.", "SentenceEN": "It's big.",
-            "TargetWord": "Haus", "Audio": "", "Source": "AI example",
-        })
+        self.assertEqual(
+            note["fields"],
+            {
+                "SentenceDE": "Das <b>haus</b> ist &lt;groß&gt; &amp; alt.",
+                "SentenceEN": "It's big.",
+                "TargetWord": "Haus",
+                "Audio": "",
+                "Source": "AI example",
+            },
+        )
         self.assertEqual(fake.actions()[-1], "sync")
 
     def test_inflected_form_is_not_bolded(self):
-        note = anki._build_sentence_note(SentenceCard(**{**BODY, "sentence_de": "Die Häuser sind groß."}))
+        note = anki._build_sentence_note(
+            SentenceCard(**{**BODY, "sentence_de": "Die Häuser sind groß."})
+        )
         self.assertEqual(note["fields"]["SentenceDE"], "Die Häuser sind groß.")
 
     def test_clicked_form_is_bolded_not_the_lemma(self):
-        note = anki._build_sentence_note(SentenceCard(**{**BODY, "sentence_de": "Er ging nach Hause.", "target_word": "gehen", "bold": ["ging"]}))
+        note = anki._build_sentence_note(
+            SentenceCard(
+                **{
+                    **BODY,
+                    "sentence_de": "Er ging nach Hause.",
+                    "target_word": "gehen",
+                    "bold": ["ging"],
+                }
+            )
+        )
         self.assertEqual(note["fields"]["SentenceDE"], "Er <b>ging</b> nach Hause.")
 
     def test_separable_verb_bolds_both_parts(self):
-        note = anki._build_sentence_note(SentenceCard(**{**BODY, "sentence_de": "Er fängt morgen an.", "target_word": "anfangen", "bold": ["fängt", "an"]}))
-        self.assertEqual(note["fields"]["SentenceDE"], "Er <b>fängt</b> morgen <b>an</b>.")
+        note = anki._build_sentence_note(
+            SentenceCard(
+                **{
+                    **BODY,
+                    "sentence_de": "Er fängt morgen an.",
+                    "target_word": "anfangen",
+                    "bold": ["fängt", "an"],
+                }
+            )
+        )
+        self.assertEqual(
+            note["fields"]["SentenceDE"], "Er <b>fängt</b> morgen <b>an</b>."
+        )
 
     def test_bold_forms_are_stored_for_the_later_send(self):
         with client_for(closed):
-            self.add(sentence_de="Er ging nach Hause.", target_word="gehen", bold=["ging"])
+            self.add(
+                sentence_de="Er ging nach Hause.", target_word="gehen", bold=["ging"]
+            )
         fake = Fake()
         with client_for(fake):
             self.client.post("/anki/sync")
@@ -111,7 +167,10 @@ class SentenceApiTest(unittest.TestCase):
         with client_for(fake):
             self.add(source="Mein Text!")
         note = next(p for a, p in fake.calls if a == "addNote")["note"]
-        self.assertEqual((note["fields"]["Source"], note["tags"][1]), ("Mein Text!", "reader::src::mein-text"))
+        self.assertEqual(
+            (note["fields"]["Source"], note["tags"][1]),
+            ("Mein Text!", "reader::src::mein-text"),
+        )
 
     def test_anki_closed_stays_pending_then_sync_delivers(self):
         with client_for(closed):
@@ -136,7 +195,11 @@ class SentenceApiTest(unittest.TestCase):
 
     def test_existing_anki_note_is_updated_not_duplicated(self):
         fake = Fake()
-        fake.notes[555] = {"SentenceDE": "Das <b>Haus</b> ist groß.", "SentenceEN": "old", "TargetWord": "Haus"}
+        fake.notes[555] = {
+            "SentenceDE": "Das <b>Haus</b> ist groß.",
+            "SentenceEN": "old",
+            "TargetWord": "Haus",
+        }
         with client_for(fake):
             self.add()
         self.assertNotIn("addNote", fake.actions())
@@ -155,7 +218,9 @@ class SentenceApiTest(unittest.TestCase):
         class Reject(Fake):
             def __call__(self, req):
                 if json.loads(req.content)["action"] == "addNote":
-                    return httpx.Response(200, json={"result": None, "error": "duplicate"})
+                    return httpx.Response(
+                        200, json={"result": None, "error": "duplicate"}
+                    )
                 return super().__call__(req)
 
         with client_for(Reject()):

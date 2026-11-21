@@ -1,7 +1,15 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { fetchLibrary, fetchLibraryProgress, fetchEntryText, fetchSubtitleCues, renameEntry, entryKey, LibraryEntry as Entry } from "@/lib/api";
+import {
+  fetchLibrary,
+  fetchLibraryProgress,
+  fetchEntryText,
+  fetchSubtitleCues,
+  renameEntry,
+  entryKey,
+  LibraryEntry as Entry,
+} from "@/lib/api";
 import { knownPct, levelTag, type Progress } from "@/lib/progress";
 import AddTextDialog from "@/components/AddTextDialog";
 import ImportYouTubeDialog from "@/components/ImportYouTubeDialog";
@@ -13,7 +21,11 @@ import useStore from "@/store/useStore";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  return new Date(iso).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 function readingTime(words: number) {
@@ -24,25 +36,52 @@ function readingTime(words: number) {
 // ─── Icons ────────────────────────────────────────────────────────────────────
 const YoutubeIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1C24 15.9 24 12 24 12s0-3.9-.5-5.8zM9.8 15.5V8.5l6.2 3.5-6.2 3.5z"/>
+    <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1C24 15.9 24 12 24 12s0-3.9-.5-5.8zM9.8 15.5V8.5l6.2 3.5-6.2 3.5z" />
   </svg>
 );
 
 const PenIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
   </svg>
 );
 
 const ArrowIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M5 12h14M12 5l7 7-7 7"/>
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M5 12h14M12 5l7 7-7 7" />
   </svg>
 );
 
 // ─── Edit icon ────────────────────────────────────────────────────────────────
 const EditIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="13"
+    height="13"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
   </svg>
@@ -93,7 +132,12 @@ function EntryCard({
   return (
     <button
       onClick={editing ? undefined : onClick}
-      style={{ all: "unset", display: "block", cursor: editing ? "default" : "pointer", width: "100%" }}
+      style={{
+        all: "unset",
+        display: "block",
+        cursor: editing ? "default" : "pointer",
+        width: "100%",
+      }}
     >
       <div
         style={{
@@ -105,76 +149,118 @@ function EntryCard({
           position: "relative",
           overflow: "hidden",
         }}
-        onMouseEnter={e => {
-          (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.065)";
-          (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,255,255,0.16)";
-          (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)";
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLDivElement).style.background =
+            "rgba(255,255,255,0.065)";
+          (e.currentTarget as HTMLDivElement).style.borderColor =
+            "rgba(255,255,255,0.16)";
+          (e.currentTarget as HTMLDivElement).style.transform =
+            "translateY(-2px)";
         }}
-        onMouseLeave={e => {
-          (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.035)";
-          (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,255,255,0.08)";
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLDivElement).style.background =
+            "rgba(255,255,255,0.035)";
+          (e.currentTarget as HTMLDivElement).style.borderColor =
+            "rgba(255,255,255,0.08)";
           (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
         }}
       >
         {/* Accent strip */}
-        <div style={{
-          position: "absolute",
-          top: 0, left: 0,
-          width: "3px", height: "100%",
-          background: isYT
-            ? "linear-gradient(180deg, #ff4444, #ff8800)"
-            : "linear-gradient(180deg, #4f8eff, #a259ff)",
-          borderRadius: "16px 0 0 16px",
-        }} />
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "3px",
+            height: "100%",
+            background: isYT
+              ? "linear-gradient(180deg, #ff4444, #ff8800)"
+              : "linear-gradient(180deg, #4f8eff, #a259ff)",
+            borderRadius: "16px 0 0 16px",
+          }}
+        />
 
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: "16px",
+          }}
+        >
           <div style={{ flex: 1, minWidth: 0 }}>
             {/* Source badge */}
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
-              <span style={{
-                display: "inline-flex",
+            <div
+              style={{
+                display: "flex",
                 alignItems: "center",
-                gap: "5px",
-                fontSize: "11px",
-                fontWeight: 600,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                color: isYT ? "#ff6644" : "#7b9fff",
-                background: isYT ? "rgba(255,68,68,0.12)" : "rgba(79,142,255,0.12)",
-                padding: "3px 9px",
-                borderRadius: "20px",
-              }}>
+                gap: "8px",
+                marginBottom: "10px",
+              }}
+            >
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "5px",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  color: isYT ? "#ff6644" : "#7b9fff",
+                  background: isYT
+                    ? "rgba(255,68,68,0.12)"
+                    : "rgba(79,142,255,0.12)",
+                  padding: "3px 9px",
+                  borderRadius: "20px",
+                }}
+              >
                 {isYT ? <YoutubeIcon /> : <PenIcon />}
                 {isYT ? "YouTube" : "Manual"}
               </span>
               {entry.extraction_method && (
-                <span style={{
-                  fontSize: "10px",
-                  color: "rgba(255,255,255,0.3)",
-                  fontFamily: "monospace",
-                  background: "rgba(255,255,255,0.05)",
-                  padding: "2px 7px",
-                  borderRadius: "4px",
-                }}>
+                <span
+                  style={{
+                    fontSize: "10px",
+                    color: "rgba(255,255,255,0.3)",
+                    fontFamily: "monospace",
+                    background: "rgba(255,255,255,0.05)",
+                    padding: "2px 7px",
+                    borderRadius: "4px",
+                  }}
+                >
                   {entry.extraction_method}
                 </span>
               )}
             </div>
 
             {/* Title — inline editable */}
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                marginBottom: "12px",
+              }}
+            >
               {editing ? (
                 <input
                   ref={inputRef}
                   value={draft}
                   disabled={saving}
-                  onChange={e => setDraft(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === "Enter") { e.preventDefault(); handleSave(); }
-                    if (e.key === "Escape") { setDraft(entry.title); setEditing(false); }
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleSave();
+                    }
+                    if (e.key === "Escape") {
+                      setDraft(entry.title);
+                      setEditing(false);
+                    }
                   }}
                   onBlur={handleSave}
-                  onClick={e => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
                   style={{
                     flex: 1,
                     fontSize: "17px",
@@ -192,19 +278,21 @@ function EntryCard({
                 />
               ) : (
                 <>
-                  <h3 style={{
-                    fontSize: "17px",
-                    fontWeight: 600,
-                    color: "rgba(255,255,255,0.92)",
-                    margin: 0,
-                    lineHeight: 1.35,
-                    fontFamily: "'DM Serif Display', Georgia, serif",
-                    letterSpacing: "-0.01em",
-                  }}>
+                  <h3
+                    style={{
+                      fontSize: "17px",
+                      fontWeight: 600,
+                      color: "rgba(255,255,255,0.92)",
+                      margin: 0,
+                      lineHeight: 1.35,
+                      fontFamily: "'DM Serif Display', Georgia, serif",
+                      letterSpacing: "-0.01em",
+                    }}
+                  >
                     {entry.title}
                   </h3>
                   <button
-                    onClick={e => {
+                    onClick={(e) => {
                       e.stopPropagation();
                       setDraft(entry.title);
                       setEditing(true);
@@ -223,13 +311,17 @@ function EntryCard({
                       transition: "all 0.15s ease",
                       flexShrink: 0,
                     }}
-                    onMouseEnter={e => {
-                      (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.7)";
-                      (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.08)";
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.color =
+                        "rgba(255,255,255,0.7)";
+                      (e.currentTarget as HTMLButtonElement).style.background =
+                        "rgba(255,255,255,0.08)";
                     }}
-                    onMouseLeave={e => {
-                      (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.25)";
-                      (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.color =
+                        "rgba(255,255,255,0.25)";
+                      (e.currentTarget as HTMLButtonElement).style.background =
+                        "transparent";
                     }}
                   >
                     <EditIcon />
@@ -239,57 +331,139 @@ function EntryCard({
             </div>
 
             {/* Meta row */}
-            <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
-              <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.35)", fontVariantNumeric: "tabular-nums" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "16px",
+                flexWrap: "wrap",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "12px",
+                  color: "rgba(255,255,255,0.35)",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
                 {formatDate(entry.created_at)}
               </span>
-              <span style={{ width: "3px", height: "3px", borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "inline-block" }} />
-              <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.35)" }}>
+              <span
+                style={{
+                  width: "3px",
+                  height: "3px",
+                  borderRadius: "50%",
+                  background: "rgba(255,255,255,0.2)",
+                  display: "inline-block",
+                }}
+              />
+              <span
+                style={{ fontSize: "12px", color: "rgba(255,255,255,0.35)" }}
+              >
                 {entry.word_count.toLocaleString()} words
               </span>
-              <span style={{ width: "3px", height: "3px", borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "inline-block" }} />
-              <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.35)" }}>
+              <span
+                style={{
+                  width: "3px",
+                  height: "3px",
+                  borderRadius: "50%",
+                  background: "rgba(255,255,255,0.2)",
+                  display: "inline-block",
+                }}
+              />
+              <span
+                style={{ fontSize: "12px", color: "rgba(255,255,255,0.35)" }}
+              >
                 {readingTime(entry.word_count)}
               </span>
-              <span style={{
-                fontSize: "11px",
-                fontWeight: 700,
-                color: "rgba(255,255,255,0.5)",
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
-                marginLeft: "2px",
-                background: "rgba(255,255,255,0.06)",
-                padding: "2px 8px",
-                borderRadius: "4px",
-              }}>
+              <span
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  color: "rgba(255,255,255,0.5)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  marginLeft: "2px",
+                  background: "rgba(255,255,255,0.06)",
+                  padding: "2px 8px",
+                  borderRadius: "4px",
+                }}
+              >
                 {entry.language.toUpperCase()}
               </span>
             </div>
-            {progress && progress.total > 0 && (() => {
-              const tag = levelTag(progress);
-              const pct = (n: number) => `${(n / progress.total) * 100}%`;
-              return (
-                <div style={{ marginTop: "14px" }}>
-                  <div style={{ display: "flex", height: "5px", borderRadius: "3px", overflow: "hidden", background: "rgba(255,255,255,0.06)" }}>
-                    <div style={{ width: pct(progress.known), background: "#4f8eff" }} />
-                    <div style={{ width: pct(progress.learning), background: "#fbbf24" }} />
+            {progress &&
+              progress.total > 0 &&
+              (() => {
+                const tag = levelTag(progress);
+                const pct = (n: number) => `${(n / progress.total) * 100}%`;
+                return (
+                  <div style={{ marginTop: "14px" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        height: "5px",
+                        borderRadius: "3px",
+                        overflow: "hidden",
+                        background: "rgba(255,255,255,0.06)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: pct(progress.known),
+                          background: "#4f8eff",
+                        }}
+                      />
+                      <div
+                        style={{
+                          width: pct(progress.learning),
+                          background: "#fbbf24",
+                        }}
+                      />
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        marginTop: "8px",
+                        fontSize: "12px",
+                        color: "rgba(255,255,255,0.45)",
+                      }}
+                    >
+                      <span>
+                        {knownPct(progress)}% known · {progress.new} new
+                      </span>
+                      {tag && (
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            padding: "2px 8px",
+                            borderRadius: "20px",
+                            color: tag === "Hard" ? "#ff8866" : "#7b9fff",
+                            background:
+                              tag === "Hard"
+                                ? "rgba(255,102,68,0.12)"
+                                : "rgba(79,142,255,0.12)",
+                          }}
+                        >
+                          {tag}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "8px", fontSize: "12px", color: "rgba(255,255,255,0.45)" }}>
-                    <span>{knownPct(progress)}% known · {progress.new} new</span>
-                    {tag && (
-                      <span style={{
-                        fontSize: "11px", fontWeight: 600, padding: "2px 8px", borderRadius: "20px",
-                        color: tag === "Hard" ? "#ff8866" : "#7b9fff",
-                        background: tag === "Hard" ? "rgba(255,102,68,0.12)" : "rgba(79,142,255,0.12)",
-                      }}>{tag}</span>
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
+                );
+              })()}
           </div>
 
-          <div style={{ color: "rgba(255,255,255,0.2)", paddingTop: "4px", flexShrink: 0 }}>
+          <div
+            style={{
+              color: "rgba(255,255,255,0.2)",
+              paddingTop: "4px",
+              flexShrink: 0,
+            }}
+          >
             <ArrowIcon />
           </div>
         </div>
@@ -299,7 +473,15 @@ function EntryCard({
 }
 
 // ─── Filter pill ──────────────────────────────────────────────────────────────
-function FilterPill({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+function FilterPill({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       onClick={onClick}
@@ -310,7 +492,9 @@ function FilterPill({ label, active, onClick }: { label: string; active: boolean
         fontWeight: 500,
         padding: "6px 16px",
         borderRadius: "20px",
-        border: active ? "1px solid rgba(255,255,255,0.25)" : "1px solid rgba(255,255,255,0.08)",
+        border: active
+          ? "1px solid rgba(255,255,255,0.25)"
+          : "1px solid rgba(255,255,255,0.08)",
         background: active ? "rgba(255,255,255,0.1)" : "transparent",
         color: active ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.35)",
         transition: "all 0.15s ease",
@@ -331,33 +515,32 @@ export default function LibraryPage() {
   const [readerLoading, setReaderLoading] = useState(false);
   const [progress, setProgress] = useState<Record<string, Progress>>({});
 
-
   const [video, setVideo] = useState<{ url: string; cues: Cue[] } | null>(null);
 
-  const setText = useStore(s => s.setText);
-  const text = useStore(s => s.text);
-  const loadUserWords = useStore(s => s.loadUserWords);
-  const loadTranslatorPriority = useStore(s => s.loadTranslatorPriority);
+  const setText = useStore((s) => s.setText);
+  const text = useStore((s) => s.text);
+  const loadUserWords = useStore((s) => s.loadUserWords);
+  const loadTranslatorPriority = useStore((s) => s.loadTranslatorPriority);
 
   // Fetch library on mount
   useEffect(() => {
     fetchLibrary()
-      .then(data => {
+      .then((data) => {
         setEntries(data);
         setLoading(false);
       })
-      .catch(err => {
+      .catch((err) => {
         setError(err.message);
         setLoading(false);
       });
   }, []);
 
-
-
   // refetch on returning from the reader: statuses may have changed there
   useEffect(() => {
     if (openEntry) return;
-    fetchLibraryProgress().then(setProgress).catch(err => console.error("Progress load failed", err));
+    fetchLibraryProgress()
+      .then(setProgress)
+      .catch((err) => console.error("Progress load failed", err));
   }, [openEntry, entries.length]);
 
   // Load user words once (same as root page)
@@ -370,28 +553,39 @@ export default function LibraryPage() {
   useEffect(() => {
     if (!openEntry) return;
     setText("", undefined);
+    let stale = false; // a late cues response must not open the next text as the old video
     // timed lines are optional: without them a video opens as plain text
-    if (openEntry.type === "video") fetchSubtitleCues(openEntry.id).then(setVideo).catch(() => {});
+    if (openEntry.type === "video")
+      fetchSubtitleCues(openEntry.id)
+        .then((v) => !stale && setVideo(v))
+        .catch(() => {});
     fetchEntryText(openEntry)
-      .then(t => {
+      .then((t) => {
+        if (stale) return;
         setText(t, openEntry.title, { kind: openEntry.type, id: openEntry.id });
         setReaderLoading(false);
       })
-      .catch(err => {
+      .catch((err) => {
         console.error("Failed to load text", err);
         setReaderLoading(false);
       });
+    return () => {
+      stale = true;
+      setVideo(null);
+    };
   }, [openEntry, setText]);
 
   const handleRename = async (entry: Entry, newTitle: string) => {
     const result = await renameEntry(entry, newTitle);
-    setEntries(prev =>
-      prev.map(e => (entryKey(e) === entryKey(entry) ? { ...e, title: result.title } : e))
+    setEntries((prev) =>
+      prev.map((e) =>
+        entryKey(e) === entryKey(entry) ? { ...e, title: result.title } : e,
+      ),
     );
   };
 
-  const filtered = entries.filter(e =>
-    filter === "all" ? true : e.source === filter
+  const filtered = entries.filter((e) =>
+    filter === "all" ? true : e.source === filter,
   );
 
   // ── Reader view — identical layout to root page ──────────────────────────────
@@ -401,11 +595,22 @@ export default function LibraryPage() {
         {/* Header */}
         <header className="border-b border-white/[0.06] px-6 py-4 flex items-center gap-3 bg-[#0d0d0f]">
           <button
-            onClick={() => { setOpenEntry(null); setVideo(null); }}
+            onClick={() => {
+              setOpenEntry(null);
+            }}
             className="flex items-center gap-2 text-sm text-white/40 hover:text-white/80 transition-colors"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 12H5M12 5l-7 7 7 7"/>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M19 12H5M12 5l-7 7 7 7" />
             </svg>
             Library
           </button>
@@ -440,12 +645,14 @@ export default function LibraryPage() {
 
   // ── Library view ────────────────────────────────────────────────────────────
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: "#0d0d0f",
-      color: "rgba(255,255,255,0.85)",
-      fontFamily: "'DM Sans', system-ui, sans-serif",
-    }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#0d0d0f",
+        color: "rgba(255,255,255,0.85)",
+        fontFamily: "'DM Sans', system-ui, sans-serif",
+      }}
+    >
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap');
         * { box-sizing: border-box; }
@@ -453,41 +660,64 @@ export default function LibraryPage() {
       `}</style>
 
       {/* Top nav */}
-      <header style={{
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
-        padding: "18px 40px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-      }}>
-        <div style={{
-          fontSize: "18px",
-          fontWeight: 700,
-          letterSpacing: "-0.02em",
-          fontFamily: "'DM Serif Display', Georgia, serif",
-          color: "#fff",
-        }}>
+      <header
+        style={{
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
+          padding: "18px 40px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "18px",
+            fontWeight: 700,
+            letterSpacing: "-0.02em",
+            fontFamily: "'DM Serif Display', Georgia, serif",
+            color: "#fff",
+          }}
+        >
           leseraum
-          <span style={{ color: "rgba(255,255,255,0.2)", fontWeight: 400 }}>.de</span>
+          <span style={{ color: "rgba(255,255,255,0.2)", fontWeight: 400 }}>
+            .de
+          </span>
         </div>
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-          {["Library", "Vocabulary", "Stats"].map(item => (
-            <button key={item} style={{
-              all: "unset",
-              cursor: "pointer",
-              fontSize: "13px",
-              color: item === "Library" ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.3)",
-              padding: "6px 14px",
-              borderRadius: "8px",
-              background: item === "Library" ? "rgba(255,255,255,0.07)" : "transparent",
-              transition: "all 0.15s",
-            }}>
+          {["Library", "Vocabulary", "Stats"].map((item) => (
+            <button
+              key={item}
+              style={{
+                all: "unset",
+                cursor: "pointer",
+                fontSize: "13px",
+                color:
+                  item === "Library"
+                    ? "rgba(255,255,255,0.85)"
+                    : "rgba(255,255,255,0.3)",
+                padding: "6px 14px",
+                borderRadius: "8px",
+                background:
+                  item === "Library" ? "rgba(255,255,255,0.07)" : "transparent",
+                transition: "all 0.15s",
+              }}
+            >
               {item}
             </button>
           ))}
 
-          <Link href="/progress" className="px-3.5 py-1.5 text-[13px] text-white/30 hover:text-white/70">Progress</Link>
-          <Link href="/settings" className="px-3.5 py-1.5 text-[13px] text-white/30 hover:text-white/70">Settings</Link>
+          <Link
+            href="/progress"
+            className="px-3.5 py-1.5 text-[13px] text-white/30 hover:text-white/70"
+          >
+            Progress
+          </Link>
+          <Link
+            href="/settings"
+            className="px-3.5 py-1.5 text-[13px] text-white/30 hover:text-white/70"
+          >
+            Settings
+          </Link>
 
           <ImportYouTubeDialog
             triggerClassName="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-white/10"
@@ -497,85 +727,144 @@ export default function LibraryPage() {
           <AddTextDialog
             triggerLabel="Add Text"
             triggerClassName="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-white/10"
-            onLoadText={entry => {
+            onLoadText={(entry) => {
               setReaderLoading(true);
               setOpenEntry(entry);
-              fetchLibrary().then(setEntries).catch(err => console.error("Library refresh failed", err));
+              fetchLibrary()
+                .then(setEntries)
+                .catch((err) => console.error("Library refresh failed", err));
             }}
           />
         </div>
       </header>
 
-      <main style={{ maxWidth: "860px", margin: "0 auto", padding: "56px 24px 80px" }}>
+      <main
+        style={{
+          maxWidth: "860px",
+          margin: "0 auto",
+          padding: "56px 24px 80px",
+        }}
+      >
         {/* Page heading */}
         <div style={{ marginBottom: "40px" }}>
-          <h1 style={{
-            fontSize: "clamp(32px, 5vw, 48px)",
-            fontWeight: 400,
-            fontFamily: "'DM Serif Display', Georgia, serif",
-            letterSpacing: "-0.02em",
-            margin: "0 0 10px 0",
-            color: "#fff",
-            lineHeight: 1.1,
-          }}>
+          <h1
+            style={{
+              fontSize: "clamp(32px, 5vw, 48px)",
+              fontWeight: 400,
+              fontFamily: "'DM Serif Display', Georgia, serif",
+              letterSpacing: "-0.02em",
+              margin: "0 0 10px 0",
+              color: "#fff",
+              lineHeight: 1.1,
+            }}
+          >
             Your Library
           </h1>
-          <p style={{ fontSize: "14px", color: "rgba(255,255,255,0.3)", margin: 0 }}>
-            {loading ? "Loading…" : `${entries.length} texts · intensive reading mode`}
+          <p
+            style={{
+              fontSize: "14px",
+              color: "rgba(255,255,255,0.3)",
+              margin: 0,
+            }}
+          >
+            {loading
+              ? "Loading…"
+              : `${entries.length} texts · intensive reading mode`}
           </p>
         </div>
 
         {/* Filters + count row */}
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: "24px",
-          flexWrap: "wrap",
-          gap: "12px",
-        }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: "24px",
+            flexWrap: "wrap",
+            gap: "12px",
+          }}
+        >
           <div style={{ display: "flex", gap: "8px" }}>
-            <FilterPill label="All" active={filter === "all"} onClick={() => setFilter("all")} />
-            <FilterPill label="YouTube" active={filter === "youtube"} onClick={() => setFilter("youtube")} />
-            <FilterPill label="Manual" active={filter === "manual"} onClick={() => setFilter("manual")} />
+            <FilterPill
+              label="All"
+              active={filter === "all"}
+              onClick={() => setFilter("all")}
+            />
+            <FilterPill
+              label="YouTube"
+              active={filter === "youtube"}
+              onClick={() => setFilter("youtube")}
+            />
+            <FilterPill
+              label="Manual"
+              active={filter === "manual"}
+              onClick={() => setFilter("manual")}
+            />
           </div>
           <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.2)" }}>
             {filtered.length} result{filtered.length !== 1 ? "s" : ""}
           </span>
         </div>
 
-        <div style={{ height: "1px", background: "rgba(255,255,255,0.06)", marginBottom: "24px" }} />
+        <div
+          style={{
+            height: "1px",
+            background: "rgba(255,255,255,0.06)",
+            marginBottom: "24px",
+          }}
+        />
 
         {/* Entry list */}
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           {loading && (
-            <div style={{ textAlign: "center", padding: "80px 0", color: "rgba(255,255,255,0.2)", fontSize: "14px" }}>
+            <div
+              style={{
+                textAlign: "center",
+                padding: "80px 0",
+                color: "rgba(255,255,255,0.2)",
+                fontSize: "14px",
+              }}
+            >
               Loading library…
             </div>
           )}
           {error && (
-            <div style={{ textAlign: "center", padding: "80px 0", color: "#ff6644", fontSize: "14px" }}>
+            <div
+              style={{
+                textAlign: "center",
+                padding: "80px 0",
+                color: "#ff6644",
+                fontSize: "14px",
+              }}
+            >
               Failed to load: {error}
             </div>
           )}
-          {!loading && !error && filtered.map(entry => (
-            <EntryCard
-              key={entryKey(entry)}
-              entry={entry}
-              progress={progress[entryKey(entry)]}
-              onClick={() => { setReaderLoading(true); setOpenEntry(entry); }}
-              onRename={handleRename}
-            />
-          ))}
+          {!loading &&
+            !error &&
+            filtered.map((entry) => (
+              <EntryCard
+                key={entryKey(entry)}
+                entry={entry}
+                progress={progress[entryKey(entry)]}
+                onClick={() => {
+                  setReaderLoading(true);
+                  setOpenEntry(entry);
+                }}
+                onRename={handleRename}
+              />
+            ))}
         </div>
 
         {!loading && !error && filtered.length === 0 && (
-          <div style={{
-            textAlign: "center",
-            padding: "80px 0",
-            color: "rgba(255,255,255,0.2)",
-            fontSize: "14px",
-          }}>
+          <div
+            style={{
+              textAlign: "center",
+              padding: "80px 0",
+              color: "rgba(255,255,255,0.2)",
+              fontSize: "14px",
+            }}
+          >
             No entries found.
           </div>
         )}

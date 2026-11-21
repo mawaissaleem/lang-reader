@@ -18,44 +18,67 @@ from database import get_db
 from main import app
 from models import Base
 
+
 def make_pdf():
     stream = b"BT /F1 12 Tf 20 100 Td (Hallo Welt) Tj ET"
-    objs = [b"<</Type/Catalog/Pages 2 0 R>>", b"<</Type/Pages/Kids[3 0 R]/Count 1>>",
-            b"<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>",
-            b"<</Length %d>>stream\n%s\nendstream" % (len(stream), stream),
-            b"<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>"]
+    objs = [
+        b"<</Type/Catalog/Pages 2 0 R>>",
+        b"<</Type/Pages/Kids[3 0 R]/Count 1>>",
+        b"<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>",
+        b"<</Length %d>>stream\n%s\nendstream" % (len(stream), stream),
+        b"<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>",
+    ]
     out, offs = b"%PDF-1.4\n", []
     for i, o in enumerate(objs, 1):
         offs.append(len(out))
         out += b"%d 0 obj\n%s\nendobj\n" % (i, o)
     x = len(out)
-    out += b"xref\n0 6\n0000000000 65535 f \n" + b"".join(b"%010d 00000 n \n" % o for o in offs)
+    out += b"xref\n0 6\n0000000000 65535 f \n" + b"".join(
+        b"%010d 00000 n \n" % o for o in offs
+    )
     return out + b"trailer<</Root 1 0 R/Size 6>>\nstartxref\n%d\n%%%%EOF" % x
 
 
 PDF = make_pdf()
 
 
-def make_epub(spine_order=("c2", "c1"), href_a="a.xhtml", name_a="a.xhtml", body_a=None):
+def make_epub(
+    spine_order=("c2", "c1"), href_a="a.xhtml", name_a="a.xhtml", body_a=None
+):
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("META-INF/container.xml",
-                   '<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles>'
-                   '<rootfile full-path="OEBPS/content.opf"/></rootfiles></container>')
+        z.writestr(
+            "META-INF/container.xml",
+            '<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles>'
+            '<rootfile full-path="OEBPS/content.opf"/></rootfiles></container>',
+        )
         refs = "".join(f'<itemref idref="{i}"/>' for i in spine_order)
-        z.writestr("OEBPS/content.opf",
-                   '<package xmlns="http://www.idpf.org/2007/opf"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/">'
-                   '<dc:title>Mein Buch</dc:title></metadata><manifest>'
-                   f'<item id="c1" href="{href_a}"/><item id="c2" href="b.xhtml"/></manifest>'
-                   f"<spine>{refs}</spine></package>")
-        z.writestr("OEBPS/" + name_a, body_a or "<html><head><title>x</title></head><body><p>Erstes Kapitel</p></body></html>")
-        z.writestr("OEBPS/b.xhtml", "<html><body><h1>Zweites</h1><script>no()</script><p>Kapitel</p></body></html>")
+        z.writestr(
+            "OEBPS/content.opf",
+            '<package xmlns="http://www.idpf.org/2007/opf"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/">'
+            "<dc:title>Mein Buch</dc:title></metadata><manifest>"
+            f'<item id="c1" href="{href_a}"/><item id="c2" href="b.xhtml"/></manifest>'
+            f"<spine>{refs}</spine></package>",
+        )
+        z.writestr(
+            "OEBPS/" + name_a,
+            body_a
+            or "<html><head><title>x</title></head><body><p>Erstes Kapitel</p></body></html>",
+        )
+        z.writestr(
+            "OEBPS/b.xhtml",
+            "<html><body><h1>Zweites</h1><script>no()</script><p>Kapitel</p></body></html>",
+        )
     return buf.getvalue()
 
 
 class FakeResp:
     def __init__(self, body=b"", status=200, headers=None):
-        self.raw = type("Raw", (io.BytesIO,), {"read": lambda self, n, decode_content=True: io.BytesIO.read(self, n)})(body)
+        self.raw = type(
+            "Raw",
+            (io.BytesIO,),
+            {"read": lambda self, n, decode_content=True: io.BytesIO.read(self, n)},
+        )(body)
         self.status_code = status
         self.headers = headers or {}
         self.is_redirect = "location" in self.headers
@@ -69,9 +92,11 @@ class FakeResp:
         pass
 
 
-ARTICLE = ("<html><head><title>Ein Titel</title></head><body><article><p>"
-           + "Das ist ein langer deutscher Satz über das Leben in Berlin. " * 30
-           + "</p></article></body></html>").encode()
+ARTICLE = (
+    "<html><head><title>Ein Titel</title></head><body><article><p>"
+    + "Das ist ein langer deutscher Satz über das Leben in Berlin. " * 30
+    + "</p></article></body></html>"
+).encode()
 PUBLIC = [(None, None, None, None, ("93.184.216.34", 80))]
 
 
@@ -79,6 +104,11 @@ class UrlTests(unittest.TestCase):
     def test_non_http_scheme_refused(self):
         for u in ("file:///etc/passwd", "ftp://example.com/x", "javascript:alert(1)"):
             with self.assertRaises(importer.ImportError_):
+                importer.fetch_url(u)
+
+    def test_malformed_url_is_import_error_not_crash(self):
+        for u in ("http://a:99999/", "http://[::1"):
+            with self.assertRaisesRegex(importer.ImportError_, "not a valid URL"):
                 importer.fetch_url(u)
 
     def test_private_address_refused(self):
@@ -94,15 +124,22 @@ class UrlTests(unittest.TestCase):
 
     @patch("importer.socket.getaddrinfo", return_value=PUBLIC)
     def test_utf8_page_without_charset_keeps_umlauts(self, _dns):
-        page = ARTICLE.replace(b"<head>", b'<head><meta charset="utf-8">').replace("über".encode(), "über Größe".encode())
+        page = ARTICLE.replace(b"<head>", b'<head><meta charset="utf-8">').replace(
+            "über".encode(), "über Größe".encode()
+        )
         resp = FakeResp(page)
-        resp.encoding = "ISO-8859-1"  # what requests reports for text/html with no charset header
+        resp.encoding = (
+            "ISO-8859-1"  # what requests reports for text/html with no charset header
+        )
         with patch("importer.requests.get", return_value=resp):
             _, text = importer.fetch_url("https://example.com/a")
         self.assertIn("Größe", text)
 
     @patch("importer.socket.getaddrinfo", return_value=PUBLIC)
-    @patch("importer.requests.get", return_value=FakeResp(b"x" * (importer.MAX_DOWNLOAD + 1)))
+    @patch(
+        "importer.requests.get",
+        return_value=FakeResp(b"x" * (importer.MAX_DOWNLOAD + 1)),
+    )
     def test_too_large(self, *_):
         with self.assertRaisesRegex(importer.ImportError_, "too large"):
             importer.fetch_url("https://example.com/a")
@@ -114,7 +151,10 @@ class UrlTests(unittest.TestCase):
             importer.fetch_url("https://example.com/a")
 
     @patch("importer.socket.getaddrinfo", return_value=PUBLIC)
-    @patch("importer.requests.get", return_value=FakeResp(headers={"location": "file:///etc/passwd"}))
+    @patch(
+        "importer.requests.get",
+        return_value=FakeResp(headers={"location": "file:///etc/passwd"}),
+    )
     def test_redirect_to_bad_scheme_refused(self, *_):
         with self.assertRaisesRegex(importer.ImportError_, "http"):
             importer.fetch_url("https://example.com/a")
@@ -137,7 +177,9 @@ class FileTests(unittest.TestCase):
         self.assertEqual(text, "Zweites\nKapitel\n\nErstes Kapitel")
 
     def test_epub_percent_encoded_href(self):
-        data = make_epub(href_a="mein%20kapitel.xhtml#start", name_a="mein kapitel.xhtml")
+        data = make_epub(
+            href_a="mein%20kapitel.xhtml#start", name_a="mein kapitel.xhtml"
+        )
         self.assertIn("Erstes Kapitel", importer.read_epub(data)[1])
 
     def test_epub_unzipped_size_capped(self):
@@ -159,7 +201,9 @@ class FileTests(unittest.TestCase):
 
 class EndpointTests(unittest.TestCase):
     def setUp(self):
-        engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        engine = create_engine(
+            "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+        )
         Base.metadata.create_all(engine)
         Session = sessionmaker(bind=engine)
 
@@ -177,7 +221,9 @@ class EndpointTests(unittest.TestCase):
         app.dependency_overrides.clear()
 
     def test_file_import_saves_text(self):
-        r = self.client.post("/texts/import-file", files={"file": ("b.epub", make_epub())})
+        r = self.client.post(
+            "/texts/import-file", files={"file": ("b.epub", make_epub())}
+        )
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()["title"], "Mein Buch")
         tid = r.json()["id"]

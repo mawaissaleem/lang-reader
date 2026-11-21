@@ -26,7 +26,9 @@ describe("sentenceAt", () => {
   const tokens = (t: string) => t.split(/(\s+)/);
   const at = (t: string, word: string, nth = 0) => {
     const tk = tokens(t);
-    const idx = tk.map((x, i) => (x === word ? i : -1)).filter((i) => i >= 0)[nth];
+    const idx = tk.map((x, i) => (x === word ? i : -1)).filter((i) => i >= 0)[
+      nth
+    ];
     return sentenceAt(tk, idx);
   };
 
@@ -55,7 +57,11 @@ describe("sentenceAt", () => {
 describe("entryFor / clickedKey", () => {
   it("keeps Bank and bank apart, falls back to lowercase for legacy keys", () => {
     const map = { Bank: 1, bank: 2, haus: 3 };
-    expect([entryFor(map, "Bank"), entryFor(map, "bank"), entryFor(map, "Haus")]).toEqual([1, 2, 3]);
+    expect([
+      entryFor(map, "Bank"),
+      entryFor(map, "bank"),
+      entryFor(map, "Haus"),
+    ]).toEqual([1, 2, 3]);
     expect(entryFor({ bank: 2 }, "Bank")).toBe(2);
   });
 

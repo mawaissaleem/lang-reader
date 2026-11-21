@@ -18,19 +18,28 @@ class CorsTest(unittest.TestCase):
 
     def test_allowed_origin(self):
         r = self.get("http://localhost:3000")
-        self.assertEqual(r.headers["access-control-allow-origin"], "http://localhost:3000")
+        self.assertEqual(
+            r.headers["access-control-allow-origin"], "http://localhost:3000"
+        )
 
     def test_unlisted_origin(self):
         r = self.get("http://evil.example")
         self.assertNotIn("access-control-allow-origin", r.headers)
 
     def test_preflight_unlisted_origin(self):
-        r = self.client.options("/docs", headers={
-            "Origin": "http://evil.example", "Access-Control-Request-Method": "GET"})
+        r = self.client.options(
+            "/docs",
+            headers={
+                "Origin": "http://evil.example",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
         self.assertNotIn("access-control-allow-origin", r.headers)
 
     def test_parse_origins(self):
-        self.assertEqual(main.parse_origins("http://a:1, http://b:2,"), ["http://a:1", "http://b:2"])
+        self.assertEqual(
+            main.parse_origins("http://a:1, http://b:2,"), ["http://a:1", "http://b:2"]
+        )
 
 
 if __name__ == "__main__":

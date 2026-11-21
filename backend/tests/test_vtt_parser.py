@@ -51,11 +51,14 @@ class ExtractCuesTest(unittest.TestCase):
             "00:00:03.000 --> 00:00:04.250\nB\nC\n\n00:01:05.000 --> 00:01:06.000\nA\n"
         )
         cues = extract_cues(path)
-        self.assertEqual(cues, [
-            {"start": 1.5, "end": 3.0, "text": "A B"},
-            {"start": 3.0, "end": 4.25, "text": "C"},
-            {"start": 65.0, "end": 66.0, "text": "A"},
-        ])
+        self.assertEqual(
+            cues,
+            [
+                {"start": 1.5, "end": 3.0, "text": "A B"},
+                {"start": 3.0, "end": 4.25, "text": "C"},
+                {"start": 65.0, "end": 66.0, "text": "A"},
+            ],
+        )
         self.assertEqual(extract_subtitles(path), "A B\nC\nA")
 
 

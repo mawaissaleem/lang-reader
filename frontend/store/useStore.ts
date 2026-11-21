@@ -1,18 +1,36 @@
 import { create } from "zustand";
-import { aiKey, sentenceKey, AiEntry, SentenceCardState, StoreState, WordStatus } from "@/types";
+import {
+  aiKey,
+  sentenceKey,
+  AiEntry,
+  SentenceCardState,
+  StoreState,
+  WordStatus,
+} from "@/types";
 import { clickedKey } from "@/lib/words";
-import { lookupWord, fetchSentenceTranslation, fetchAiAnswer, addSentenceCard, saveWord, fetchUserWords, patchWordStatus, type WordLookupResponse } from "@/lib/api";
+import {
+  lookupWord,
+  fetchSentenceTranslation,
+  fetchAiAnswer,
+  addSentenceCard,
+  saveWord,
+  fetchUserWords,
+  patchWordStatus,
+  type WordLookupResponse,
+} from "@/lib/api";
 
 const USER_ID = 1;
 
 // open on the preferred source when it has a result, else on whatever was returned
-const openTab = (d: WordLookupResponse) => (d.translations[d.preferred] ? d.preferred : d.source);
+const openTab = (d: WordLookupResponse) =>
+  d.translations[d.preferred] ? d.preferred : d.source;
 
 const useStore = create<StoreState>((set, get) => ({
   text: "",
   title: "",
   textRef: null,
-  setText: (text, title, ref) => set({ text: text, title: title, textRef: ref ?? null }),
+  setText: (text, title, ref) =>
+    set({ text: text, title: title, textRef: ref ?? null }),
   selectedWord: null,
   selectedSentence: null,
   sentenceTranslation: null,
@@ -24,39 +42,108 @@ const useStore = create<StoreState>((set, get) => ({
   extendSelection: (token, sentence) => {
     const { selectedTokens, selectedSentence, setSelectedWord } = get();
     const para = (t: { id: string }) => t.id.split(":")[0];
-    if (!selectedTokens.length || selectedSentence !== sentence || para(selectedTokens[0]) !== para(token)) {
+    if (
+      !selectedTokens.length ||
+      selectedSentence !== sentence ||
+      para(selectedTokens[0]) !== para(token)
+    ) {
       return setSelectedWord(token.word, sentence, [token]);
     }
     if (selectedTokens.some((t) => t.id === token.id)) return;
-    const tokens = [...selectedTokens, token].sort((a, b) => Number(a.id.split(":")[1]) - Number(b.id.split(":")[1]));
-    return setSelectedWord(tokens.map((t) => t.word).join(" "), sentence, tokens);
+    const tokens = [...selectedTokens, token].sort(
+      (a, b) => Number(a.id.split(":")[1]) - Number(b.id.split(":")[1]),
+    );
+    return setSelectedWord(
+      tokens.map((t) => t.word).join(" "),
+      sentence,
+      tokens,
+    );
   },
   setSelectedWord: async (w, sentence, tokens = []) => {
     if (!w) {
-      set({ selectedTokens: [], selectedWord: null, selectedSentence: null, sentenceTranslation: null, sentenceLoading: false, sentenceError: false, selectedTextRef: null, sidePanelOpen: false, wordResult: null, wordError: null, wordSaved: false, saveError: null });
+      set({
+        selectedTokens: [],
+        selectedWord: null,
+        selectedSentence: null,
+        sentenceTranslation: null,
+        sentenceLoading: false,
+        sentenceError: false,
+        selectedTextRef: null,
+        sidePanelOpen: false,
+        wordResult: null,
+        wordError: null,
+        wordSaved: false,
+        saveError: null,
+      });
       return;
     }
     const { translatorPriority } = get();
     // a shift+click extension keeps the sentence, so keep its translation too (retry only after an error)
-    const sameSentence = !!sentence && sentence === get().selectedSentence && !get().sentenceError;
+    const sameSentence =
+      !!sentence && sentence === get().selectedSentence && !get().sentenceError;
     if (sentence && !sameSentence) {
-      set({ sentenceTranslation: null, sentenceError: false, sentenceLoading: true });
+      set({
+        sentenceTranslation: null,
+        sentenceError: false,
+        sentenceLoading: true,
+      });
       // not awaited: the word lookup must not wait for it
       fetchSentenceTranslation(sentence).then(
-        (tr) => get().selectedSentence === sentence && set({ sentenceTranslation: tr, sentenceError: false, sentenceLoading: false }),
+        (tr) =>
+          get().selectedSentence === sentence &&
+          set({
+            sentenceTranslation: tr,
+            sentenceError: false,
+            sentenceLoading: false,
+          }),
         // an earlier request for this sentence may already have shown its translation
-        () => get().selectedSentence === sentence && !get().sentenceTranslation && set({ sentenceError: true, sentenceLoading: false }),
+        () =>
+          get().selectedSentence === sentence &&
+          !get().sentenceTranslation &&
+          set({ sentenceError: true, sentenceLoading: false }),
       );
-    } else if (!sentence) set({ sentenceTranslation: null, sentenceError: false, sentenceLoading: false });
-    set({ selectedTokens: tokens, selectedWord: w, selectedSentence: sentence ?? null, selectedTextRef: get().textRef, sidePanelOpen: true, wordResult: null, wordError: null, wordLoading: true, wordSaved: false, saveError: null, sourceLoading: false, sourceError: null });
+    } else if (!sentence)
+      set({
+        sentenceTranslation: null,
+        sentenceError: false,
+        sentenceLoading: false,
+      });
+    set({
+      selectedTokens: tokens,
+      selectedWord: w,
+      selectedSentence: sentence ?? null,
+      selectedTextRef: get().textRef,
+      sidePanelOpen: true,
+      wordResult: null,
+      wordError: null,
+      wordLoading: true,
+      wordSaved: false,
+      saveError: null,
+      sourceLoading: false,
+      sourceError: null,
+    });
     try {
-      const data = await lookupWord(w, USER_ID, translatorPriority, false, sentence);
+      const data = await lookupWord(
+        w,
+        USER_ID,
+        translatorPriority,
+        false,
+        sentence,
+      );
       // a newer click owns the panel and the loading flag
       if (get().selectedWord !== w) return;
-      set({ wordResult: data, activeSource: openTab(data), sourceError: null, wordLoading: false });
+      set({
+        wordResult: data,
+        activeSource: openTab(data),
+        sourceError: null,
+        wordLoading: false,
+      });
     } catch (err) {
       if (get().selectedWord !== w) return;
-      set({ wordError: err instanceof Error ? err.message : String(err), wordLoading: false });
+      set({
+        wordError: err instanceof Error ? err.message : String(err),
+        wordLoading: false,
+      });
     }
   },
   wordResult: null,
@@ -67,7 +154,13 @@ const useStore = create<StoreState>((set, get) => ({
   saveError: null,
   activeSource: null,
   // switching tabs re-enables Save so the word can be re-saved from the other source
-  setActiveSource: (source) => set({ activeSource: source, wordSaved: false, saveError: null, sourceError: null }),
+  setActiveSource: (source) =>
+    set({
+      activeSource: source,
+      wordSaved: false,
+      saveError: null,
+      sourceError: null,
+    }),
   sourceLoading: false,
   sourceError: null,
   lookupSource: async (source) => {
@@ -76,17 +169,38 @@ const useStore = create<StoreState>((set, get) => ({
     set({ sourceLoading: true, sourceError: null });
     try {
       // not force: the backend fetches only the missing source
-      const data = await lookupWord(selectedWord, USER_ID, source, false, selectedSentence);
+      const data = await lookupWord(
+        selectedWord,
+        USER_ID,
+        source,
+        false,
+        selectedSentence,
+      );
       // the user picked another word meanwhile: setSelectedWord already reset the source state
-      if (get().selectedWord !== selectedWord || get().wordResult?.id !== data.id) return;
+      if (
+        get().selectedWord !== selectedWord ||
+        get().wordResult?.id !== data.id
+      )
+        return;
       set((state) => ({
         sourceLoading: false,
-        sourceError: data.translations[source] ? null : data.errors?.[source] ?? `No result from ${source}`,
-        wordResult: state.wordResult && { ...state.wordResult, translations: { ...state.wordResult.translations, ...data.translations } },
+        sourceError: data.translations[source]
+          ? null
+          : (data.errors?.[source] ?? `No result from ${source}`),
+        wordResult: state.wordResult && {
+          ...state.wordResult,
+          translations: {
+            ...state.wordResult.translations,
+            ...data.translations,
+          },
+        },
       }));
     } catch (err) {
       if (get().selectedWord !== selectedWord) return;
-      set({ sourceLoading: false, sourceError: err instanceof Error ? err.message : String(err) });
+      set({
+        sourceLoading: false,
+        sourceError: err instanceof Error ? err.message : String(err),
+      });
     }
   },
   ai: {},
@@ -94,53 +208,101 @@ const useStore = create<StoreState>((set, get) => ({
     const { selectedWord, selectedSentence } = get();
     if (!selectedWord || !selectedSentence) return;
     const key = aiKey(selectedWord, selectedSentence);
-    if (get().ai[key]?.status === "loading" || get().ai[key]?.status === "done") return;
+    if (get().ai[key]?.status === "loading" || get().ai[key]?.status === "done")
+      return;
     // keyed writes: a late answer lands on its own word and never on the panel's current one
     const put = (e: AiEntry) => set((st) => ({ ai: { ...st.ai, [key]: e } }));
-    const count = (n: number) => set((st) => {
-      const cur = st.ai[key];
-      return cur?.status === "loading" ? { ai: { ...st.ai, [key]: { ...cur, tokens: n ? cur.tokens + n : 0 } } } : st;
-    });
+    const count = (n: number) =>
+      set((st) => {
+        const cur = st.ai[key];
+        return cur?.status === "loading"
+          ? {
+              ai: {
+                ...st.ai,
+                [key]: { ...cur, tokens: n ? cur.tokens + n : 0 },
+              },
+            }
+          : st;
+      });
     put({ status: "loading", startedAt: Date.now(), tokens: 0 });
     try {
-      put({ status: "done", answer: await fetchAiAnswer(selectedWord, selectedSentence, { onToken: () => count(1), onRetry: () => count(0) }) });
+      put({
+        status: "done",
+        answer: await fetchAiAnswer(selectedWord, selectedSentence, {
+          onToken: () => count(1),
+          onRetry: () => count(0),
+        }),
+      });
     } catch (err) {
-      put({ status: "error", error: err instanceof Error ? err.message : String(err) });
+      put({
+        status: "error",
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   },
   sentenceCards: {},
   addSentenceCard: async (german, english, word, source, bold = []) => {
     const key = sentenceKey(word, german);
-    const put = (state: SentenceCardState) => set((st) => ({ sentenceCards: { ...st.sentenceCards, [key]: state } }));
+    const put = (state: SentenceCardState) =>
+      set((st) => ({ sentenceCards: { ...st.sentenceCards, [key]: state } }));
     put("adding");
     try {
-      put((await addSentenceCard(USER_ID, { sentence_de: german, sentence_en: english, target_word: word, source, bold })).anki_status);
+      put(
+        (
+          await addSentenceCard(USER_ID, {
+            sentence_de: german,
+            sentence_en: english,
+            target_word: word,
+            source,
+            bold,
+          })
+        ).anki_status,
+      );
     } catch {
       put("error");
     }
   },
   saveSelectedWord: async (anki = false) => {
-    const { wordResult, activeSource, selectedSentence, selectedTextRef } = get();
+    const { wordResult, activeSource, selectedSentence, selectedTextRef } =
+      get();
     if (!wordResult?.id) return;
     set({ wordSaving: true, saveError: null });
     const context = selectedSentence
-      ? { context_sentence: selectedSentence, text_kind: selectedTextRef?.kind, text_id: selectedTextRef?.id }
+      ? {
+          context_sentence: selectedSentence,
+          text_kind: selectedTextRef?.kind,
+          text_id: selectedTextRef?.id,
+        }
       : undefined;
     try {
-      const saved = await saveWord(wordResult.id, USER_ID, activeSource && activeSource !== "ai" ? activeSource : undefined, context, anki);
+      const saved = await saveWord(
+        wordResult.id,
+        USER_ID,
+        activeSource && activeSource !== "ai" ? activeSource : undefined,
+        context,
+        anki,
+      );
       // already_saved or not, reload to get the user_words id and status
       await get().loadUserWords(USER_ID);
-      // shortcut: only the clicked form gets the base form's color; other inflections recolor after a later task
+      // shortcut: only the clicked form gets the base form's color; other inflected forms of the same word keep their own, separate color
       const base = get().userWords[wordResult.word];
-      if (base) set((st) => ({ userWords: { ...st.userWords, [clickedKey(wordResult)]: base } }));
+      if (base)
+        set((st) => ({
+          userWords: { ...st.userWords, [clickedKey(wordResult)]: base },
+        }));
       // a newer click may own the panel by now
       set({
         wordSaving: false,
         ...(get().wordResult?.id === wordResult.id && { wordSaved: true }),
-        ...(saved.anki_status === "failed" && { saveError: "Saved, but Anki rejected the note (maybe a duplicate)" }),
+        ...(saved.anki_status === "failed" && {
+          saveError: "Saved, but Anki rejected the note (maybe a duplicate)",
+        }),
       });
     } catch (err) {
-      set({ wordSaving: false, saveError: err instanceof Error ? err.message : String(err) });
+      set({
+        wordSaving: false,
+        saveError: err instanceof Error ? err.message : String(err),
+      });
     }
   },
   highlightMode: "underline",
@@ -150,7 +312,11 @@ const useStore = create<StoreState>((set, get) => ({
   userWords: {},
   loadUserWords: async (userId: number) => {
     const words = await fetchUserWords(userId);
-    set({ userWords: Object.fromEntries(words.map((w) => [w.word, { id: w.id, status: w.status }])) });
+    set({
+      userWords: Object.fromEntries(
+        words.map((w) => [w.word, { id: w.id, status: w.status }]),
+      ),
+    });
   },
   setWordStatus: async (status) => {
     const { wordResult } = get();
@@ -164,10 +330,17 @@ const useStore = create<StoreState>((set, get) => ({
     const prev = get().userWords[key];
     if (!prev) return; // save failed; saveError is already set
     // the clicked form (ging) shares the base form's (gehen) entry so the word on the page recolors
-    const setStatus = (s: WordStatus) => set((st) => {
-      const entry = { id: prev.id, status: s };
-      return { userWords: { ...st.userWords, [key]: entry, [clickedKey(wordResult)]: entry } };
-    });
+    const setStatus = (s: WordStatus) =>
+      set((st) => {
+        const entry = { id: prev.id, status: s };
+        return {
+          userWords: {
+            ...st.userWords,
+            [key]: entry,
+            [clickedKey(wordResult)]: entry,
+          },
+        };
+      });
     setStatus(status);
     try {
       await patchWordStatus(prev.id, status);
@@ -180,7 +353,8 @@ const useStore = create<StoreState>((set, get) => ({
   loadTranslatorPriority: () => {
     try {
       const saved = localStorage.getItem("translatorPriority");
-      if (saved === "pons" || saved === "libretranslate") set({ translatorPriority: saved });
+      if (saved === "pons" || saved === "libretranslate")
+        set({ translatorPriority: saved });
     } catch {}
   },
   setTranslatorPriority: async (priority) => {
@@ -191,14 +365,36 @@ const useStore = create<StoreState>((set, get) => ({
     // Re-lookup without force: the backend serves cached sources and only fetches what is missing
     const { selectedWord, selectedSentence } = get();
     if (selectedWord) {
-      set({ wordResult: null, wordError: null, wordLoading: true, wordSaved: false, saveError: null, sourceLoading: false, sourceError: null });
+      set({
+        wordResult: null,
+        wordError: null,
+        wordLoading: true,
+        wordSaved: false,
+        saveError: null,
+        sourceLoading: false,
+        sourceError: null,
+      });
       try {
-        const data = await lookupWord(selectedWord, USER_ID, priority, false, selectedSentence);
+        const data = await lookupWord(
+          selectedWord,
+          USER_ID,
+          priority,
+          false,
+          selectedSentence,
+        );
         if (get().selectedWord !== selectedWord) return;
-        set({ wordResult: data, activeSource: openTab(data), sourceError: null, wordLoading: false });
+        set({
+          wordResult: data,
+          activeSource: openTab(data),
+          sourceError: null,
+          wordLoading: false,
+        });
       } catch (err) {
         if (get().selectedWord !== selectedWord) return;
-        set({ wordError: err instanceof Error ? err.message : String(err), wordLoading: false });
+        set({
+          wordError: err instanceof Error ? err.message : String(err),
+          wordLoading: false,
+        });
       }
     }
   },

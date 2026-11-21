@@ -16,8 +16,13 @@ export function normalizeYouTubeUrl(value: string) {
 
   try {
     const parsed = new URL(trimmed);
-    if (parsed.hostname.includes("youtube.com") || parsed.hostname.includes("youtu.be")) {
-      const videoId = parsed.searchParams.get("v") || parsed.pathname.split("/").filter(Boolean).at(-1);
+    if (
+      parsed.hostname.includes("youtube.com") ||
+      parsed.hostname.includes("youtu.be")
+    ) {
+      const videoId =
+        parsed.searchParams.get("v") ||
+        parsed.pathname.split("/").filter(Boolean).at(-1);
       if (videoId) return `https://www.youtube.com/watch?v=${videoId}`;
     }
   } catch {
@@ -27,7 +32,11 @@ export function normalizeYouTubeUrl(value: string) {
   return trimmed;
 }
 
-export default function ImportYouTubeDialog({ triggerLabel = "Import from YouTube", triggerClassName, onImported }: Props) {
+export default function ImportYouTubeDialog({
+  triggerLabel = "Import from YouTube",
+  triggerClassName,
+  onImported,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
@@ -64,7 +73,12 @@ export default function ImportYouTubeDialog({ triggerLabel = "Import from YouTub
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger asChild>
-        <button className={triggerClassName ?? "inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-white/10"}>
+        <button
+          className={
+            triggerClassName ??
+            "inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-white/10"
+          }
+        >
           {triggerLabel}
         </button>
       </Dialog.Trigger>
@@ -73,7 +87,9 @@ export default function ImportYouTubeDialog({ triggerLabel = "Import from YouTub
         <Dialog.Overlay className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40" />
         <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[90vw] max-w-2xl rounded-[20px] border border-white/10 bg-[#0e1118] p-6 shadow-[0_30px_120px_rgba(0,0,0,0.35)] text-white">
           <div className="flex items-center justify-between gap-4">
-            <Dialog.Title className="text-base font-semibold text-white">Import from YouTube</Dialog.Title>
+            <Dialog.Title className="text-base font-semibold text-white">
+              Import from YouTube
+            </Dialog.Title>
             <Dialog.Close asChild>
               <button className="rounded-full p-2 text-slate-400 hover:text-white transition-colors">
                 <X size={18} />
@@ -81,11 +97,16 @@ export default function ImportYouTubeDialog({ triggerLabel = "Import from YouTub
             </Dialog.Close>
           </div>
 
-          <Dialog.Description className="text-sm text-slate-400">Paste a YouTube URL and provide a title (required). The backend will fetch subtitles and save them to your library.</Dialog.Description>
+          <Dialog.Description className="text-sm text-slate-400">
+            Paste a YouTube URL and provide a title (required). The backend will
+            fetch subtitles and save them to your library.
+          </Dialog.Description>
 
           <div className="mt-4 flex flex-col gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-slate-200">YouTube URL</label>
+              <label className="text-sm font-medium text-slate-200">
+                YouTube URL
+              </label>
               <input
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
@@ -95,7 +116,9 @@ export default function ImportYouTubeDialog({ triggerLabel = "Import from YouTub
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-slate-200">Title</label>
+              <label className="text-sm font-medium text-slate-200">
+                Title
+              </label>
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -110,7 +133,9 @@ export default function ImportYouTubeDialog({ triggerLabel = "Import from YouTub
 
             <div className="flex justify-end gap-3">
               <Dialog.Close asChild>
-                <button className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/5">Cancel</button>
+                <button className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/5">
+                  Cancel
+                </button>
               </Dialog.Close>
               <button
                 onClick={handleSubmit}

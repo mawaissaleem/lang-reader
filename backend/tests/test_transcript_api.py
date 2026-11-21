@@ -20,12 +20,22 @@ class TranscriptApiFilenameTest(unittest.TestCase):
             self.addCleanup(os.chdir, cwd)
             os.chdir(tmp)
             open("cookies.txt", "w").close()
-            with patch("extractors.transcript_api.BASE_DIR", Path(tmp)), \
-                 patch("extractors.transcript_api.YouTubeTranscriptApi", return_value=api), \
-                 patch("extractors.transcript_api.load_cookies_session"), \
-                 patch("extractors.transcript_api.get_video_title", return_value="Folge 1"):
-                a = method1_youtube_transcript_api("https://www.youtube.com/watch?v=aaaaaaaaaaa")
-                b = method1_youtube_transcript_api("https://www.youtube.com/watch?v=bbbbbbbbbbb")
+            with (
+                patch("extractors.transcript_api.BASE_DIR", Path(tmp)),
+                patch(
+                    "extractors.transcript_api.YouTubeTranscriptApi", return_value=api
+                ),
+                patch("extractors.transcript_api.load_cookies_session"),
+                patch(
+                    "extractors.transcript_api.get_video_title", return_value="Folge 1"
+                ),
+            ):
+                a = method1_youtube_transcript_api(
+                    "https://www.youtube.com/watch?v=aaaaaaaaaaa"
+                )
+                b = method1_youtube_transcript_api(
+                    "https://www.youtube.com/watch?v=bbbbbbbbbbb"
+                )
 
             self.assertNotEqual(a["vtt_path"], b["vtt_path"])
             self.assertTrue(os.path.isfile(a["vtt_path"]))

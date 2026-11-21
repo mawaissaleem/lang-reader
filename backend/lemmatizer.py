@@ -24,7 +24,9 @@ def load_model():
             lookup = json.load(f)
         lemmas = set(lookup.values())
     except Exception as e:
-        log.warning("German lemma table unavailable, verbs keep the clicked form: %s", e)
+        log.warning(
+            "German lemma table unavailable, verbs keep the clicked form: %s", e
+        )
 
 
 ARTICLES = {"Masc": "der", "Fem": "die", "Neut": "das"}
@@ -37,7 +39,9 @@ def lemmatize(word: str, sentence: str | None = None) -> str:
 def verb_lemma(tok, word: str) -> str:
     form = tok.text.lower()
     # infinitives and wir/sie present forms already are the base form; the table maps some to other words (sein -> mein, führen -> fahren)
-    if tok.tag_.endswith("INF") or ("Tense=Pres" in tok.morph and "Number=Plur" in tok.morph and form.endswith("n")):
+    if tok.tag_.endswith("INF") or (
+        "Tense=Pres" in tok.morph and "Number=Plur" in tok.morph and form.endswith("n")
+    ):
         return form
     model = tok.lemma_.lower()
     return lookup.get(form) or (model if model in lemmas else word)
@@ -55,7 +59,9 @@ def phrase(words: str, sentence: str | None) -> str:
     return particle.text.lower() + verb_lemma(verb, verb.text.lower())
 
 
-def analyze(word: str, sentence: str | None = None) -> tuple[str, str | None, str | None]:
+def analyze(
+    word: str, sentence: str | None = None
+) -> tuple[str, str | None, str | None]:
     """(base form, part of speech, article) of `word`, read in `sentence` when it appears there.
     Nouns come back capitalized with their der/die/das; the article is None when spaCy finds no gender."""
     if nlp is None:
@@ -75,6 +81,12 @@ def analyze(word: str, sentence: str | None = None) -> tuple[str, str | None, st
     if tok.pos_ in ("VERB", "AUX"):
         return verb_lemma(tok, word), tok.pos_, None
     lemma = tok.lemma_ or word
-    if tok.pos_ in NOUNS:  # the model sometimes lowercases a noun lemma (Essen -> essen)
-        return lemma[:1].upper() + lemma[1:], tok.pos_, ARTICLES.get(next(iter(tok.morph.get("Gender")), ""))
+    if (
+        tok.pos_ in NOUNS
+    ):  # the model sometimes lowercases a noun lemma (Essen -> essen)
+        return (
+            lemma[:1].upper() + lemma[1:],
+            tok.pos_,
+            ARTICLES.get(next(iter(tok.morph.get("Gender")), "")),
+        )
     return lemma, tok.pos_, None

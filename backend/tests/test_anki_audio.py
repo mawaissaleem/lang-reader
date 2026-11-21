@@ -41,15 +41,30 @@ class AudioTest(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(self.get_audio.stop)
 
     def word(self, german="Haus"):
-        d = Dictionary(german_word=german, english_meanings=["x"], source="pons", word_class="noun")
-        d.translations.append(Translation(source="pons", meanings=["x"], word_class="noun"))
+        d = Dictionary(
+            german_word=german, english_meanings=["x"], source="pons", word_class="noun"
+        )
+        d.translations.append(
+            Translation(source="pons", meanings=["x"], word_class="noun")
+        )
         self.db.add(d)
         self.db.commit()
-        self.db.add(UserWord(user_id=1, word_id=d.id, source="pons", anki_status="pending"))
+        self.db.add(
+            UserWord(user_id=1, word_id=d.id, source="pons", anki_status="pending")
+        )
         self.db.commit()
 
     def sentence(self):
-        self.db.add(SentenceCard(user_id=1, sentence_de="Das Haus ist groß.", sentence_en="Big.", target_word="Haus", source="AI example", anki_status="pending"))
+        self.db.add(
+            SentenceCard(
+                user_id=1,
+                sentence_de="Das Haus ist groß.",
+                sentence_en="Big.",
+                target_word="Haus",
+                source="AI example",
+                anki_status="pending",
+            )
+        )
         self.db.commit()
 
     def stored(self, fake):
@@ -64,12 +79,18 @@ class AudioTest(unittest.IsolatedAsyncioTestCase):
         with client_for(fake):
             await anki.send_pending(self.db)
         art = anki.analyze("Haus")[2] or ""
-        self.assertEqual(self.spoken, [f"{art} Haus".strip()])  # article first, like the play button
+        self.assertEqual(
+            self.spoken, [f"{art} Haus".strip()]
+        )  # article first, like the play button
         (m,) = self.stored(fake)
         self.assertRegex(m["filename"], r"^reader_haus_[0-9a-f]{10}\.mp3$")
         self.assertEqual(base64.b64decode(m["data"]), b"MP3DATA")
-        self.assertEqual(self.notes(fake)[0]["fields"]["Audio"], f"[sound:{m['filename']}]")
-        self.assertLess(fake.actions().index("storeMediaFile"), fake.actions().index("addNote"))
+        self.assertEqual(
+            self.notes(fake)[0]["fields"]["Audio"], f"[sound:{m['filename']}]"
+        )
+        self.assertLess(
+            fake.actions().index("storeMediaFile"), fake.actions().index("addNote")
+        )
 
     async def test_sentence_note_gets_audio_of_plain_sentence(self):
         self.sentence()
@@ -79,12 +100,16 @@ class AudioTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.spoken, ["Das Haus ist groß."])  # no <b> tags
         (m,) = self.stored(fake)
         self.assertRegex(m["filename"], r"^reader_s_[0-9a-f]{10}\.mp3$")
-        self.assertEqual(self.notes(fake)[0]["fields"]["Audio"], f"[sound:{m['filename']}]")
+        self.assertEqual(
+            self.notes(fake)[0]["fields"]["Audio"], f"[sound:{m['filename']}]"
+        )
 
     async def test_tts_failure_still_sends_note_without_audio(self):
         self.word()
         self.get_audio.stop()
-        with patch("anki.tts.get_audio", AsyncMock(side_effect=anki.tts.TTSError("boom"))):
+        with patch(
+            "anki.tts.get_audio", AsyncMock(side_effect=anki.tts.TTSError("boom"))
+        ):
             fake = Fake()
             with client_for(fake):
                 out = await anki.send_pending(self.db)
@@ -104,7 +129,9 @@ class AudioTest(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(upd["fields"]["Audio"].startswith("[sound:reader_haus_"))
             self.db.query(UserWord).one().anki_status = "pending"
             self.get_audio.stop()
-            with patch("anki.tts.get_audio", AsyncMock(side_effect=anki.tts.TTSError("boom"))):
+            with patch(
+                "anki.tts.get_audio", AsyncMock(side_effect=anki.tts.TTSError("boom"))
+            ):
                 await anki.send_pending(self.db)
             self.get_audio.start()
             upd = [p for a, p in fake.calls if a == "updateNoteFields"][-1]["note"]

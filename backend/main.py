@@ -14,7 +14,18 @@ import hashlib
 import json
 import tempfile
 from dotenv import load_dotenv
-from models import Video, Subtitle, Dictionary, Translation, UserWord, ManualText, SentenceTranslation, Setting, LLMAnswer, SentenceCard
+from models import (
+    Video,
+    Subtitle,
+    Dictionary,
+    Translation,
+    UserWord,
+    ManualText,
+    SentenceTranslation,
+    Setting,
+    LLMAnswer,
+    SentenceCard,
+)
 from datetime import datetime, timedelta, timezone
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -25,7 +36,17 @@ from translators.libretranslate import method2_libretranslate
 from translators import llm
 from vtt_parser import extract_cues, extract_subtitles
 from utils import extract_video_id
-from anki import invoke as anki_invoke, ensure_setup as anki_ensure_setup, send_pending, import_known, pull_intervals, export_apkg, get_mapping, pending_count, AnkiError
+from anki import (
+    invoke as anki_invoke,
+    ensure_setup as anki_ensure_setup,
+    send_pending,
+    import_known,
+    pull_intervals,
+    export_apkg,
+    get_mapping,
+    pending_count,
+    AnkiError,
+)
 from database import BASE_DIR, SessionLocal, get_db, run_migrations
 from lemmatizer import load_model, analyze, NOUNS
 import progress
@@ -55,7 +76,9 @@ async def _send_pending_on_start():
 async def lifespan(_app: FastAPI):
     run_migrations()
     load_model()
-    task = asyncio.create_task(_send_pending_on_start())  # background: a closed Anki must not delay startup
+    task = asyncio.create_task(
+        _send_pending_on_start()
+    )  # background: a closed Anki must not delay startup
     yield
     task.cancel()
 
@@ -100,6 +123,7 @@ LIBRETRANSLATE_URL = os.getenv("LIBRETRANSLATE_URL", "http://localhost:5000")
 DEFAULT_TRANSLATION_PRIORITY = os.getenv(
     "DEFAULT_TRANSLATION_PRIORITY", "pons,libretranslate"
 )
+
 
 # ─────────────────────────────────────────
 # Routes
@@ -240,13 +264,23 @@ class SentenceCardIn(BaseModel):
     sentence_en: str = Field(min_length=1)
     target_word: str = Field(min_length=1)
     source: str = Field(min_length=1)
-    bold: list[str] = Field(default=[], max_length=20)  # clicked surface forms; empty bolds the lemma
+    bold: list[str] = Field(
+        default=[], max_length=20
+    )  # clicked surface forms; empty bolds the lemma
 
 
 @app.post("/anki/sentences")
-async def anki_add_sentence(body: SentenceCardIn, user_id: int, db: Session = Depends(get_db)):
+async def anki_add_sentence(
+    body: SentenceCardIn, user_id: int, db: Session = Depends(get_db)
+):
     """Queue a Reader Sentence note (one per user + sentence + word) and try to send it now."""
-    sc = db.query(SentenceCard).filter_by(user_id=user_id, sentence_de=body.sentence_de, target_word=body.target_word).first()
+    sc = (
+        db.query(SentenceCard)
+        .filter_by(
+            user_id=user_id, sentence_de=body.sentence_de, target_word=body.target_word
+        )
+        .first()
+    )
     if not sc:
         sc = SentenceCard(user_id=user_id, **body.model_dump())
         db.add(sc)
@@ -289,7 +323,11 @@ class AnkiMapping(BaseModel):
 async def anki_overview(db: Session = Depends(get_db)):
     """Decks, note types and the saved mapping, for the settings screen."""
     try:
-        return {"decks": await anki_invoke("deckNames"), "models": await anki_invoke("modelNames"), "mapping": get_mapping(db)}
+        return {
+            "decks": await anki_invoke("deckNames"),
+            "models": await anki_invoke("modelNames"),
+            "mapping": get_mapping(db),
+        }
     except AnkiError as e:
         raise HTTPException(status_code=502, detail=str(e))
 
@@ -323,7 +361,12 @@ def anki_export(user_id: int, db: Session = Depends(get_db)):
     fd, path = tempfile.mkstemp(suffix=".apkg")
     os.close(fd)
     export_apkg(db, user_id, path)
-    return FileResponse(path, media_type="application/octet-stream", filename="lang-reader.apkg", background=BackgroundTask(os.remove, path))
+    return FileResponse(
+        path,
+        media_type="application/octet-stream",
+        filename="lang-reader.apkg",
+        background=BackgroundTask(os.remove, path),
+    )
 
 
 @app.get("/videos")
@@ -394,7 +437,9 @@ async def execute_translation_pipeline(
 
 
 @app.get("/sentence")
-async def translate_sentence(text: str = Query(..., max_length=1000), db: Session = Depends(get_db)):
+async def translate_sentence(
+    text: str = Query(..., max_length=1000), db: Session = Depends(get_db)
+):
     sentence = " ".join(text.split())
     if not sentence:
         raise HTTPException(status_code=422, detail="Sentence is empty")
@@ -404,8 +449,12 @@ async def translate_sentence(text: str = Query(..., max_length=1000), db: Sessio
         res = await method2_libretranslate(sentence, LIBRETRANSLATE_URL)
         # failures are not cached: the next click retries
         if not res.get("success"):
-            raise HTTPException(status_code=502, detail=res.get("error", "Translation failed"))
-        row = SentenceTranslation(sentence_hash=key, sentence=sentence, translation=res["translations"][0])
+            raise HTTPException(
+                status_code=502, detail=res.get("error", "Translation failed")
+            )
+        row = SentenceTranslation(
+            sentence_hash=key, sentence=sentence, translation=res["translations"][0]
+        )
         db.add(row)
         try:
             db.commit()
@@ -447,7 +496,11 @@ async def get_word_meaning(word: str, priority: Optional[str] = None):
 # ─────────────────────────────────────────
 # Word Lookup: Cache → Priority Translation Pipeline
 # ─────────────────────────────────────────
-NOUN_CLASSES = {"noun", "nomen", "substantiv"}  # PONS (de) and LibreTranslate/legacy (en) values
+NOUN_CLASSES = {
+    "noun",
+    "nomen",
+    "substantiv",
+}  # PONS (de) and LibreTranslate/legacy (en) values
 
 
 @app.get("/word/{word}")
@@ -472,7 +525,9 @@ async def lookup_word(
     if not entry and pos in NOUNS:
         # legacy rows are all lowercase; a noun adopts its lowercase row (cache and saves follow) instead of starting over
         # only a row that already reads as a noun; a saved verb (gehen) must keep its key
-        legacy = db.query(Dictionary).filter(Dictionary.german_word == word.lower()).first()
+        legacy = (
+            db.query(Dictionary).filter(Dictionary.german_word == word.lower()).first()
+        )
         if legacy and (legacy.word_class or "").lower() in NOUN_CLASSES:
             entry = legacy
             entry.german_word = word
@@ -523,7 +578,9 @@ async def lookup_word(
 
     # shortcut: no marker for a word nobody has a translation for (legacy columns are NOT NULL), so unknown words refetch per click
     for src in errors:
-        if entry and not (cached.get(src) and cached[src].meanings):  # never blank a good row
+        if entry and not (
+            cached.get(src) and cached[src].meanings
+        ):  # never blank a good row
             upsert(src)
 
     found = {s: t for s, t in cached.items() if t.meanings}
@@ -561,7 +618,11 @@ async def lookup_word(
 
 
 @app.get("/word/{word}/ai")
-async def word_ai(word: str, sentence: str = Query(..., max_length=1000), db: Session = Depends(get_db)):
+async def word_ai(
+    word: str,
+    sentence: str = Query(..., max_length=1000),
+    db: Session = Depends(get_db),
+):
     """NDJSON stream, one object per line: {"token": str} progress ({"retry": true} = attempt 1 was invalid, drop the tokens so far), then exactly one of
     {"result": {...}, "model": str, "cached": bool} or {"error": str}."""
     sentence = " ".join(sentence.split())
@@ -573,7 +634,9 @@ async def word_ai(word: str, sentence: str = Query(..., max_length=1000), db: Se
         lemma = lemma.lower()
     saved = db.get(Setting, "llm_model")
     env = os.getenv("OLLAMA_MODEL")
-    models = list(dict.fromkeys(m for m in (saved and saved.value, env) if m))  # saved model, then .env as fallback
+    models = list(
+        dict.fromkeys(m for m in (saved and saved.value, env) if m)
+    )  # saved model, then .env as fallback
     key = hashlib.sha256(sentence.encode()).hexdigest()
     entry = db.query(Dictionary).filter(Dictionary.german_word == lemma).first()
     meanings = [m for t in (entry.translations if entry else []) for m in t.meanings]
@@ -583,10 +646,16 @@ async def word_ai(word: str, sentence: str = Query(..., max_length=1000), db: Se
 
     async def stream():
         if not models:
-            yield line({"error": "No model set: choose one in settings or set OLLAMA_MODEL"})
+            yield line(
+                {"error": "No model set: choose one in settings or set OLLAMA_MODEL"}
+            )
             return
         for model in models:
-            row = db.query(LLMAnswer).filter_by(lemma=lemma, sentence_hash=key, model=model).first()
+            row = (
+                db.query(LLMAnswer)
+                .filter_by(lemma=lemma, sentence_hash=key, model=model)
+                .first()
+            )
             if row:
                 yield line({"result": row.result, "model": model, "cached": True})
                 return
@@ -603,7 +672,11 @@ async def word_ai(word: str, sentence: str = Query(..., max_length=1000), db: Se
                     val["lemma"] = lemma
                     if pos in NOUNS and article:
                         val["article"] = article
-                    db.add(LLMAnswer(lemma=lemma, sentence_hash=key, model=model, result=val))
+                    db.add(
+                        LLMAnswer(
+                            lemma=lemma, sentence_hash=key, model=model, result=val
+                        )
+                    )
                     try:
                         db.commit()
                     except IntegrityError:  # a concurrent request saved it first
@@ -631,7 +704,11 @@ async def llm_models(db: Session = Depends(get_db)):
     except llm.LLMError as e:
         raise HTTPException(status_code=502, detail=str(e))
     saved = db.get(Setting, "llm_model")
-    return {"models": models, "selected": saved.value if saved else None, "default": os.getenv("OLLAMA_MODEL")}
+    return {
+        "models": models,
+        "selected": saved.value if saved else None,
+        "default": os.getenv("OLLAMA_MODEL"),
+    }
 
 
 @app.put("/llm/model")
@@ -647,10 +724,31 @@ async def set_llm_model(body: ModelChoice, db: Session = Depends(get_db)):
     except llm.LLMError as e:
         raise HTTPException(status_code=502, detail=str(e))
     if body.name not in names:
-        raise HTTPException(status_code=422, detail=f"Model '{body.name}' is not installed in Ollama")
+        raise HTTPException(
+            status_code=422, detail=f"Model '{body.name}' is not installed in Ollama"
+        )
     db.merge(Setting(key="llm_model", value=body.name))
     db.commit()
     return {"selected": body.name}
+
+
+@app.get("/llm/running")
+async def llm_running():
+    try:
+        return {"models": await llm.running_models()}
+    except llm.LLMError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@app.post("/llm/unload")
+async def llm_unload(body: ModelChoice):
+    if not body.name:
+        raise HTTPException(status_code=422, detail="Model name is required")
+    try:
+        await llm.unload(body.name)
+    except llm.LLMError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+    return {"unloaded": body.name}
 
 
 @app.get("/user/{user_id}/words")
@@ -679,7 +777,9 @@ def get_user_words(
         {
             "id": uw.id,
             "word": uw.word.german_word,
-            "english_meanings": getattr(shown(uw), "meanings", uw.word.english_meanings),
+            "english_meanings": getattr(
+                shown(uw), "meanings", uw.word.english_meanings
+            ),
             "word_class": shown(uw).word_class,
             "source": uw.source,
             "is_mastered": uw.is_mastered,
@@ -697,7 +797,9 @@ def get_user_words(
 
 
 @app.patch("/user-words/{user_word_id}/status")
-def set_word_status(user_word_id: int, body: StatusUpdate, db: Session = Depends(get_db)):
+def set_word_status(
+    user_word_id: int, body: StatusUpdate, db: Session = Depends(get_db)
+):
     uw = db.query(UserWord).filter(UserWord.id == user_word_id).first()
     if not uw:
         raise HTTPException(status_code=404, detail="Saved word not found")
@@ -724,7 +826,9 @@ async def save_word(
     if source is not None and not any(
         t.source == source and t.meanings for t in word.translations
     ):
-        raise HTTPException(status_code=422, detail=f"No '{source}' translation for this word")
+        raise HTTPException(
+            status_code=422, detail=f"No '{source}' translation for this word"
+        )
 
     # Check if already saved
     existing = (
@@ -745,7 +849,11 @@ async def save_word(
         if anki and existing.anki_status in ("none", "failed", "sent"):
             existing.anki_status = "pending"
         db.commit()
-        return {"message": "Word already in your dictionary", "already_saved": True, **await _try_send(db, existing, anki)}
+        return {
+            "message": "Word already in your dictionary",
+            "already_saved": True,
+            **await _try_send(db, existing, anki),
+        }
 
     now = datetime.now(timezone.utc)
     user_word = UserWord(
@@ -760,7 +868,11 @@ async def save_word(
     db.add(user_word)
     history.record(db, user_id, word_id, user_word.status or "learning1")
     db.commit()
-    return {"message": "Word saved successfully", "already_saved": False, **await _try_send(db, user_word, anki)}
+    return {
+        "message": "Word saved successfully",
+        "already_saved": False,
+        **await _try_send(db, user_word, anki),
+    }
 
 
 async def _try_send(db: Session, uw: UserWord, anki: bool) -> dict:
@@ -916,10 +1028,12 @@ def get_library_progress(user_id: int = 1, db: Session = Depends(get_db)):
         if not path or not path.exists():
             continue
         words = progress.cached_words(
-            ("video", sub.id), path.stat().st_mtime_ns, lambda p=path: p.read_text(encoding="utf-8")
+            ("video", sub.id),
+            path.stat().st_mtime_ns,
+            lambda p=path: p.read_text(encoding="utf-8"),
         )
         out[f"video-{sub.id}"] = progress.count_status(words, statuses)
-    # shortcut: loads every manual text's content (ISSUES #28) and assumes texts are never edited, so the cache keys on id only; upgrade with an updated_at stamp if editing is added
+    # shortcut: loads every manual text's content and assumes texts are never edited, so the cache keys on id only; upgrade with an updated_at stamp if editing is added
     for t in db.query(ManualText).all():
         words = progress.cached_words(("text", t.id), None, lambda t=t: t.content)
         out[f"text-{t.id}"] = progress.count_status(words, statuses)
@@ -965,4 +1079,8 @@ async def text_to_speech(text: str = Query(..., max_length=500)):
     except tts.TTSError as e:
         raise HTTPException(status_code=503, detail=f"Text-to-speech unavailable: {e}")
     # short max-age: the URL has no voice, so a voice change must reach the browser
-    return FileResponse(path, media_type="audio/mpeg", headers={"Cache-Control": "public, max-age=86400"})
+    return FileResponse(
+        path,
+        media_type="audio/mpeg",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )

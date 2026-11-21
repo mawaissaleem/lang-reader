@@ -11,7 +11,15 @@ import httpx
 import history
 import tts
 from lemmatizer import NOUNS, analyze
-from models import Dictionary, ManualText, SentenceCard, SentenceTranslation, Setting, Subtitle, UserWord
+from models import (
+    Dictionary,
+    ManualText,
+    SentenceCard,
+    SentenceTranslation,
+    Setting,
+    Subtitle,
+    UserWord,
+)
 from translators.pons import strip_html
 
 ANKI_URL = os.getenv("ANKI_CONNECT_URL", "http://localhost:8765")
@@ -29,7 +37,9 @@ async def invoke(action: str, **params):
     """Call one AnkiConnect action (API version 6) and return its result."""
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
-            r = await client.post(ANKI_URL, json={"action": action, "version": 6, "params": params})
+            r = await client.post(
+                ANKI_URL, json={"action": action, "version": 6, "params": params}
+            )
         body = r.json()
     except (httpx.HTTPError, ValueError) as e:
         raise AnkiUnreachable(f"Anki is not reachable: {e}") from e
@@ -50,10 +60,23 @@ _ANS = "{{FrontSide}}<hr id=answer>"
 # Each model: fields in order, and (name, front, back) per card template.
 MODELS = {
     "Reader Word": (
-        ["Lemma", "Article", "Plural", "WordClass", "Meaning", "SentenceDE", "SentenceEN", "Audio", "Source"],
         [
-            ("DE→EN", f"<div>{_LEMMA}</div>{_AUDIO}",
-             f"{_ANS}<div>{{{{Meaning}}}}</div>{_PAIR}<small>{{{{WordClass}}}}</small>"),
+            "Lemma",
+            "Article",
+            "Plural",
+            "WordClass",
+            "Meaning",
+            "SentenceDE",
+            "SentenceEN",
+            "Audio",
+            "Source",
+        ],
+        [
+            (
+                "DE→EN",
+                f"<div>{_LEMMA}</div>{_AUDIO}",
+                f"{_ANS}<div>{{{{Meaning}}}}</div>{_PAIR}<small>{{{{WordClass}}}}</small>",
+            ),
             ("EN→DE", "{{Meaning}}", f"{_ANS}<div>{_LEMMA}</div>{_PLURAL}{_AUDIO}"),
         ],
     ),
@@ -61,8 +84,11 @@ MODELS = {
         ["SentenceDE", "SentenceEN", "TargetWord", "Audio", "Source"],
         [
             # SentenceDE is stored with the target word already wrapped in <b> by the note builder.
-            ("DE→EN", f"<div>{{{{SentenceDE}}}}</div>{_AUDIO}",
-             f"{_ANS}<p>{{{{SentenceEN}}}}</p>{{{{#TargetWord}}}}<small>{{{{TargetWord}}}}</small>{{{{/TargetWord}}}}"),
+            (
+                "DE→EN",
+                f"<div>{{{{SentenceDE}}}}</div>{_AUDIO}",
+                f"{_ANS}<p>{{{{SentenceEN}}}}</p>{{{{#TargetWord}}}}<small>{{{{TargetWord}}}}</small>{{{{/TargetWord}}}}",
+            ),
             ("EN→DE", "{{SentenceEN}}", f"{_ANS}<div>{{{{SentenceDE}}}}</div>{_AUDIO}"),
         ],
     ),
@@ -81,18 +107,26 @@ async def ensure_setup() -> dict:
     for name, (fields, cards) in MODELS.items():
         if name not in have_models:
             await invoke(
-                "createModel", modelName=name, inOrderFields=fields, css=_CSS,
+                "createModel",
+                modelName=name,
+                inOrderFields=fields,
+                css=_CSS,
                 cardTemplates=[{"Name": n, "Front": f, "Back": b} for n, f, b in cards],
             )
             created["models"].append(name)
     return created
 
 
-_send_lock = asyncio.Lock()  # startup sync and the button must not both add the same note
+_send_lock = (
+    asyncio.Lock()
+)  # startup sync and the button must not both add the same note
 
 
 def _build_note(db, uw: UserWord) -> dict:
-    t = next((t for t in uw.word.translations if t.source == uw.source and t.meanings), uw.word)
+    t = next(
+        (t for t in uw.word.translations if t.source == uw.source and t.meanings),
+        uw.word,
+    )
     meanings = t.meanings if hasattr(t, "meanings") else t.english_meanings
     title = None
     if uw.text_kind == "video":
@@ -103,9 +137,15 @@ def _build_note(db, uw: UserWord) -> dict:
         title = text and text.title
     sentence = uw.context_sentence or ""
     key = hashlib.sha256(" ".join(sentence.split()).encode()).hexdigest()
-    en = db.query(SentenceTranslation).filter_by(sentence_hash=key).first() if sentence else None
+    en = (
+        db.query(SentenceTranslation).filter_by(sentence_hash=key).first()
+        if sentence
+        else None
+    )
     tags = ["reader"]
-    slug = re.sub(r"\W+", "-", (title or "").lower()).strip("-")  # Anki tags cannot hold spaces
+    slug = re.sub(r"\W+", "-", (title or "").lower()).strip(
+        "-"
+    )  # Anki tags cannot hold spaces
     if slug:
         tags.append(f"reader::src::{slug}")
     return {
@@ -130,9 +170,22 @@ def _build_note(db, uw: UserWord) -> dict:
 def _build_sentence_note(sc: SentenceCard) -> dict:
     de = html.escape(sc.sentence_de, quote=False)
     # bold the clicked forms (reader) or else the lemma where it appears literally (AI examples)
-    forms = sorted({html.escape(f, quote=False) for f in (sc.bold or [sc.target_word]) if f.strip()}, key=len, reverse=True)
+    forms = sorted(
+        {
+            html.escape(f, quote=False)
+            for f in (sc.bold or [sc.target_word])
+            if f.strip()
+        },
+        key=len,
+        reverse=True,
+    )
     if forms:
-        de = re.sub(rf"(?<!\w)(?:{'|'.join(map(re.escape, forms))})(?!\w)", lambda m: f"<b>{m.group()}</b>", de, flags=re.I)
+        de = re.sub(
+            rf"(?<!\w)(?:{'|'.join(map(re.escape, forms))})(?!\w)",
+            lambda m: f"<b>{m.group()}</b>",
+            de,
+            flags=re.I,
+        )
     tags = ["reader"]
     slug = re.sub(r"\W+", "-", sc.source.lower()).strip("-")
     if slug:
@@ -140,7 +193,13 @@ def _build_sentence_note(sc: SentenceCard) -> dict:
     return {
         "deckName": DECKS[1],
         "modelName": "Reader Sentence",
-        "fields": {"SentenceDE": de, "SentenceEN": html.escape(sc.sentence_en, quote=False), "TargetWord": sc.target_word, "Audio": "", "Source": sc.source},
+        "fields": {
+            "SentenceDE": de,
+            "SentenceEN": html.escape(sc.sentence_en, quote=False),
+            "TargetWord": sc.target_word,
+            "Audio": "",
+            "Source": sc.source,
+        },
         "options": {"allowDuplicate": False},
         "tags": tags,
     }
@@ -153,23 +212,40 @@ def _q(v: str) -> str:
 
 async def _find_existing(note: dict):
     """Id of the Reader note with this lemma, or None."""
-    q = f'deck:{_q(note["deckName"])} note:{_q(note["modelName"])} {_q("Lemma:" + note["fields"]["Lemma"])}'
+    q = f"deck:{_q(note['deckName'])} note:{_q(note['modelName'])} {_q('Lemma:' + note['fields']['Lemma'])}"
     ids = await invoke("findNotes", query=q)
     if not ids:
         return None
     # Anki field search ignores case, but Essen and essen are different words.
     infos = await invoke("notesInfo", notes=ids)
-    return next((n["noteId"] for n in infos if n["fields"]["Lemma"]["value"] == note["fields"]["Lemma"]), None)
+    return next(
+        (
+            n["noteId"]
+            for n in infos
+            if n["fields"]["Lemma"]["value"] == note["fields"]["Lemma"]
+        ),
+        None,
+    )
 
 
 async def _find_sentence(note: dict):
     """Id of the Reader Sentence note with this sentence (ignoring the <b> tags), or None."""
-    ids = await invoke("findNotes", query=f'note:{_q(note["modelName"])} {_q("TargetWord:" + note["fields"]["TargetWord"])}')
+    ids = await invoke(
+        "findNotes",
+        query=f"note:{_q(note['modelName'])} {_q('TargetWord:' + note['fields']['TargetWord'])}",
+    )
     if not ids:
         return None
     want = strip_html(note["fields"]["SentenceDE"])
     infos = await invoke("notesInfo", notes=ids)
-    return next((n["noteId"] for n in infos if strip_html(n["fields"]["SentenceDE"]["value"]) == want), None)
+    return next(
+        (
+            n["noteId"]
+            for n in infos
+            if strip_html(n["fields"]["SentenceDE"]["value"]) == want
+        ),
+        None,
+    )
 
 
 async def _add_or_update(note: dict, note_id, mapping=None, find=_find_existing):
@@ -210,7 +286,11 @@ async def attach_audio(note: dict) -> None:
     try:
         path = await tts.get_audio(text)
         # base64 instead of `path`: works even if Anki cannot read the backend's filesystem; re-storing is idempotent
-        await invoke("storeMediaFile", filename=name, data=base64.b64encode(path.read_bytes()).decode())
+        await invoke(
+            "storeMediaFile",
+            filename=name,
+            data=base64.b64encode(path.read_bytes()).decode(),
+        )
     except AnkiUnreachable:
         raise
     except (tts.TTSError, AnkiError, OSError) as e:
@@ -220,7 +300,10 @@ async def attach_audio(note: dict) -> None:
 
 
 def pending_count(db) -> int:
-    return db.query(UserWord).filter(UserWord.anki_status == "pending").count() + db.query(SentenceCard).filter(SentenceCard.anki_status == "pending").count()
+    return (
+        db.query(UserWord).filter(UserWord.anki_status == "pending").count()
+        + db.query(SentenceCard).filter(SentenceCard.anki_status == "pending").count()
+    )
 
 
 async def send_pending(db) -> dict:
@@ -228,14 +311,34 @@ async def send_pending(db) -> dict:
     notes stay pending when Anki is unreachable. An AnkiConnect rejection marks that note failed (re-saving with Anki retries it)."""
     async with _send_lock:
         words = db.query(UserWord).filter(UserWord.anki_status == "pending").all()
-        sentences = db.query(SentenceCard).filter(SentenceCard.anki_status == "pending").all()
+        sentences = (
+            db.query(SentenceCard).filter(SentenceCard.anki_status == "pending").all()
+        )
         sent = failed = 0
         mapping = get_mapping(db)
         if words or sentences:
             await ensure_setup()
         # (row, label, note builder, duplicate finder, mapped-deck check)
-        jobs = [(w, w.word.german_word, lambda w=w: _build_note(db, w), _find_existing, mapping) for w in words]
-        jobs += [(s, s.target_word, lambda s=s: _build_sentence_note(s), _find_sentence, None) for s in sentences]
+        jobs = [
+            (
+                w,
+                w.word.german_word,
+                lambda w=w: _build_note(db, w),
+                _find_existing,
+                mapping,
+            )
+            for w in words
+        ]
+        jobs += [
+            (
+                s,
+                s.target_word,
+                lambda s=s: _build_sentence_note(s),
+                _find_sentence,
+                None,
+            )
+            for s in sentences
+        ]
         for row, label, build, find, m in jobs:
             try:
                 note = build()
@@ -274,14 +377,26 @@ async def pull_intervals(db, user_id: int) -> dict:
     """Promote words from their Reader Word card intervals. Returns {changed, checked}.
     Only promotes: a lapse (interval reset) in Anki must not erase progress made in the app.
     Ignored words are never touched."""
-    words = db.query(UserWord).filter(UserWord.user_id == user_id, UserWord.anki_note_id.isnot(None), UserWord.status != "ignored").all()
+    words = (
+        db.query(UserWord)
+        .filter(
+            UserWord.user_id == user_id,
+            UserWord.anki_note_id.isnot(None),
+            UserWord.status != "ignored",
+        )
+        .all()
+    )
     by_note = {w.anki_note_id: w for w in words}
     ids, note_cards = list(by_note), {}  # note id -> its card ids
     for i in range(0, len(ids), 500):
         for n in await invoke("notesInfo", notes=ids[i : i + 500]):
             w = by_note.get(n.get("noteId"))
             # Anki's field search is case-insensitive, so stay case-exact here (Essen vs essen)
-            if w and n["modelName"] == "Reader Word" and n["fields"]["Lemma"]["value"] == w.word.german_word:
+            if (
+                w
+                and n["modelName"] == "Reader Word"
+                and n["fields"]["Lemma"]["value"] == w.word.german_word
+            ):
                 note_cards[n["noteId"]] = n["cards"]
     cards = [c for cs in note_cards.values() for c in cs]
     ivl = {}
@@ -301,6 +416,7 @@ async def pull_intervals(db, user_id: int) -> dict:
 
 # ─── The user's existing cards (read-only: only deckNames, modelNames, modelFieldNames, findNotes, notesInfo) ───
 
+
 def get_mapping(db):
     """{"decks": [...], "model": str, "field": str} chosen on the settings screen, or None."""
     row = db.get(Setting, "anki_mapping")
@@ -309,16 +425,18 @@ def get_mapping(db):
 
 def _mapped_query(mapping: dict) -> str:
     decks = " OR ".join(f"deck:{_q(d)}" for d in mapping["decks"])
-    return f'({decks}) note:{_q(mapping["model"])}'
+    return f"({decks}) note:{_q(mapping['model'])}"
 
 
 def front_key(raw: str) -> str:
     """Card front -> the Dictionary key: 'die Ansage, -n' -> 'Ansage', 'kommen (aus)' -> 'kommen'.
     '' for anything that is not a single word (phrases like 'an sein')."""
-    s = html.unescape(strip_html(re.sub(r"<br\s*/?>|<div>", ", ", raw))).replace("\xa0", " ")
+    s = html.unescape(strip_html(re.sub(r"<br\s*/?>|<div>", ", ", raw))).replace(
+        "\xa0", " "
+    )
     s = re.split(r"[,;]", re.sub(r"\([^)]*\)", "", s))[0].strip()
     m = re.match(r"(der|die|das)\s+", s, re.I)
-    word = s[m.end():] if m else s
+    word = s[m.end() :] if m else s
     if not word or " " in word:
         return ""
     # the reader keys nouns capitalized and everything else lowercase (see lookup_word)
@@ -332,7 +450,10 @@ async def _in_mapped(mapping: dict, lemma: str) -> bool:
     ids = await invoke("findNotes", query=f'{_mapped_query(mapping)} "{inner}"')
     for i in range(0, len(ids), 500):
         for n in await invoke("notesInfo", notes=ids[i : i + 500]):
-            if front_key(n["fields"].get(mapping["field"], {}).get("value", "")) == lemma:
+            if (
+                front_key(n["fields"].get(mapping["field"], {}).get("value", ""))
+                == lemma
+            ):
                 return True
     return False
 
@@ -340,8 +461,12 @@ async def _in_mapped(mapping: dict, lemma: str) -> bool:
 async def import_known(db, user_id: int, mapping: dict) -> dict:
     """Save the mapped field's words as 'known'. Existing saved words keep their status.
     Returns {imported, already_known (already saved, untouched), skipped (not a single word)}."""
-    if mapping["field"] not in await invoke("modelFieldNames", modelName=mapping["model"]):
-        raise AnkiError(f"Note type '{mapping['model']}' has no field '{mapping['field']}'")
+    if mapping["field"] not in await invoke(
+        "modelFieldNames", modelName=mapping["model"]
+    ):
+        raise AnkiError(
+            f"Note type '{mapping['model']}' has no field '{mapping['field']}'"
+        )
     ids = await invoke("findNotes", query=_mapped_query(mapping))
     words, skipped = set(), 0
     for i in range(0, len(ids), 500):
@@ -351,21 +476,38 @@ async def import_known(db, user_id: int, mapping: dict) -> dict:
                 words.add(key)
             else:
                 skipped += 1
-    dictionary = {d.german_word: d.id for d in db.query(Dictionary.german_word, Dictionary.id)}
-    have = {r[0] for r in db.query(UserWord.word_id).filter(UserWord.user_id == user_id)}
+    dictionary = {
+        d.german_word: d.id for d in db.query(Dictionary.german_word, Dictionary.id)
+    }
+    have = {
+        r[0] for r in db.query(UserWord.word_id).filter(UserWord.user_id == user_id)
+    }
     imported = 0
     for w in words:
-        if w not in dictionary:  # a placeholder row; the reader fills in meanings on first lookup
+        if (
+            w not in dictionary
+        ):  # a placeholder row; the reader fills in meanings on first lookup
             d = Dictionary(german_word=w, english_meanings=[], source="anki")
             db.add(d)
             db.flush()
             dictionary[w] = d.id
         if dictionary[w] not in have:
-            db.add(UserWord(user_id=user_id, word_id=dictionary[w], status="known", anki_status="none"))
+            db.add(
+                UserWord(
+                    user_id=user_id,
+                    word_id=dictionary[w],
+                    status="known",
+                    anki_status="none",
+                )
+            )
             history.record(db, user_id, dictionary[w], "known")
             imported += 1
     db.commit()
-    return {"imported": imported, "already_known": len(words) - imported, "skipped": skipped}
+    return {
+        "imported": imported,
+        "already_known": len(words) - imported,
+        "skipped": skipped,
+    }
 
 
 # ─── .apkg fallback for people without desktop Anki ───
@@ -382,17 +524,30 @@ def export_apkg(db, user_id: int, path: str) -> int:
 
     fields, cards = MODELS["Reader Word"]
     model = genanki.Model(
-        _MODEL_ID, "Reader Word", css=_CSS, fields=[{"name": f} for f in fields],
+        _MODEL_ID,
+        "Reader Word",
+        css=_CSS,
+        fields=[{"name": f} for f in fields],
         templates=[{"name": n, "qfmt": f, "afmt": b} for n, f, b in cards],
     )
     deck = genanki.Deck(_DECK_ID, DECKS[0])
-    rows = db.query(UserWord).filter(UserWord.user_id == user_id, UserWord.anki_status != "none").order_by(UserWord.id).all()
+    rows = (
+        db.query(UserWord)
+        .filter(UserWord.user_id == user_id, UserWord.anki_status != "none")
+        .order_by(UserWord.id)
+        .all()
+    )
     for uw in rows:
         n = _build_note(db, uw)
         f = n["fields"]
         # stable guid: re-importing updates the note instead of duplicating it
-        deck.add_note(genanki.Note(
-            model=model, fields=[f[k] for k in fields], tags=n["tags"], guid=genanki.guid_for(f["Lemma"], f["SentenceDE"]),
-        ))
+        deck.add_note(
+            genanki.Note(
+                model=model,
+                fields=[f[k] for k in fields],
+                tags=n["tags"],
+                guid=genanki.guid_for(f["Lemma"], f["SentenceDE"]),
+            )
+        )
     genanki.Package(deck).write_to_file(path)
     return len(rows)

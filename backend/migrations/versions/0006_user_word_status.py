@@ -3,20 +3,23 @@
 Revision ID: 0006
 Revises: 0005
 """
+
 from alembic import op
 import sqlalchemy as sa
 
-revision = '0006'
-down_revision = '0005'
+revision = "0006"
+down_revision = "0005"
 branch_labels = None
 depends_on = None
 
 
 def upgrade() -> None:
-    with op.batch_alter_table('user_words') as batch_op:
-        batch_op.add_column(sa.Column('status', sa.String(), nullable=False, server_default='known'))
+    with op.batch_alter_table("user_words") as batch_op:
+        batch_op.add_column(
+            sa.Column("status", sa.String(), nullable=False, server_default="known")
+        )
 
 
 def downgrade() -> None:
-    with op.batch_alter_table('user_words') as batch_op:
-        batch_op.drop_column('status')
+    with op.batch_alter_table("user_words") as batch_op:
+        batch_op.drop_column("status")

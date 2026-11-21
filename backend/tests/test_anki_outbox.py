@@ -41,15 +41,29 @@ class Fake(FakeAnki):
             self.calls.append(("findNotes", body["params"]))
             q = body["params"]["query"]
             # like real Anki: field search ignores case
-            return self._ok([i for i, lemma in self.notes.items() if anki._q("Lemma:" + lemma).lower() in q.lower()])
+            return self._ok(
+                [
+                    i
+                    for i, lemma in self.notes.items()
+                    if anki._q("Lemma:" + lemma).lower() in q.lower()
+                ]
+            )
         if body["action"] == "notesInfo":
             self.calls.append(("notesInfo", body["params"]))
-            return self._ok([{"noteId": i, "fields": {"Lemma": {"value": self.notes[i]}}} for i in body["params"]["notes"]])
+            return self._ok(
+                [
+                    {"noteId": i, "fields": {"Lemma": {"value": self.notes[i]}}}
+                    for i in body["params"]["notes"]
+                ]
+            )
         if body["action"] == "updateNoteFields":
             self.calls.append(("updateNoteFields", body["params"]))
             note = body["params"]["note"]
             if note["id"] not in self.notes:
-                return httpx.Response(200, json={"result": None, "error": f"Note was not found: {note['id']}"})
+                return httpx.Response(
+                    200,
+                    json={"result": None, "error": f"Note was not found: {note['id']}"},
+                )
             return self._ok()
         if body["action"] == "sync" and self.sync_error:
             self.calls.append(("sync", {}))
@@ -70,8 +84,15 @@ class OutboxTest(unittest.IsolatedAsyncioTestCase):
         engine = create_engine("sqlite:///:memory:")
         Base.metadata.create_all(bind=engine)
         self.db = sessionmaker(bind=engine)()
-        d = Dictionary(german_word="Haus", english_meanings=["house"], source="pons", word_class="noun")
-        d.translations.append(Translation(source="pons", meanings=["house", "home"], word_class="noun"))
+        d = Dictionary(
+            german_word="Haus",
+            english_meanings=["house"],
+            source="pons",
+            word_class="noun",
+        )
+        d.translations.append(
+            Translation(source="pons", meanings=["house", "home"], word_class="noun")
+        )
         self.db.add_all([d, ManualText(title="Mein Text!", content="x", word_count=1)])
         self.db.commit()
         self.word_id = d.id
@@ -83,7 +104,9 @@ class OutboxTest(unittest.IsolatedAsyncioTestCase):
         return self.db.query(UserWord).one()
 
     async def _save(self, anki_flag=True, ctx=None):
-        return await save_word(self.word_id, 1, source="pons", anki=anki_flag, body=ctx, db=self.db)
+        return await save_word(
+            self.word_id, 1, source="pons", anki=anki_flag, body=ctx, db=self.db
+        )
 
     async def test_plain_save_leaves_anki_none_and_sends_nothing(self):
         fake = Fake()
@@ -107,20 +130,34 @@ class OutboxTest(unittest.IsolatedAsyncioTestCase):
         with client_for(fake):
             out = await anki_sync(self.db)
         self.assertEqual(out, {"sent": 1, "failed": 0, "pending": 0})
-        self.assertEqual((self.row().anki_status, self.row().anki_note_id), ("sent", 101))
+        self.assertEqual(
+            (self.row().anki_status, self.row().anki_note_id), ("sent", 101)
+        )
         self.assertEqual(fake.actions()[-1], "sync")
 
     async def test_save_with_anki_open_sends_note_with_fields_and_tags(self):
         from models import SentenceTranslation
         import hashlib
+
         sent = "Das Haus ist groß."
-        self.db.add(SentenceTranslation(sentence_hash=hashlib.sha256(sent.encode()).hexdigest(), sentence=sent, translation="The house is big."))
+        self.db.add(
+            SentenceTranslation(
+                sentence_hash=hashlib.sha256(sent.encode()).hexdigest(),
+                sentence=sent,
+                translation="The house is big.",
+            )
+        )
         self.db.commit()
         text_id = self.db.query(ManualText).one().id
         from main import SaveContext
+
         fake = Fake()
         with client_for(fake):
-            r = await self._save(ctx=SaveContext(context_sentence=sent, text_kind="text", text_id=text_id))
+            r = await self._save(
+                ctx=SaveContext(
+                    context_sentence=sent, text_kind="text", text_id=text_id
+                )
+            )
         self.assertEqual(r["anki_status"], "sent")
         note = next(p for a, p in fake.calls if a == "addNote")["note"]
         self.assertEqual(note["deckName"], "German::Reader::Words")

@@ -21,7 +21,9 @@ OK = {"success": True, "translations": ["He starts tomorrow."]}
 
 class TestSentenceEndpoint(unittest.TestCase):
     def setUp(self):
-        engine = create_engine("sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False})
+        engine = create_engine(
+            "sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
+        )
         Base.metadata.create_all(bind=engine)
         Session = sessionmaker(bind=engine)
 
@@ -34,16 +36,23 @@ class TestSentenceEndpoint(unittest.TestCase):
 
         app.dependency_overrides[get_db] = db
         self.addCleanup(app.dependency_overrides.clear)
-        self.client = TestClient(app)  # no `with`: skips lifespan, so the real DB is untouched
+        self.client = TestClient(
+            app
+        )  # no `with`: skips lifespan, so the real DB is untouched
 
     def get(self, text):
         return self.client.get("/sentence", params={"text": text})
 
     def test_second_request_is_served_from_cache(self):
-        with patch("main.method2_libretranslate", new_callable=AsyncMock, return_value=OK) as m:
+        with patch(
+            "main.method2_libretranslate", new_callable=AsyncMock, return_value=OK
+        ) as m:
             r1 = self.get("Er fängt morgen an.")
             r2 = self.get("  Er fängt   morgen an. ")  # same sentence after normalizing
-        self.assertEqual(r1.json(), {"sentence": "Er fängt morgen an.", "translation": "He starts tomorrow."})
+        self.assertEqual(
+            r1.json(),
+            {"sentence": "Er fängt morgen an.", "translation": "He starts tomorrow."},
+        )
         self.assertEqual(r2.json(), r1.json())
         m.assert_awaited_once()
 
@@ -53,7 +62,9 @@ class TestSentenceEndpoint(unittest.TestCase):
 
     def test_failure_is_502_and_not_cached(self):
         bad = {"success": False, "error": "down"}
-        with patch("main.method2_libretranslate", new_callable=AsyncMock, side_effect=[bad, OK]) as m:
+        with patch(
+            "main.method2_libretranslate", new_callable=AsyncMock, side_effect=[bad, OK]
+        ) as m:
             self.assertEqual(self.get("Hallo Welt.").status_code, 502)
             self.assertEqual(self.get("Hallo Welt.").status_code, 200)
         self.assertEqual(m.await_count, 2)
@@ -72,11 +83,16 @@ class TestSentenceConcurrency(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(s2.close)
 
         async def slow(*_):
-            await asyncio.sleep(0.01)  # both requests miss the cache before either commits
+            await asyncio.sleep(
+                0.01
+            )  # both requests miss the cache before either commits
             return OK
 
         with patch("main.method2_libretranslate", new=AsyncMock(side_effect=slow)):
-            r1, r2 = await asyncio.gather(translate_sentence("Hallo Welt.", s1), translate_sentence("Hallo Welt.", s2))
+            r1, r2 = await asyncio.gather(
+                translate_sentence("Hallo Welt.", s1),
+                translate_sentence("Hallo Welt.", s2),
+            )
         self.assertEqual(r1, r2)
         self.assertEqual(r1["translation"], "He starts tomorrow.")
 

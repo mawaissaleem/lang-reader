@@ -1,4 +1,5 @@
 """Local LLM (Ollama) helpers: output schema, prompt builder, plain call."""
+
 import json
 import os
 
@@ -28,8 +29,16 @@ SCHEMA = {
         },
         "note": _NSTR,
     },
-    "required": ["lemma", "pos", "article", "plural", "meaning_in_context",
-                 "sentence_translation", "examples", "note"],
+    "required": [
+        "lemma",
+        "pos",
+        "article",
+        "plural",
+        "meaning_in_context",
+        "sentence_translation",
+        "examples",
+        "note",
+    ],
     "additionalProperties": False,
 }
 
@@ -60,9 +69,15 @@ def is_valid(obj):
         if key not in obj or not (obj[key] is None or isinstance(obj[key], str)):
             return False
     ex = obj.get("examples")
-    return isinstance(ex, list) and len(ex) > 0 and all(
-        isinstance(e, dict) and isinstance(e.get("de"), str) and isinstance(e.get("en"), str)
-        for e in ex
+    return (
+        isinstance(ex, list)
+        and len(ex) > 0
+        and all(
+            isinstance(e, dict)
+            and isinstance(e.get("de"), str)
+            and isinstance(e.get("en"), str)
+            for e in ex
+        )
     )
 
 
@@ -70,8 +85,13 @@ def generate(model, prompt, timeout=180):
     """One non-streaming call; returns the raw response text."""
     r = httpx.post(
         f"{OLLAMA_URL}/api/generate",
-        json={"model": model, "prompt": prompt, "stream": False, "format": SCHEMA,
-              "options": {"temperature": 0.1, "num_predict": 1024}},  # cap stops runaway repeats
+        json={
+            "model": model,
+            "prompt": prompt,
+            "stream": False,
+            "format": SCHEMA,
+            "options": {"temperature": 0.1, "num_predict": 1024},
+        },  # cap stops runaway repeats
         timeout=timeout,
     )
     r.raise_for_status()
@@ -88,23 +108,34 @@ class ModelMissing(LLMError):
 
 async def _stream(model, prompt, timeout=180):
     """Yield the text chunks of one streaming Ollama call."""
-    body = {"model": model, "prompt": prompt, "stream": True, "format": SCHEMA,
-            "options": {"temperature": 0.1, "num_predict": 1024}}
+    body = {
+        "model": model,
+        "prompt": prompt,
+        "stream": True,
+        "format": SCHEMA,
+        "options": {"temperature": 0.1, "num_predict": 1024},
+    }
     try:
         async with httpx.AsyncClient(timeout=timeout) as c:
             async with c.stream("POST", f"{OLLAMA_URL}/api/generate", json=body) as r:
                 if r.status_code == 404:
-                    raise ModelMissing(f"Model '{model}' is not installed (ollama pull {model})")
+                    raise ModelMissing(
+                        f"Model '{model}' is not installed (ollama pull {model})"
+                    )
                 if r.status_code != 200:
                     raise LLMError(f"Ollama returned {r.status_code}")
                 async for line in r.aiter_lines():
                     if line:
                         obj = json.loads(line)
-                        if obj.get("error"):  # Ollama can fail after a 200 (e.g. runner out of memory)
+                        if obj.get(
+                            "error"
+                        ):  # Ollama can fail after a 200 (e.g. runner out of memory)
                             raise LLMError(f"Ollama: {obj['error']}")
                         yield obj.get("response", "")
     except httpx.TransportError as e:
-        raise LLMError(f"Ollama is not reachable at {OLLAMA_URL}: {type(e).__name__}") from e
+        raise LLMError(
+            f"Ollama is not reachable at {OLLAMA_URL}: {type(e).__name__}"
+        ) from e
 
 
 async def ask(model, prompt):
@@ -133,6 +164,48 @@ async def list_models():
         async with httpx.AsyncClient(timeout=10) as c:
             r = await c.get(f"{OLLAMA_URL}/api/tags")
         r.raise_for_status()
-        return [{"name": m["name"], "size": m.get("size", 0)} for m in r.json().get("models", [])]
+        return [
+            {"name": m["name"], "size": m.get("size", 0)}
+            for m in r.json().get("models", [])
+        ]
     except (httpx.HTTPError, ValueError, KeyError) as e:
-        raise LLMError(f"Ollama is not reachable at {OLLAMA_URL}: {type(e).__name__}") from e
+        raise LLMError(
+            f"Ollama is not reachable at {OLLAMA_URL}: {type(e).__name__}"
+        ) from e
+
+
+async def running_models():
+    """Models Ollama holds in memory right now: [{"name", "expires_at"}]."""
+    try:
+        async with httpx.AsyncClient(timeout=10) as c:
+            r = await c.get(f"{OLLAMA_URL}/api/ps")
+        r.raise_for_status()
+        return [
+            {"name": m["name"], "expires_at": m.get("expires_at")}
+            for m in r.json().get("models", [])
+        ]
+    except (httpx.HTTPError, ValueError, KeyError) as e:
+        raise LLMError(
+            f"Ollama is not reachable at {OLLAMA_URL}: {type(e).__name__}"
+        ) from e
+
+
+async def unload(model):
+    """Free a model from memory (keep_alive 0)."""
+    try:
+        async with httpx.AsyncClient(timeout=30) as c:
+            r = await c.post(
+                f"{OLLAMA_URL}/api/generate", json={"model": model, "keep_alive": 0}
+            )
+        r.raise_for_status()
+    # Ollama answered, e.g. 404 for a model that is not installed
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            raise ModelMissing(
+                f"Model '{model}' is not installed (ollama pull {model})"
+            ) from e
+        raise LLMError(f"Ollama returned {e.response.status_code}") from e
+    except httpx.HTTPError as e:
+        raise LLMError(
+            f"Ollama is not reachable at {OLLAMA_URL}: {type(e).__name__}"
+        ) from e

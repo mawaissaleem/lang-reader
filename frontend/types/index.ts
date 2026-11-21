@@ -1,5 +1,6 @@
 export type HighlightMode = "underline" | "highlight";
-export type WordStatus = "learning1" | "learning2" | "learning3" | "known" | "ignored";
+export type WordStatus =
+  "learning1" | "learning2" | "learning3" | "known" | "ignored";
 
 import type { AiAnswer, WordLookupResponse } from "@/lib/api";
 
@@ -12,10 +13,15 @@ export type AiEntry =
 export const aiKey = (word: string, sentence: string) => `${word}\n${sentence}`;
 
 // Anki sentence-card state by target word + sentence; "adding" = request in flight, "error" = request failed
-export type SentenceCardState = "adding" | "pending" | "sent" | "failed" | "error";
-export const sentenceKey = (word: string, sentence: string) => `${word}\n${sentence}`;
+export type SentenceCardState =
+  "adding" | "pending" | "sent" | "failed" | "error";
+export const sentenceKey = (word: string, sentence: string) =>
+  `${word}\n${sentence}`;
 
-export interface TextRef { kind: "video" | "text"; id: number }
+export interface TextRef {
+  kind: "video" | "text";
+  id: number;
+}
 
 export interface SelectedToken {
   id: string;
@@ -35,7 +41,11 @@ export interface StoreState {
   selectedTextRef: TextRef | null; // textRef at click time, so a later setText can't mislabel the save
   // a selected token: id "paragraph:index" plus its cleaned word; two or more are looked up as one phrase
   selectedTokens: SelectedToken[];
-  setSelectedWord: (w: string | null, sentence?: string, tokens?: SelectedToken[]) => void;
+  setSelectedWord: (
+    w: string | null,
+    sentence?: string,
+    tokens?: SelectedToken[],
+  ) => void;
   extendSelection: (token: SelectedToken, sentence: string) => void;
   wordResult: WordLookupResponse | null;
   wordLoading: boolean;
@@ -52,7 +62,13 @@ export interface StoreState {
   ai: Record<string, AiEntry>;
   askAi: () => Promise<void>;
   sentenceCards: Record<string, SentenceCardState>;
-  addSentenceCard: (german: string, english: string, word: string, source: string, bold?: string[]) => Promise<void>;
+  addSentenceCard: (
+    german: string,
+    english: string,
+    word: string,
+    source: string,
+    bold?: string[],
+  ) => Promise<void>;
   saveSelectedWord: (anki?: boolean) => Promise<void>;
   highlightMode: HighlightMode;
   setHighlightMode: (m: HighlightMode) => void;

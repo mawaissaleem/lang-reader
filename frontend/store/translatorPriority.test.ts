@@ -48,7 +48,13 @@ describe("translatorPriority hydration", () => {
     vi.mocked(lookupWord).mockResolvedValue({} as never);
     useStore.setState({ selectedWord: "Haus" });
     await useStore.getState().setTranslatorPriority("libretranslate");
-    expect(lookupWord).toHaveBeenCalledWith("Haus", expect.anything(), "libretranslate", false, null);
+    expect(lookupWord).toHaveBeenCalledWith(
+      "Haus",
+      expect.anything(),
+      "libretranslate",
+      false,
+      null,
+    );
   });
 });
 
@@ -59,11 +65,23 @@ describe("stale lookups", () => {
     vi.mocked(lookupWord).mockImplementation((w: string) =>
       w === "A"
         ? new Promise((r) => (resolveA = r as never))
-        : Promise.resolve({ id: 2, word: "B", preferred: "pons", source: "pons", translations: { pons: {} } } as never),
+        : Promise.resolve({
+            id: 2,
+            word: "B",
+            preferred: "pons",
+            source: "pons",
+            translations: { pons: {} },
+          } as never),
     );
     const a = useStore.getState().setSelectedWord("A");
     await useStore.getState().setSelectedWord("B");
-    resolveA({ id: 1, word: "A", preferred: "pons", source: "pons", translations: { pons: {} } } as never);
+    resolveA({
+      id: 1,
+      word: "A",
+      preferred: "pons",
+      source: "pons",
+      translations: { pons: {} },
+    } as never);
     await a;
     expect(useStore.getState().wordResult?.word).toBe("B");
     expect(useStore.getState().wordLoading).toBe(false);

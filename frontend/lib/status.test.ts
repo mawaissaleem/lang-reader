@@ -10,9 +10,16 @@ const key = (k: string, init: KeyboardEventInit = {}, target?: HTMLElement) => {
 
 describe("statusForKey", () => {
   it("maps keys to statuses, case-insensitively", () => {
-    expect(["1", "2", "3", "k", "K", "i"].map((k) => statusForKey(key(k)))).toEqual(
-      ["learning1", "learning2", "learning3", "known", "known", "ignored"],
-    );
+    expect(
+      ["1", "2", "3", "k", "K", "i"].map((k) => statusForKey(key(k))),
+    ).toEqual([
+      "learning1",
+      "learning2",
+      "learning3",
+      "known",
+      "known",
+      "ignored",
+    ]);
     expect(statusForKey(key("x"))).toBeNull();
   });
 
@@ -23,7 +30,11 @@ describe("statusForKey", () => {
   });
 
   it("ignores typing in inputs and textareas", () => {
-    expect(statusForKey(key("k", {}, document.createElement("input")))).toBeNull();
-    expect(statusForKey(key("k", {}, document.createElement("textarea")))).toBeNull();
+    expect(
+      statusForKey(key("k", {}, document.createElement("input"))),
+    ).toBeNull();
+    expect(
+      statusForKey(key("k", {}, document.createElement("textarea"))),
+    ).toBeNull();
   });
 });

@@ -52,9 +52,13 @@ class TTSTest(unittest.TestCase):
             self.assertNotEqual(a, tts.cache_path("Hallo"))
 
     def test_validation(self):
-        self.assertEqual(self.client.get("/tts", params={"text": "   "}).status_code, 422)
+        self.assertEqual(
+            self.client.get("/tts", params={"text": "   "}).status_code, 422
+        )
         self.assertEqual(self.client.get("/tts").status_code, 422)
-        self.assertEqual(self.client.get("/tts", params={"text": "a" * 501}).status_code, 422)
+        self.assertEqual(
+            self.client.get("/tts", params={"text": "a" * 501}).status_code, 422
+        )
         self.assertEqual(self.calls, [])
 
     def test_failure_is_503_and_not_cached(self):
@@ -68,10 +72,16 @@ class TTSTest(unittest.TestCase):
         self.assertEqual(os.listdir(self.dir), [])
 
 
-@unittest.skipUnless(tts.voice_path().exists() and shutil.which("ffmpeg") and tts.PIPER.exists(), "piper/voice/ffmpeg missing")
+@unittest.skipUnless(
+    tts.voice_path().exists() and shutil.which("ffmpeg") and tts.PIPER.exists(),
+    "piper/voice/ffmpeg missing",
+)
 class RealSynthTest(unittest.TestCase):
     def test_real_mp3(self):
-        with tempfile.TemporaryDirectory() as d, patch.dict(os.environ, {"TTS_CACHE_DIR": d}):
+        with (
+            tempfile.TemporaryDirectory() as d,
+            patch.dict(os.environ, {"TTS_CACHE_DIR": d}),
+        ):
             r = TestClient(main.app).get("/tts", params={"text": "Guten Tag"})
             self.assertEqual(r.status_code, 200)
             self.assertGreater(len(r.content), 1000)

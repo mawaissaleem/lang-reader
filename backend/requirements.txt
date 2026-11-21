@@ -23,3 +23,4 @@ genanki>=0.13.1
 trafilatura==2.3.1
 pypdf==7.1.0
 python-multipart==0.0.34
+ruff==0.17.6

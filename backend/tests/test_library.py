@@ -16,7 +16,9 @@ from main import get_library
 class TestLibrary(unittest.TestCase):
     def test_uses_stored_word_count_without_opening_files(self):
         engine = create_engine(
-            "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
         )
         Base.metadata.create_all(bind=engine)
         db = sessionmaker(bind=engine)()

@@ -92,9 +92,13 @@ class SentenceCard(Base):
     sentence_de = Column(Text, nullable=False)
     sentence_en = Column(Text, nullable=False)
     target_word = Column(String, nullable=False)  # the lemma
-    bold = Column(JSON, nullable=False, default=list)  # surface forms to bold; empty = the lemma
+    bold = Column(
+        JSON, nullable=False, default=list
+    )  # surface forms to bold; empty = the lemma
     source = Column(String, nullable=False)  # "AI example" or the text title
-    anki_status = Column(String, nullable=False, default="pending")  # pending | sent | failed
+    anki_status = Column(
+        String, nullable=False, default="pending"
+    )  # pending | sent | failed
     anki_note_id = Column(BigInteger, nullable=True)
 
 
@@ -161,12 +165,20 @@ class UserWord(Base):
     review_count = Column(Integer, default=0)
     last_reviewed_at = Column(DateTime, nullable=True)
     notes = Column(Text, nullable=True)  # user's personal notes
-    status = Column(String, nullable=False, default="learning1")  # learning1|learning2|learning3|known|ignored
-    source = Column(String, nullable=True)  # translation source whose meaning was saved; NULL for old rows
+    status = Column(
+        String, nullable=False, default="learning1"
+    )  # learning1|learning2|learning3|known|ignored
+    source = Column(
+        String, nullable=True
+    )  # translation source whose meaning was saved; NULL for old rows
     context_sentence = Column(Text, nullable=True)  # sentence the word was saved from
-    text_kind = Column(String, nullable=True)  # video (subtitle id) | text; same names as /library "type"
+    text_kind = Column(
+        String, nullable=True
+    )  # video (subtitle id) | text; same names as /library "type"
     text_id = Column(Integer, nullable=True)
-    anki_status = Column(String, nullable=False, default="none")  # none | pending | sent | failed
+    anki_status = Column(
+        String, nullable=False, default="none"
+    )  # none | pending | sent | failed
     anki_note_id = Column(BigInteger, nullable=True)
 
     # When did user add this word to their known list

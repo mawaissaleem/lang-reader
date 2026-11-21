@@ -52,34 +52,55 @@ class TestGermanImport(unittest.TestCase):
         self.ok = {"status": "success", "vtt_path": self.vtt, "title": "T"}
 
     def _call(self, m1, m2):
-        with patch("main.method1_youtube_transcript_api", return_value=m1), patch(
-            "main.method2_yt_dlp", return_value=m2
+        with (
+            patch("main.method1_youtube_transcript_api", return_value=m1),
+            patch("main.method2_yt_dlp", return_value=m2),
         ):
-            return get_german_subtitles(VideoRequest(url=URL, title="Mein Titel"), db=self.db)
+            return get_german_subtitles(
+                VideoRequest(url=URL, title="Mein Titel"), db=self.db
+            )
 
     def test_success_saves_before_returning(self):
         r = self._call(self.ok, None)
         self.assertEqual(
             set(r),
-            {"id", "video_id", "type", "source", "title", "url", "language",
-             "extraction_method", "word_count", "created_at"},
+            {
+                "id",
+                "video_id",
+                "type",
+                "source",
+                "title",
+                "url",
+                "language",
+                "extraction_method",
+                "word_count",
+                "created_at",
+            },
         )
-        self.assertEqual((r["title"], r["url"], r["word_count"]), ("Mein Titel", URL, 3))
+        self.assertEqual(
+            (r["title"], r["url"], r["word_count"]), ("Mein Titel", URL, 3)
+        )
         sub = self.db.query(Subtitle).one()
         self.assertEqual(sub.id, r["id"])
         self.assertEqual(sub.word_count, 3)
         self.assertEqual(self.db.query(Video).one().id, r["video_id"])
-        self.assertTrue(os.path.exists(os.path.join(self.tmp, "cleaned_subtitles", "abc.txt")))
+        self.assertTrue(
+            os.path.exists(os.path.join(self.tmp, "cleaned_subtitles", "abc.txt"))
+        )
 
     def test_text_is_readable_from_another_cwd_and_for_relative_paths(self):
         from main import get_subtitle_text
 
         r = self._call(self.ok, None)
         os.chdir(tempfile.gettempdir())
-        self.assertEqual(get_subtitle_text(r["id"], db=self.db), {"text": "Hallo schöne Welt"})
+        self.assertEqual(
+            get_subtitle_text(r["id"], db=self.db), {"text": "Hallo schöne Welt"}
+        )
         # old rows store a path relative to backend/
         self.db.query(Subtitle).one().txt_path = "cleaned_subtitles/abc.txt"
-        self.assertEqual(get_subtitle_text(r["id"], db=self.db), {"text": "Hallo schöne Welt"})
+        self.assertEqual(
+            get_subtitle_text(r["id"], db=self.db), {"text": "Hallo schöne Welt"}
+        )
 
     def test_duplicate_returns_409(self):
         self._call(self.ok, None)
@@ -95,7 +116,9 @@ class TestGermanImport(unittest.TestCase):
 
     def test_yt_dlp_codes_formatted(self):
         with self.assertRaises(HTTPException) as cm:
-            self._call(None, {"status": "not_found", "available_languages": ["en", "fr"]})
+            self._call(
+                None, {"status": "not_found", "available_languages": ["en", "fr"]}
+            )
         self.assertIn("Available languages: en, fr", cm.exception.detail)
 
     def test_method1_not_found_falls_back_to_yt_dlp(self):

@@ -1,15 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { clock, currentCue, videoId } from "./video";
 
-const cues = [{ start: 1.5, end: 3, text: "a" }, { start: 3, end: 4, text: "b" }, { start: 10, end: 12, text: "c" }];
+const cues = [
+  { start: 1.5, end: 3, text: "a" },
+  { start: 3, end: 4, text: "b" },
+  { start: 10, end: 12, text: "c" },
+];
 
 describe("videoId", () => {
   it("reads watch, short and embed urls", () => {
-    expect(videoId("https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=5")).toBe("dQw4w9WgXcQ");
+    expect(videoId("https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=5")).toBe(
+      "dQw4w9WgXcQ",
+    );
     expect(videoId("https://youtu.be/dQw4w9WgXcQ")).toBe("dQw4w9WgXcQ");
-    expect(videoId("https://www.youtube.com/embed/dQw4w9WgXcQ")).toBe("dQw4w9WgXcQ");
+    expect(videoId("https://www.youtube.com/embed/dQw4w9WgXcQ")).toBe(
+      "dQw4w9WgXcQ",
+    );
   });
-  it("is null for other urls", () => expect(videoId("https://example.com/x")).toBeNull());
+  it("is null for other urls", () =>
+    expect(videoId("https://example.com/x")).toBeNull());
 });
 
 describe("currentCue", () => {

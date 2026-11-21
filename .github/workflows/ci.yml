@@ -29,6 +29,8 @@ jobs:
           cache-dependency-path: backend/requirements.txt
       - run: pip install -r requirements.txt
       - run: python -m spacy download de_core_news_sm
+      - name: Format check
+        run: ruff format --check .
       - run: python -m unittest discover -s tests -v
 
   frontend:
@@ -47,6 +49,8 @@ jobs:
       - run: npm ci
       - name: Type check
         run: npx tsc --noEmit
+      - name: Format check
+        run: npm run format:check
       - name: Lint
         run: npm run lint
       - name: Unit tests

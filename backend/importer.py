@@ -1,4 +1,5 @@
 """Turn a URL, PDF or EPUB into (title, text) for a manual text."""
+
 import io
 import ipaddress
 import posixpath
@@ -23,11 +24,15 @@ class ImportError_(ValueError):
 
 
 def _check_url(url: str) -> None:
-    p = urlparse(url)
+    try:
+        p = urlparse(url)
+        port = p.port  # raises ValueError when out of range
+    except ValueError:  # "http://[::1", "http://a:99999/"
+        raise ImportError_("That is not a valid URL")
     if p.scheme not in ("http", "https") or not p.hostname:
         raise ImportError_("Only http and https URLs are supported")
     try:
-        infos = socket.getaddrinfo(p.hostname, p.port or 80, proto=socket.IPPROTO_TCP)
+        infos = socket.getaddrinfo(p.hostname, port or 80, proto=socket.IPPROTO_TCP)
     except socket.gaierror:
         raise ImportError_("Could not resolve that host")
     for info in infos:
@@ -46,8 +51,13 @@ def fetch_url(url: str) -> Tuple[str, str]:
         _check_url(url)  # re-checked on every redirect hop
         try:
             # shortcut: TIMEOUT is per read, not total download time, so a slow-drip server can hold a worker; upgrade with a deadline check in the read loop
-            r = requests.get(url, timeout=TIMEOUT, stream=True, allow_redirects=False,
-                             headers={"User-Agent": "Mozilla/5.0 lang-reader"})
+            r = requests.get(
+                url,
+                timeout=TIMEOUT,
+                stream=True,
+                allow_redirects=False,
+                headers={"User-Agent": "Mozilla/5.0 lang-reader"},
+            )
         except requests.RequestException:
             raise ImportError_("Could not download that page")
         with r:
@@ -67,7 +77,9 @@ def fetch_url(url: str) -> Tuple[str, str]:
     if not text or not text.strip():
         raise ImportError_("No article text found on that page")
     meta = trafilatura.extract_metadata(html)
-    return (meta.title if meta and meta.title else "") or urlparse(url).hostname or "", text.strip()
+    return (meta.title if meta and meta.title else "") or urlparse(
+        url
+    ).hostname or "", text.strip()
 
 
 def read_pdf(data: bytes) -> Tuple[str, str]:
@@ -75,7 +87,9 @@ def read_pdf(data: bytes) -> Tuple[str, str]:
 
     try:
         reader = PdfReader(io.BytesIO(data))
-        text = "\n\n".join((p.extract_text() or "").strip() for p in reader.pages).strip()
+        text = "\n\n".join(
+            (p.extract_text() or "").strip() for p in reader.pages
+        ).strip()
         title = (reader.metadata.title if reader.metadata else "") or ""
     except Exception:
         raise ImportError_("Could not read that PDF")
@@ -119,14 +133,25 @@ def read_epub(data: bytes) -> Tuple[str, str]:
     try:
         z = zipfile.ZipFile(io.BytesIO(data))
         container = ET.fromstring(z.read("META-INF/container.xml"))
-        opf_path = next(e.get("full-path") for e in container.iter() if e.tag.endswith("rootfile"))
+        opf_path = next(
+            e.get("full-path") for e in container.iter() if e.tag.endswith("rootfile")
+        )
         opf = ET.fromstring(z.read(opf_path))
         base = posixpath.dirname(opf_path)
-        manifest = {e.get("id"): e.get("href") for e in opf.iter() if e.tag.endswith("}item") or e.tag == "item"}
+        manifest = {
+            e.get("id"): e.get("href")
+            for e in opf.iter()
+            if e.tag.endswith("}item") or e.tag == "item"
+        }
         spine = [e.get("idref") for e in opf.iter() if e.tag.endswith("itemref")]
-        title = next((e.text for e in opf.iter() if e.tag.endswith("}title") and e.text), "")
-        names = [posixpath.normpath(posixpath.join(base, unquote(manifest[i].split("#")[0])))
-                 for i in spine if manifest.get(i)]
+        title = next(
+            (e.text for e in opf.iter() if e.tag.endswith("}title") and e.text), ""
+        )
+        names = [
+            posixpath.normpath(posixpath.join(base, unquote(manifest[i].split("#")[0])))
+            for i in spine
+            if manifest.get(i)
+        ]
         # zipfile stops reading at the declared file_size, so this caps memory even if the header lies
         if sum(z.getinfo(n).file_size for n in names) > MAX_EPUB_UNZIPPED:
             raise ImportError_("EPUB is too large")
