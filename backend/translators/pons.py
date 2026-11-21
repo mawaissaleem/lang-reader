@@ -57,7 +57,7 @@ async def method1_pons(word: str, api_key: Optional[str]) -> Dict[str, Any]:
 
     try:
         raw = response.json()
-    except Exception as e:
+    except ValueError as e:  # body is not JSON
         return {
             "success": False,
             "status_code": response.status_code,

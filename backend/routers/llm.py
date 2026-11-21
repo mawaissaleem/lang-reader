@@ -38,7 +38,15 @@ async def word_ai(
     meanings = [m for t in (entry.translations if entry else []) for m in t.meanings]
 
     stream = explain_stream(
-        db, models, clicked, lemma, pos, article, sentence, key, meanings
+        db=db,
+        models=models,
+        clicked=clicked,
+        lemma=lemma,
+        pos=pos,
+        article=article,
+        sentence=sentence,
+        key=key,
+        meanings=meanings,
     )
     return StreamingResponse(stream, media_type="application/x-ndjson")
 

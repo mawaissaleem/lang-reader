@@ -1,5 +1,8 @@
 """App setup: environment, CORS, startup tasks and router registration."""
 
+# load_dotenv() must run before the app modules below are imported, because
+# anki, database and translators.llm read their settings from the environment at import time.
+
 import asyncio
 import logging
 import os
@@ -7,17 +10,16 @@ from contextlib import asynccontextmanager
 from typing import List
 
 from dotenv import load_dotenv
+
+load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from anki import send_pending
+from anki import AnkiError, send_pending
 from database import SessionLocal, run_migrations
 from lemmatizer import load_model
-
-# must run before the routers are imported: translators.llm (imported via the llm router) reads OLLAMA_URL at import time
-load_dotenv()
-
-from routers import (  # noqa: E402
+from routers import (
     anki,
     imports,
     library,
@@ -29,6 +31,11 @@ from routers import (  # noqa: E402
 )
 
 
+# root handler so module loggers show their name and INFO lines are kept; uvicorn's own loggers don't propagate here
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger(__name__)
+
+
 def parse_origins(value: str) -> List[str]:
     return [o.strip() for o in value.split(",") if o.strip()]
 
@@ -37,8 +44,11 @@ async def _send_pending_on_start():
     db = SessionLocal()
     try:
         await send_pending(db)
-    except Exception as e:  # Anki closed is the normal case
-        logging.info("Startup Anki sync skipped: %s", e)
+    except AnkiError as e:  # Anki closed is the normal case
+        logger.info("Startup Anki sync skipped: %s", e)
+    except Exception:
+        # background task nobody awaits: log now instead of leaving the error on the task
+        logger.exception("Startup Anki sync failed")
     finally:
         db.close()
 

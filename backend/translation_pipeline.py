@@ -1,11 +1,13 @@
 """Word translation providers (PONS, LibreTranslate) and the priority-ordered fallback pipeline."""
 
+import logging
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
 from translators.libretranslate import method2_libretranslate
 from translators.pons import method1_pons
 
+logger = logging.getLogger(__name__)
 VALID_PROVIDERS = ["pons", "libretranslate"]
 
 
@@ -51,5 +53,7 @@ async def execute_translation_pipeline(
             return res, errors
         err = res.get("error", f"{provider_name} failed")
         errors[provider_name] = err
-        print(f"[{provider_name} failed] {err} — trying next in priority list")
+        logger.warning(
+            "[%s failed] %s — trying next in priority list", provider_name, err
+        )
     return None, errors

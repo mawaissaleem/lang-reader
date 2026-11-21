@@ -5,6 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from webvtt.errors import MalformedCaptionError, MalformedFileError
 
 import importer
 from database import BASE_DIR, get_db
@@ -179,6 +180,6 @@ def get_subtitle_cues(subtitle_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Subtitle file not found")
     try:
         cues = extract_cues(str(vtt_path))
-    except Exception:
+    except (OSError, ValueError, MalformedFileError, MalformedCaptionError):
         raise HTTPException(status_code=404, detail="Subtitle file unreadable")
     return {"url": subtitle.video.url, "cues": cues}

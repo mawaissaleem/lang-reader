@@ -2,6 +2,7 @@ import gzip
 import json
 import logging
 import os
+import zlib
 
 log = logging.getLogger(__name__)
 nlp = None  # set once by load_model() at startup; None = lemmatizing off
@@ -17,13 +18,16 @@ def load_model():
         import spacy
 
         nlp = spacy.load("de_core_news_sm", exclude=["ner", "parser"])
-    except Exception as e:  # missing package or model must not stop the server
-        log.warning("spaCy model unavailable, using clicked words as-is: %s", e)
+    except Exception as e:  # spaCy can fail in many ways (missing package or model, version clash); none may stop the server
+        log.warning(
+            "spaCy model unavailable, using clicked words as-is: %s", e, exc_info=True
+        )
     try:
         with gzip.open(LOOKUP_PATH, "rt", encoding="utf-8") as f:
             lookup = json.load(f)
         lemmas = set(lookup.values())
-    except Exception as e:
+    # missing, truncated or invalid gzip/JSON; zlib.error is a gzip corrupted mid-stream
+    except (OSError, EOFError, ValueError, zlib.error) as e:
         log.warning(
             "German lemma table unavailable, verbs keep the clicked form: %s", e
         )

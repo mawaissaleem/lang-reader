@@ -41,7 +41,7 @@ async def method2_libretranslate(
 
     try:
         data = response.json()
-    except Exception as e:
+    except ValueError as e:  # body is not JSON
         return {
             "success": False,
             "status_code": response.status_code,

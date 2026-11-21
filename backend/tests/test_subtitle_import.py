@@ -31,6 +31,11 @@ class FetchSubtitlesTest(unittest.TestCase):
         )
         self.assertEqual(method, "yt_dlp")
 
+    def test_fallback_is_logged_as_warning(self):
+        with self.assertLogs("subtitle_import", "WARNING") as logs:
+            self._fetch({"side_effect": RuntimeError("boom")}, {"return_value": OK})
+        self.assertIn("boom", logs.output[0])
+
     def test_disabled_subtitles_do_not_fall_back(self):
         with self.assertRaises(HTTPException) as cm:
             self._fetch({"side_effect": TranscriptsDisabled("v")})
@@ -49,6 +54,9 @@ class FetchSubtitlesTest(unittest.TestCase):
                 {"side_effect": RuntimeError("x")}, {"side_effect": OSError("y")}
             )
         self.assertEqual(cm.exception.status_code, 500)
+        self.assertEqual(
+            cm.exception.detail, "Could not download subtitles for this video."
+        )
 
 
 if __name__ == "__main__":

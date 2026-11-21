@@ -1,9 +1,12 @@
 """Small shared helpers: YouTube URL handling, filenames, cookies, HTML stripping and sentence hashing."""
 
 import hashlib
+import logging
 import re
 
 import requests
+
+logger = logging.getLogger(__name__)
 
 
 def extract_video_id(url: str) -> str:
@@ -28,7 +31,11 @@ def get_video_title(url: str) -> str:
         )
         response.raise_for_status()
         return response.json().get("title", "unknown_title")
-    except Exception:
+    except (
+        requests.RequestException,
+        ValueError,
+    ) as e:  # network error or non-JSON body
+        logger.warning("Could not fetch video title for %s: %s", url, e)
         return "unknown_title"
 
 

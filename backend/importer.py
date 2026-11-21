@@ -2,6 +2,7 @@
 
 import io
 import ipaddress
+import logging
 import posixpath
 import socket
 import zipfile
@@ -11,6 +12,8 @@ from urllib.parse import unquote, urljoin, urlparse
 from xml.etree import ElementTree as ET
 
 import requests
+
+logger = logging.getLogger(__name__)
 
 MAX_DOWNLOAD = 5 * 1024 * 1024
 MAX_UPLOAD = 20 * 1024 * 1024
@@ -91,8 +94,9 @@ def read_pdf(data: bytes) -> Tuple[str, str]:
             (p.extract_text() or "").strip() for p in reader.pages
         ).strip()
         title = (reader.metadata.title if reader.metadata else "") or ""
-    except Exception:
-        raise ImportError_("Could not read that PDF")
+    except Exception as e:  # pypdf raises its own errors plus KeyError/ValueError/etc. on malformed files
+        logger.warning("Could not read PDF: %s", e, exc_info=True)
+        raise ImportError_("Could not read that PDF") from e
     if not text:
         raise ImportError_("No text found in that PDF (scanned PDFs are not supported)")
     return title, text

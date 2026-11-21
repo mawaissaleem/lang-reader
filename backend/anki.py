@@ -450,10 +450,13 @@ def _mapped_query(mapping: dict) -> str:
 def front_key(raw: str) -> str:
     """Card front -> the Dictionary key: 'die Ansage, -n' -> 'Ansage', 'kommen (aus)' -> 'kommen'.
     '' for anything that is not a single word (phrases like 'an sein')."""
+    # line breaks and divs separate entries, so turn them into commas before the HTML is stripped
     s = html.unescape(strip_html(re.sub(r"<br\s*/?>|<div>", ", ", raw))).replace(
         "\xa0", " "
     )
+    # drop "(aus)"-style hints, then keep only the first comma/semicolon part (drops plurals like ", -n")
     s = re.split(r"[,;]", re.sub(r"\([^)]*\)", "", s))[0].strip()
+    # a leading article marks a noun and is not part of the key
     m = re.match(r"(der|die|das)\s+", s, re.I)
     word = s[m.end() :] if m else s
     if not word or " " in word:

@@ -131,12 +131,20 @@ class TestGermanImport(unittest.TestCase):
         with patch(
             "subtitle_import.extract_subtitles", side_effect=ValueError("bad vtt")
         ):
-            with self.assertRaises(HTTPException) as cm:
-                self._call(self.ok, None)
+            with self.assertLogs("subtitle_import", "ERROR") as logs:
+                with self.assertRaises(HTTPException) as cm:
+                    self._call(self.ok, None)
         self.assertEqual(cm.exception.status_code, 500)
-        self.assertIn("bad vtt", cm.exception.detail)
+        # the exception text goes to the log, not to the user
+        self.assertEqual(cm.exception.detail, "Failed to process subtitles.")
+        self.assertIn("bad vtt", "\n".join(logs.output))
         self.assertEqual(self.db.query(Subtitle).count(), 0)
         self.assertEqual(self.db.query(Video).count(), 0)
+
+    def test_unexpected_error_is_not_swallowed(self):
+        with patch("subtitle_import.extract_subtitles", side_effect=KeyError("bug")):
+            with self.assertRaises(KeyError):
+                self._call(self.ok, None)
 
 
 if __name__ == "__main__":

@@ -52,11 +52,25 @@ async def lookup_word(
     fetched, errors = await dictionary.fetch_missing(
         word, priority_order, force, cached.get(priority_order[0]), now
     )
-    entry = dictionary.store_translations(db, entry, word, cached, fetched, errors, now)
+    entry = dictionary.store_translations(
+        db=db,
+        entry=entry,
+        word=word,
+        cached=cached,
+        fetched=fetched,
+        errors=errors,
+        now=now,
+    )
     found = dictionary.translations_with_meanings(cached, word, errors)
     dictionary.record_lookup(db, entry, now)
     return dictionary.lookup_response(
-        entry, clicked, pos, article, priority_order, found, errors
+        entry=entry,
+        clicked=clicked,
+        pos=pos,
+        article=article,
+        priority_order=priority_order,
+        found=found,
+        errors=errors,
     )
 
 

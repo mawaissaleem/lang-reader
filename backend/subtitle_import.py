@@ -1,10 +1,13 @@
 """Importing a YouTube video's German subtitles: URL checks, the extraction fallback chain, and saving the result."""
 
+import logging
 import os
 from typing import Optional, Tuple
 
 from fastapi import HTTPException
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
+from webvtt.errors import MalformedCaptionError, MalformedFileError
 from youtube_transcript_api import TranscriptsDisabled
 
 from database import BASE_DIR
@@ -13,6 +16,8 @@ from extractors.yt_dlp import method2_yt_dlp
 from models import Subtitle, Video
 from utils import extract_video_id
 from vtt_parser import extract_subtitles
+
+logger = logging.getLogger(__name__)
 
 
 def normalize_video_url(url: str) -> str:
@@ -39,8 +44,9 @@ def ensure_not_in_library(db: Session, normalized_url: str) -> None:
 
 def fetch_subtitles(url: str) -> Tuple[dict, str]:
     """Download German subtitles; returns (extractor result, extraction method name)."""
-    # The transcript API is fast but misses some videos, so any failure other than
-    # "subtitles disabled" falls through to yt_dlp, which downloads the .vtt itself.
+    # Fallback chain: 1) youtube_transcript_api (fast, but needs cookies.txt and misses some
+    # videos), 2) yt_dlp (slower, downloads the .vtt itself). Only "subtitles disabled" stops
+    # the chain, since yt_dlp would find nothing either.
     result = None
     try:
         result = method1_youtube_transcript_api(url)
@@ -48,8 +54,13 @@ def fetch_subtitles(url: str) -> Tuple[dict, str]:
         raise HTTPException(
             status_code=400, detail="Subtitles are disabled for this video."
         )
-    except Exception as e:
-        print(f"[Method 1 failed] {type(e).__name__}: {e} — falling back to yt_dlp")
+    except Exception as e:  # the extractor may raise anything (missing cookies, network, API changes); always fall back
+        logger.warning(
+            "[Method 1 failed] %s: %s — falling back to yt_dlp",
+            type(e).__name__,
+            e,
+            exc_info=True,
+        )
 
     if result is not None and result.get("status") == "success":
         return result, "transcript_api"
@@ -58,10 +69,11 @@ def fetch_subtitles(url: str) -> Tuple[dict, str]:
     languages = (result or {}).get("available_languages")
     try:
         result = method2_yt_dlp(url)
-    except Exception as e:
+    except Exception:  # yt_dlp raises its own error types plus OS and network errors; all end as one 500
+        # the raw error goes to the log only; the user gets a stable message
+        logger.exception("yt_dlp subtitle download failed for %s", url)
         raise HTTPException(
-            status_code=500,
-            detail=f"Both methods failed. Last error (yt_dlp): {str(e)}",
+            status_code=500, detail="Could not download subtitles for this video."
         )
     if result.get("status") != "success":
         languages = languages or result.get("available_languages")
@@ -113,10 +125,14 @@ def save_subtitles(
         db.add(subtitle)
         db.commit()
         db.refresh(subtitle)
-    except Exception as e:
+    except (
+        OSError,
+        SQLAlchemyError,
+        ValueError,
+        MalformedFileError,
+        MalformedCaptionError,
+    ):  # file I/O, vtt parsing or DB write failed
         db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to process subtitles: {type(e).__name__}: {e}",
-        )
+        logger.exception("Failed to save subtitles for %s", normalized_url)
+        raise HTTPException(status_code=500, detail="Failed to process subtitles.")
     return video

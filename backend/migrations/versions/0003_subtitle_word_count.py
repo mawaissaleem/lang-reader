@@ -33,6 +33,7 @@ def upgrade() -> None:
                 # relative paths are relative to backend/, not the process cwd
                 count = len((BASE_DIR / txt_path).read_text(encoding="utf-8").split())
             except Exception:
+                # missing or unreadable txt files just get word_count 0; one bad file must not block the upgrade
                 pass
         conn.execute(
             sa.text("update subtitles set word_count = :c where id = :i"),
