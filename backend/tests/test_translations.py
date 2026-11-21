@@ -34,12 +34,12 @@ class TestTranslationsPerSource(unittest.IsolatedAsyncioTestCase):
         Base.metadata.create_all(bind=engine)
         self.db = sessionmaker(bind=engine)()
         p = patch(
-            "routers.translation.method1_pons",
+            "translation_pipeline.method1_pons",
             new_callable=AsyncMock,
             return_value=ok("pons", "coffee"),
         )
         l = patch(
-            "routers.translation.method2_libretranslate",
+            "translation_pipeline.method2_libretranslate",
             new_callable=AsyncMock,
             return_value=ok("libretranslate", "java"),
         )

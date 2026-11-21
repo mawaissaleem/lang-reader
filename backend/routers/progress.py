@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from database import BASE_DIR, get_db
-from routers.library import latest_subtitle
+from library_entries import latest_subtitle
 from models import Dictionary, ManualText, UserWord, Video
 
 router = APIRouter()

@@ -43,8 +43,8 @@ class TestGermanImport(unittest.TestCase):
         self.addCleanup(os.chdir, old)
         os.chdir(tmp.name)
         self.tmp = tmp.name
-        # both routers resolve BASE_DIR in their own module
-        for module in ("routers.imports", "routers.library"):
+        # both modules resolve BASE_DIR in their own module
+        for module in ("subtitle_import", "routers.library"):
             patcher = patch(f"{module}.BASE_DIR", Path(tmp.name))
             patcher.start()
             self.addCleanup(patcher.stop)
@@ -55,8 +55,8 @@ class TestGermanImport(unittest.TestCase):
 
     def _call(self, m1, m2):
         with (
-            patch("routers.imports.method1_youtube_transcript_api", return_value=m1),
-            patch("routers.imports.method2_yt_dlp", return_value=m2),
+            patch("subtitle_import.method1_youtube_transcript_api", return_value=m1),
+            patch("subtitle_import.method2_yt_dlp", return_value=m2),
         ):
             return get_german_subtitles(
                 VideoRequest(url=URL, title="Mein Titel"), db=self.db
@@ -129,7 +129,7 @@ class TestGermanImport(unittest.TestCase):
 
     def test_cleaning_failure_returns_500_and_saves_nothing(self):
         with patch(
-            "routers.imports.extract_subtitles", side_effect=ValueError("bad vtt")
+            "subtitle_import.extract_subtitles", side_effect=ValueError("bad vtt")
         ):
             with self.assertRaises(HTTPException) as cm:
                 self._call(self.ok, None)

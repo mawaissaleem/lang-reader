@@ -144,7 +144,7 @@ class TestLookupUsesLemma(unittest.IsolatedAsyncioTestCase):
                 "raw_response": {},
             }
         )
-        with patch("routers.translation.method1_pons", pons):
+        with patch("translation_pipeline.method1_pons", pons):
             r = await lookup_word(
                 "ging",
                 priority="pons",
@@ -170,7 +170,7 @@ class TestLookupUsesLemma(unittest.IsolatedAsyncioTestCase):
                 "raw_response": {},
             }
         )
-        with patch("routers.translation.method1_pons", pons):
+        with patch("translation_pipeline.method1_pons", pons):
             r = await lookup_word(
                 "fängt an",
                 priority="pons",
@@ -194,7 +194,7 @@ class TestLookupUsesLemma(unittest.IsolatedAsyncioTestCase):
                 "raw_response": {},
             }
         )
-        with patch("routers.translation.method1_pons", pons):
+        with patch("translation_pipeline.method1_pons", pons):
             noun = await lookup_word(
                 "Essen",
                 priority="pons",
@@ -226,7 +226,7 @@ class TestLookupUsesLemma(unittest.IsolatedAsyncioTestCase):
         db.add(old)
         db.commit()
         pons = AsyncMock()
-        with patch("routers.translation.method1_pons", pons):
+        with patch("translation_pipeline.method1_pons", pons):
             r = await lookup_word(
                 "Tisch",
                 priority="pons",
@@ -261,7 +261,7 @@ class TestLookupUsesLemma(unittest.IsolatedAsyncioTestCase):
                 "raw_response": {},
             }
         )
-        with patch("routers.translation.method1_pons", pons):
+        with patch("translation_pipeline.method1_pons", pons):
             r = await lookup_word(
                 "Gehen",
                 priority="pons",

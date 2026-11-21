@@ -1,4 +1,4 @@
-"""Unit tests for the small shared helpers: word_key, sentence_hash, models_to_try and _video_entry."""
+"""Unit tests for the small shared helpers: word_key, sentence_hash, models_to_try and video_entry."""
 
 import hashlib
 import unittest
@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from lemmatizer import word_key
-from routers.library import _video_entry
+from library_entries import video_entry
 from translators.llm import models_to_try
 from utils import sentence_hash
 
@@ -61,10 +61,10 @@ class VideoEntryTest(unittest.TestCase):
         return SimpleNamespace(id=9, title=title, url="u", subtitles=[old, new])
 
     def test_uses_latest_subtitle(self):
-        entry = _video_entry(self._video("T"))
+        entry = video_entry(self._video("T"))
         self.assertEqual(
             (entry["id"], entry["video_id"], entry["word_count"]), (2, 9, 5)
         )
 
     def test_empty_title_becomes_untitled(self):
-        self.assertEqual(_video_entry(self._video(None))["title"], "Untitled")
+        self.assertEqual(video_entry(self._video(None))["title"], "Untitled")

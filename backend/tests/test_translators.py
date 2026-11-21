@@ -125,9 +125,11 @@ class TestLookupWordFallback(unittest.IsolatedAsyncioTestCase):
         }
 
         with (
-            patch("routers.translation.method1_pons", new_callable=AsyncMock) as mock_p,
             patch(
-                "routers.translation.method2_libretranslate", new_callable=AsyncMock
+                "translation_pipeline.method1_pons", new_callable=AsyncMock
+            ) as mock_p,
+            patch(
+                "translation_pipeline.method2_libretranslate", new_callable=AsyncMock
             ) as mock_l,
         ):
             mock_p.return_value = mock_pons
@@ -157,9 +159,11 @@ class TestLookupWordFallback(unittest.IsolatedAsyncioTestCase):
         mock_lt = {"success": False, "status_code": None, "error": "Unreachable"}
 
         with (
-            patch("routers.translation.method1_pons", new_callable=AsyncMock) as mock_p,
             patch(
-                "routers.translation.method2_libretranslate", new_callable=AsyncMock
+                "translation_pipeline.method1_pons", new_callable=AsyncMock
+            ) as mock_p,
+            patch(
+                "translation_pipeline.method2_libretranslate", new_callable=AsyncMock
             ) as mock_l,
         ):
             mock_p.return_value = mock_pons
@@ -183,9 +187,11 @@ class TestLookupWordFallback(unittest.IsolatedAsyncioTestCase):
         }
 
         with (
-            patch("routers.translation.method1_pons", new_callable=AsyncMock) as mock_p,
             patch(
-                "routers.translation.method2_libretranslate", new_callable=AsyncMock
+                "translation_pipeline.method1_pons", new_callable=AsyncMock
+            ) as mock_p,
+            patch(
+                "translation_pipeline.method2_libretranslate", new_callable=AsyncMock
             ) as mock_l,
         ):
             mock_p.return_value = {
@@ -216,10 +222,10 @@ class TestLookupWordFallback(unittest.IsolatedAsyncioTestCase):
 
         with (
             patch(
-                "routers.translation.method1_pons", new_callable=AsyncMock
+                "translation_pipeline.method1_pons", new_callable=AsyncMock
             ) as mock_p_func,
             patch(
-                "routers.translation.method2_libretranslate", new_callable=AsyncMock
+                "translation_pipeline.method2_libretranslate", new_callable=AsyncMock
             ) as mock_l_func,
         ):
             mock_p_func.return_value = mock_p
@@ -253,10 +259,10 @@ class TestLookupWordFallback(unittest.IsolatedAsyncioTestCase):
 
         with (
             patch(
-                "routers.translation.method1_pons", new_callable=AsyncMock
+                "translation_pipeline.method1_pons", new_callable=AsyncMock
             ) as mock_p_func,
             patch(
-                "routers.translation.method2_libretranslate", new_callable=AsyncMock
+                "translation_pipeline.method2_libretranslate", new_callable=AsyncMock
             ) as mock_l_func,
         ):
             mock_p_func.return_value = mock_p_initial

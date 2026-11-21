@@ -1,20 +1,19 @@
 """Routes for the local LLM (Ollama): streamed word explanations and model selection."""
 
-import json
 import os
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from utils import sentence_hash
 from database import get_db
-from lemmatizer import NOUNS, word_key
-from models import Dictionary, LLMAnswer, Setting
+from lemmatizer import word_key
+from models import Dictionary, Setting
 from translators import llm
+from word_explainer import explain_stream
 
 router = APIRouter()
 
@@ -38,56 +37,10 @@ async def word_ai(
     entry = db.query(Dictionary).filter(Dictionary.german_word == lemma).first()
     meanings = [m for t in (entry.translations if entry else []) for m in t.meanings]
 
-    def line(obj):
-        return json.dumps(obj, ensure_ascii=False) + "\n"
-
-    async def stream():
-        if not models:
-            yield line(
-                {"error": "No model set: choose one in settings or set OLLAMA_MODEL"}
-            )
-            return
-        for model in models:
-            row = (
-                db.query(LLMAnswer)
-                .filter_by(lemma=lemma, sentence_hash=key, model=model)
-                .first()
-            )
-            if row:
-                yield line({"result": row.result, "model": model, "cached": True})
-                return
-            prompt = llm.build_prompt(clicked, lemma, sentence, meanings)
-            try:
-                async for kind, val in llm.ask(model, prompt):
-                    if kind == "token":
-                        yield line({"token": val})
-                        continue
-                    if kind == "retry":
-                        yield line({"retry": True})
-                        continue
-                    # the app's lemmatizer beats the LLM on base form and article; failures are not cached
-                    val["lemma"] = lemma
-                    if pos in NOUNS and article:
-                        val["article"] = article
-                    db.add(
-                        LLMAnswer(
-                            lemma=lemma, sentence_hash=key, model=model, result=val
-                        )
-                    )
-                    try:
-                        db.commit()
-                    except IntegrityError:  # a concurrent request saved it first
-                        db.rollback()
-                    yield line({"result": val, "model": model, "cached": False})
-                return
-            except llm.ModelMissing as e:
-                if model == models[-1]:
-                    yield line({"error": str(e)})
-            except llm.LLMError as e:
-                yield line({"error": str(e)})
-                return
-
-    return StreamingResponse(stream(), media_type="application/x-ndjson")
+    stream = explain_stream(
+        db, models, clicked, lemma, pos, article, sentence, key, meanings
+    )
+    return StreamingResponse(stream, media_type="application/x-ndjson")
 
 
 class ModelChoice(BaseModel):

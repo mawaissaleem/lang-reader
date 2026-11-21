@@ -33,7 +33,7 @@ class TestLookupDoesNotSave(unittest.IsolatedAsyncioTestCase):
 
     async def _lookup(self):
         with patch(
-            "routers.translation.method1_pons",
+            "translation_pipeline.method1_pons",
             new_callable=AsyncMock,
             return_value=PONS_OK,
         ):
@@ -71,12 +71,12 @@ class TestSaveSource(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(self.db.close)
         with (
             patch(
-                "routers.translation.method1_pons",
+                "translation_pipeline.method1_pons",
                 new_callable=AsyncMock,
                 return_value=PONS_OK,
             ),
             patch(
-                "routers.translation.method2_libretranslate",
+                "translation_pipeline.method2_libretranslate",
                 new_callable=AsyncMock,
                 return_value=LT_OK,
             ),
@@ -135,7 +135,7 @@ class TestWordStatus(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(self.db.close)
         self.client = TestClient(main.app)
         with patch(
-            "routers.translation.method1_pons",
+            "translation_pipeline.method1_pons",
             new_callable=AsyncMock,
             return_value=PONS_OK,
         ):
@@ -181,7 +181,7 @@ class TestSaveContext(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(self.db.close)
         self.client = TestClient(main.app)
         with patch(
-            "routers.translation.method1_pons",
+            "translation_pipeline.method1_pons",
             new_callable=AsyncMock,
             return_value=PONS_OK,
         ):

@@ -117,12 +117,12 @@ MODELS = {
 async def ensure_setup() -> dict:
     """Create the Reader decks and note types if missing. Existing ones are never touched."""
     created = {"decks": [], "models": []}
-    have_decks = set(await invoke("deckNames"))
+    have_decks = set(await list_decks())
     for deck in DECKS:
         if deck not in have_decks:
             await invoke("createDeck", deck=deck)
             created["decks"].append(deck)
-    have_models = set(await invoke("modelNames"))
+    have_models = set(await list_note_types())
     for name, (fields, cards) in MODELS.items():
         if name not in have_models:
             await invoke(
@@ -458,7 +458,7 @@ def front_key(raw: str) -> str:
     word = s[m.end() :] if m else s
     if not word or " " in word:
         return ""
-    # the reader keys nouns capitalized and everything else lowercase (see lookup_word)
+    # the reader keys nouns capitalized and everything else lowercase (same rule as lemmatizer.word_key)
     base, pos, _ = analyze(word)
     return base[:1].upper() + base[1:] if m or pos in NOUNS else base.lower()
 
@@ -480,9 +480,7 @@ async def _in_mapped(mapping: dict, lemma: str) -> bool:
 async def import_known(db, user_id: int, mapping: dict) -> dict:
     """Save the mapped field's words as 'known'. Existing saved words keep their status.
     Returns {imported, already_known (already saved, untouched), skipped (not a single word)}."""
-    if mapping["field"] not in await invoke(
-        "modelFieldNames", modelName=mapping["model"]
-    ):
+    if mapping["field"] not in await note_type_fields(mapping["model"]):
         raise AnkiError(
             f"Note type '{mapping['model']}' has no field '{mapping['field']}'"
         )

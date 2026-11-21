@@ -14,7 +14,7 @@ from anki import send_pending
 from database import SessionLocal, run_migrations
 from lemmatizer import load_model
 
-# must run before the routers are imported: the translation router reads its API keys at import time
+# must run before the routers are imported: translators.llm (imported via the llm router) reads OLLAMA_URL at import time
 load_dotenv()
 
 from routers import (  # noqa: E402
