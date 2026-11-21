@@ -11,15 +11,16 @@ export const ttsUrl = (text: string) =>
 
 export async function lookupWord(
   word: string,
-  userId: number,
   priority?: string,
   force?: boolean,
   sentence?: string | null,
 ): Promise<WordLookupResponse> {
-  let url = `${API_BASE_URL}/word/${encodeURIComponent(word)}?user_id=${userId}`;
-  if (priority) url += `&priority=${encodeURIComponent(priority)}`;
-  if (force) url += `&force=true`;
-  if (sentence) url += `&sentence=${encodeURIComponent(sentence)}`;
+  const params = new URLSearchParams();
+  if (priority) params.set("priority", priority);
+  if (force) params.set("force", "true");
+  if (sentence) params.set("sentence", sentence);
+  const query = params.toString();
+  const url = `${API_BASE_URL}/word/${encodeURIComponent(word)}${query ? `?${query}` : ""}`;
   const response = await fetch(url, {
     method: "GET",
     headers: {

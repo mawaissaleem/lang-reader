@@ -48,9 +48,7 @@ class TestTranslationsPerSource(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(self.db.close)
 
     def look(self, priority, force=False):
-        return lookup_word(
-            "kaffee", user_id=1, priority=priority, force=force, db=self.db
-        )
+        return lookup_word("kaffee", priority=priority, force=force, db=self.db)
 
     async def test_both_sources_are_kept(self):
         await self.look("pons")

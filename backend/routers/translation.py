@@ -85,31 +85,3 @@ async def translate_sentence(
             db.rollback()
             row = db.query(SentenceTranslation).filter_by(sentence_hash=key).one()
     return {"sentence": sentence, "translation": row.translation}
-
-
-@router.get("/dictionary/{word}")
-async def get_word_meaning(word: str, priority: Optional[str] = None):
-    word = word.strip().lower()
-    priority_order = parse_priority(priority)
-
-    translation_result, errors = await execute_translation_pipeline(
-        word, priority_order
-    )
-    if translation_result:
-        return {
-            "success": True,
-            "word": word,
-            "source": translation_result["source"],
-            "translations": [
-                {"german": word, "english": t}
-                for t in translation_result["translations"]
-            ],
-            "word_class": translation_result.get("word_class"),
-        }
-
-    err_details = ". ".join(f"{p.upper()}: {msg}" for p, msg in errors.items())
-    return {
-        "success": False,
-        "word": word,
-        "message": f"All translation methods failed. {err_details}",
-    }

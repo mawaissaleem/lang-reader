@@ -44,7 +44,6 @@ NOUN_CLASSES = {
 @router.get("/word/{word}")
 async def lookup_word(
     word: str,
-    user_id: int,  # unused: lookup never saves; kept for client compat
     priority: Optional[str] = None,
     force: bool = False,
     sentence: Optional[str] = None,

@@ -147,7 +147,6 @@ class TestLookupUsesLemma(unittest.IsolatedAsyncioTestCase):
         with patch("routers.translation.method1_pons", pons):
             r = await lookup_word(
                 "ging",
-                user_id=1,
                 priority="pons",
                 sentence="Ich ging nach Hause.",
                 db=db,
@@ -174,7 +173,6 @@ class TestLookupUsesLemma(unittest.IsolatedAsyncioTestCase):
         with patch("routers.translation.method1_pons", pons):
             r = await lookup_word(
                 "fängt an",
-                user_id=1,
                 priority="pons",
                 sentence="Er fängt morgen an.",
                 db=db,
@@ -199,13 +197,12 @@ class TestLookupUsesLemma(unittest.IsolatedAsyncioTestCase):
         with patch("routers.translation.method1_pons", pons):
             noun = await lookup_word(
                 "Essen",
-                user_id=1,
                 priority="pons",
                 sentence="Das Essen ist gut.",
                 db=db,
             )
             verb = await lookup_word(
-                "essen", user_id=1, priority="pons", sentence="Wir essen Brot.", db=db
+                "essen", priority="pons", sentence="Wir essen Brot.", db=db
             )
         self.assertEqual((noun["word"], noun["article"]), ("Essen", "das"))
         self.assertEqual((verb["word"], verb["article"]), ("essen", None))
@@ -232,7 +229,6 @@ class TestLookupUsesLemma(unittest.IsolatedAsyncioTestCase):
         with patch("routers.translation.method1_pons", pons):
             r = await lookup_word(
                 "Tisch",
-                user_id=1,
                 priority="pons",
                 sentence="Der Tisch ist groß.",
                 db=db,
@@ -268,7 +264,6 @@ class TestLookupUsesLemma(unittest.IsolatedAsyncioTestCase):
         with patch("routers.translation.method1_pons", pons):
             r = await lookup_word(
                 "Gehen",
-                user_id=1,
                 priority="pons",
                 sentence="Das Gehen fällt ihm schwer.",
                 db=db,

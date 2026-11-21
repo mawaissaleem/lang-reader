@@ -188,7 +188,6 @@ describe("SidePanel source tabs", () => {
     expect(lookupWord).toHaveBeenCalledTimes(1);
     expect(lookupWord).toHaveBeenCalledWith(
       "haus",
-      1,
       "libretranslate",
       false,
       null,

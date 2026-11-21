@@ -14,7 +14,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from models import Base, Dictionary, UserWord
 from translators.pons import method1_pons
 from translators.libretranslate import method2_libretranslate
-from routers.translation import get_word_meaning
 from routers.words import lookup_word
 
 
@@ -134,7 +133,7 @@ class TestLookupWordFallback(unittest.IsolatedAsyncioTestCase):
             mock_p.return_value = mock_pons
             mock_l.return_value = mock_lt
 
-            res = await lookup_word("kaffee", user_id=1, db=self.db)
+            res = await lookup_word("kaffee", db=self.db)
             self.assertEqual(res["source"], "libretranslate")
             self.assertEqual(res["word"], "kaffee")
             self.assertEqual(res["english_meanings"], ["coffee"])
@@ -148,7 +147,7 @@ class TestLookupWordFallback(unittest.IsolatedAsyncioTestCase):
             mock_p.reset_mock()
             mock_l.reset_mock()
 
-            cached_res = await lookup_word("kaffee", user_id=1, db=self.db)
+            cached_res = await lookup_word("kaffee", db=self.db)
             self.assertEqual(cached_res["source"], "libretranslate")
             mock_p.assert_not_called()
             mock_l.assert_not_called()
@@ -167,37 +166,10 @@ class TestLookupWordFallback(unittest.IsolatedAsyncioTestCase):
             mock_l.return_value = mock_lt
 
             with self.assertRaises(HTTPException) as ctx:
-                await lookup_word("unknownxyz", user_id=1, db=self.db)
+                await lookup_word("unknownxyz", db=self.db)
 
             self.assertEqual(ctx.exception.status_code, 404)
             self.assertIn("All translation methods failed", ctx.exception.detail)
-
-    async def test_get_word_meaning_fallback(self):
-        mock_pons = {"success": False, "status_code": 429, "error": "PONS limit"}
-        mock_lt = {
-            "success": True,
-            "word": "hallo",
-            "translations": ["hello"],
-            "word_class": None,
-            "source": "libretranslate",
-            "raw_response": {"translatedText": "hello"},
-        }
-
-        with (
-            patch("routers.translation.method1_pons", new_callable=AsyncMock) as mock_p,
-            patch(
-                "routers.translation.method2_libretranslate", new_callable=AsyncMock
-            ) as mock_l,
-        ):
-            mock_p.return_value = mock_pons
-            mock_l.return_value = mock_lt
-
-            res = await get_word_meaning("hallo")
-            self.assertTrue(res["success"])
-            self.assertEqual(res["source"], "libretranslate")
-            self.assertEqual(
-                res["translations"], [{"german": "hallo", "english": "hello"}]
-            )
 
     async def test_priority_libretranslate_first_skips_pons_on_success(self):
         # LibreTranslate succeeds and PONS should not be called
@@ -224,7 +196,7 @@ class TestLookupWordFallback(unittest.IsolatedAsyncioTestCase):
             mock_l.return_value = mock_lt
 
             res = await lookup_word(
-                "kaffee", user_id=1, priority="libretranslate,pons", db=self.db
+                "kaffee", priority="libretranslate,pons", db=self.db
             )
             self.assertEqual(res["source"], "libretranslate")
             mock_l.assert_awaited()
@@ -254,7 +226,7 @@ class TestLookupWordFallback(unittest.IsolatedAsyncioTestCase):
             mock_l_func.return_value = mock_lt
 
             res = await lookup_word(
-                "kaffee", user_id=1, priority="libretranslate,pons", db=self.db
+                "kaffee", priority="libretranslate,pons", db=self.db
             )
             self.assertEqual(res["source"], "pons")
             mock_l_func.assert_awaited()
@@ -291,14 +263,12 @@ class TestLookupWordFallback(unittest.IsolatedAsyncioTestCase):
             mock_l_func.return_value = mock_lt_updated
 
             # Initial lookup uses PONS and caches it
-            res1 = await lookup_word(
-                "tee", user_id=1, priority="pons,libretranslate", db=self.db
-            )
+            res1 = await lookup_word("tee", priority="pons,libretranslate", db=self.db)
             self.assertEqual(res1["source"], "pons")
 
             # Now force a re-lookup with LibreTranslate first and force=True
             res2 = await lookup_word(
-                "tee", user_id=1, priority="libretranslate,pons", force=True, db=self.db
+                "tee", priority="libretranslate,pons", force=True, db=self.db
             )
             # Should update cache source to libretranslate
             self.assertEqual(res2["source"], "libretranslate")

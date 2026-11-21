@@ -175,7 +175,6 @@ describe("lookup with sentence", () => {
     await useStore.getState().setSelectedWord("ging", "Ich ging nach Hause.");
     expect(lookupWord).toHaveBeenCalledWith(
       "ging",
-      1,
       "pons",
       false,
       "Ich ging nach Hause.",

@@ -37,7 +37,7 @@ class TestLookupDoesNotSave(unittest.IsolatedAsyncioTestCase):
             new_callable=AsyncMock,
             return_value=PONS_OK,
         ):
-            return await lookup_word("kaffee", user_id=1, db=self.db)
+            return await lookup_word("kaffee", db=self.db)
 
     async def test_fresh_lookup_creates_no_user_word(self):
         r = await self._lookup()
@@ -81,11 +81,9 @@ class TestSaveSource(unittest.IsolatedAsyncioTestCase):
                 return_value=LT_OK,
             ),
         ):
-            await lookup_word("kaffee", user_id=1, db=self.db)
+            await lookup_word("kaffee", db=self.db)
             self.word_id = (
-                await lookup_word(
-                    "kaffee", user_id=1, priority="libretranslate", db=self.db
-                )
+                await lookup_word("kaffee", priority="libretranslate", db=self.db)
             )["id"]
 
     async def test_save_stores_source(self):
@@ -141,7 +139,7 @@ class TestWordStatus(unittest.IsolatedAsyncioTestCase):
             new_callable=AsyncMock,
             return_value=PONS_OK,
         ):
-            word_id = (await lookup_word("kaffee", user_id=1, db=self.db))["id"]
+            word_id = (await lookup_word("kaffee", db=self.db))["id"]
         await save_word(word_id, 1, db=self.db)
         self.uw_id = self.db.query(UserWord).one().id
 
@@ -187,7 +185,7 @@ class TestSaveContext(unittest.IsolatedAsyncioTestCase):
             new_callable=AsyncMock,
             return_value=PONS_OK,
         ):
-            self.word_id = (await lookup_word("kaffee", user_id=1, db=self.db))["id"]
+            self.word_id = (await lookup_word("kaffee", db=self.db))["id"]
         self.url = f"/user-words/{self.word_id}/save?user_id=1"
 
     async def test_save_stores_and_returns_context(self):

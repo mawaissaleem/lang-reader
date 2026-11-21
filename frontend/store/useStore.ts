@@ -123,13 +123,7 @@ const useStore = create<StoreState>((set, get) => ({
       sourceError: null,
     });
     try {
-      const data = await lookupWord(
-        w,
-        USER_ID,
-        translatorPriority,
-        false,
-        sentence,
-      );
+      const data = await lookupWord(w, translatorPriority, false, sentence);
       // a newer click owns the panel and the loading flag
       if (get().selectedWord !== w) return;
       set({
@@ -171,7 +165,6 @@ const useStore = create<StoreState>((set, get) => ({
       // not force: the backend fetches only the missing source
       const data = await lookupWord(
         selectedWord,
-        USER_ID,
         source,
         false,
         selectedSentence,
@@ -377,7 +370,6 @@ const useStore = create<StoreState>((set, get) => ({
       try {
         const data = await lookupWord(
           selectedWord,
-          USER_ID,
           priority,
           false,
           selectedSentence,

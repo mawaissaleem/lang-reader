@@ -50,7 +50,6 @@ describe("translatorPriority hydration", () => {
     await useStore.getState().setTranslatorPriority("libretranslate");
     expect(lookupWord).toHaveBeenCalledWith(
       "Haus",
-      expect.anything(),
       "libretranslate",
       false,
       null,

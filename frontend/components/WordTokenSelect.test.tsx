@@ -34,7 +34,6 @@ it("shift+click on fängt then an looks up the phrase and highlights both", () =
   fireEvent.click(screen.getByText("an."), { shiftKey: true });
   expect(lookupWord).toHaveBeenLastCalledWith(
     "fängt an",
-    1,
     expect.anything(),
     false,
     "Er fängt morgen an.",

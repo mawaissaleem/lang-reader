@@ -36,7 +36,6 @@ describe("extendSelection", () => {
     await extendSelection(t("0:8", "an"), S);
     expect(lookupWord).toHaveBeenLastCalledWith(
       "fängt an",
-      1,
       expect.anything(),
       false,
       S,

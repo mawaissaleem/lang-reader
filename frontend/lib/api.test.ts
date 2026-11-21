@@ -27,7 +27,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 const calls: [string, () => Promise<unknown>][] = [
   ["importFromYouTube", () => importFromYouTube("https://youtu.be/x")],
-  ["lookupWord", () => lookupWord("Haus", 1)],
+  ["lookupWord", () => lookupWord("Haus")],
   ["saveWord", () => saveWord(1, 1)],
   ["createText", () => createText("t", "x")],
   ["fetchText", () => fetchText(1)],
@@ -97,9 +97,9 @@ describe("entry dispatch", () => {
 describe("lookupWord sentence", () => {
   it("sends the sentence as an encoded query param", async () => {
     stubFetch(200, "{}");
-    await lookupWord("ging", 1, undefined, false, "Ich ging nach Hause.");
+    await lookupWord("ging", undefined, false, "Ich ging nach Hause.");
     expect(vi.mocked(fetch).mock.calls[0][0]).toContain(
-      "&sentence=Ich%20ging%20nach%20Hause.",
+      "sentence=Ich+ging+nach+Hause.",
     );
   });
 });
