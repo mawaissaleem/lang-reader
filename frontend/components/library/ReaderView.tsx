@@ -1,4 +1,5 @@
 "use client";
+import ReaderFooter from "@/components/ReaderFooter";
 import SidePanel from "@/components/SidePanel";
 import TextDisplay from "@/components/TextDisplay";
 import VideoReader from "@/components/VideoReader";
@@ -45,6 +46,13 @@ export default function ReaderView({
         <span className="text-sm font-medium text-white/60 truncate max-w-md">
           {title}
         </span>
+        {/* Video view has no text footer, so its word stats live here */}
+        {video?.cues.length ? (
+          <ReaderFooter
+            text={video.cues.map((c) => c.text).join("\n")}
+            className="ml-auto"
+          />
+        ) : null}
       </header>
 
       {/* TextDisplay + SidePanel — exact same structure as root page */}

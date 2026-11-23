@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { clock, currentCue, videoId } from "./video";
+import {
+  clock,
+  currentCue,
+  scrollTopFor,
+  userScrolledRecently,
+  videoId,
+} from "./video";
 
 const cues = [
   { start: 1.5, end: 3, text: "a" },
@@ -39,4 +45,24 @@ describe("currentCue", () => {
 
 describe("clock", () => {
   it("formats m:ss", () => expect(clock(65.9)).toBe("1:05"));
+});
+
+describe("userScrolledRecently", () => {
+  it("is true within the pause window and false after or when never scrolled", () => {
+    expect(userScrolledRecently(1000, 2000)).toBe(true);
+    expect(userScrolledRecently(1000, 6000)).toBe(false);
+    expect(userScrolledRecently(0, 100)).toBe(false);
+  });
+});
+
+describe("scrollTopFor", () => {
+  it("returns null when the line is fully visible", () => {
+    expect(scrollTopFor(120, 40, 100, 300)).toBeNull();
+  });
+  it("centres a line that is below the view", () => {
+    expect(scrollTopFor(600, 40, 0, 300)).toBe(470);
+  });
+  it("never goes negative for a line near the top", () => {
+    expect(scrollTopFor(10, 40, 200, 300)).toBe(0);
+  });
 });

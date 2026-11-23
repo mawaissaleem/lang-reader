@@ -2,11 +2,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import useStore from "@/store/useStore";
 import WordToken from "@/components/WordToken";
-import ReaderFooter from "@/components/ReaderFooter";
 import { fetchSentenceTranslation } from "@/lib/api";
 import { sentenceAt } from "@/lib/words";
 import { useStatusHotkeys } from "@/lib/useStatusHotkeys";
-import { clock, currentCue, videoId, type Cue } from "@/lib/video";
+import {
+  clock,
+  currentCue,
+  scrollTopFor,
+  userScrolledRecently,
+  videoId,
+  type Cue,
+} from "@/lib/video";
 
 // the bits of the YouTube IFrame Player API used here
 interface YTPlayer {
@@ -47,6 +53,9 @@ export default function VideoReader({
   const box = useRef<HTMLDivElement>(null);
   const player = useRef<YTPlayer | null>(null);
   const lineRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const transcript = useRef<HTMLDivElement>(null);
+  // time of the last wheel/touch on the transcript, so playback does not pull it back mid-read
+  const lastUserScroll = useRef(0);
   const [current, setCurrent] = useState(-1);
   const [speed, setSpeed] = useState(1);
   const [showEnglish, setShowEnglish] = useState(false);
@@ -82,11 +91,21 @@ export default function VideoReader({
     };
   }, [id, cues]);
 
+  // keep the current line in view inside the transcript only (scrollIntoView would also scroll the page)
   useEffect(() => {
-    lineRefs.current[current]?.scrollIntoView({
-      block: "center",
-      behavior: "smooth",
-    });
+    const box = transcript.current;
+    const line = lineRefs.current[current];
+    if (!box || !line) return;
+    if (userScrolledRecently(lastUserScroll.current, Date.now())) return;
+    const top = scrollTopFor(
+      line.offsetTop,
+      line.offsetHeight,
+      box.scrollTop,
+      box.clientHeight,
+    );
+    if (top === null) return;
+    const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    box.scrollTo({ top, behavior: calm ? "auto" : "smooth" });
   }, [current]);
 
   // translate the current line once it is reached; fetchSentenceTranslation is cached server-side
@@ -103,6 +122,7 @@ export default function VideoReader({
   const jump = useCallback(
     (i: number) => {
       const c = cues[Math.max(0, Math.min(cues.length - 1, i))];
+      lastUserScroll.current = 0; // an explicit jump should always show its line
       player.current?.seekTo(c.start, true);
       player.current?.playVideo();
       setCurrent(currentCue(cues, c.start));
@@ -115,7 +135,8 @@ export default function VideoReader({
     player.current?.setPlaybackRate(r);
   };
 
-  const btn = "px-3 py-1.5 text-[12px] font-medium transition-colors";
+  const btn =
+    "px-3 py-1.5 text-[12px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset";
   const on = "bg-blue-500/20 text-blue-400";
   const off = "text-white/30 hover:text-white/60 hover:bg-white/[0.04]";
 
@@ -128,7 +149,8 @@ export default function VideoReader({
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-full">
-      <div className="lg:w-1/2 shrink-0">
+      {/* Player: takes what is left; min width keeps it usable when the word panel is open */}
+      <div className="lg:flex-1 lg:min-w-[240px] shrink-0 lg:shrink">
         <div
           ref={box}
           className="aspect-video w-full rounded-xl overflow-hidden bg-black"
@@ -172,7 +194,13 @@ export default function VideoReader({
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto bg-[#111114] border border-white/[0.07] rounded-2xl p-3">
+      {/* Transcript: ~480px, shrinks to 340px before the player gives way; min-h keeps it readable when stacked */}
+      <div
+        ref={transcript}
+        onWheel={() => (lastUserScroll.current = Date.now())}
+        onTouchMove={() => (lastUserScroll.current = Date.now())}
+        className="relative flex-1 lg:flex-none lg:w-[480px] lg:min-w-[340px] lg:shrink min-h-64 lg:min-h-0 overflow-y-auto bg-[#111114] border border-white/[0.07] rounded-2xl p-3"
+      >
         {cues.map((cue, ci) => {
           const tokens = cue.text.split(/(\s+)/);
           return (
@@ -181,17 +209,17 @@ export default function VideoReader({
               ref={(el) => {
                 lineRefs.current[ci] = el;
               }}
-              className={`flex gap-3 rounded-lg px-3 py-2 leading-7 ${ci === current ? "bg-blue-500/10 border-l-2 border-blue-400" : "border-l-2 border-transparent"}`}
+              className={`flex gap-3 rounded-lg px-3 py-2 leading-7 ${ci === current ? "bg-accent-soft border-l-2 border-accent" : "border-l-2 border-transparent"}`}
             >
               <button
                 onClick={() => jump(ci)}
-                className="shrink-0 w-10 text-left text-[11px] tabular-nums text-white/30 hover:text-blue-400"
+                className="shrink-0 w-10 text-left text-[11px] tabular-nums text-white/30 hover:text-blue-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded"
                 title="Jump to this line"
               >
                 {clock(cue.start)}
               </button>
-              <div className="text-white/75">
-                <p>
+              <div className="min-w-0 flex-1 text-white/75">
+                <p className="font-reading">
                   {tokens.map((token, ti) =>
                     /^\s+$/.test(token) ? (
                       <span key={ti}>{token}</span>
@@ -214,7 +242,6 @@ export default function VideoReader({
           );
         })}
       </div>
-      <ReaderFooter text={cues.map((c) => c.text).join("\n")} />
     </div>
   );
 }

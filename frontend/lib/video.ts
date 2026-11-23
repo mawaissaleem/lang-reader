@@ -27,3 +27,23 @@ export function currentCue(cues: Cue[], t: number): number {
 
 export const clock = (s: number) =>
   `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+
+const USER_SCROLL_PAUSE_MS = 4000;
+
+/** True while the user scrolled the transcript by hand recently, so auto-scroll should leave it alone. */
+export function userScrolledRecently(lastAt: number, now: number): boolean {
+  return lastAt > 0 && now - lastAt < USER_SCROLL_PAUSE_MS;
+}
+
+/** New scrollTop that centres a line, or null when the line is already fully visible. */
+export function scrollTopFor(
+  lineTop: number,
+  lineHeight: number,
+  viewTop: number,
+  viewHeight: number,
+): number | null {
+  const visible =
+    lineTop >= viewTop && lineTop + lineHeight <= viewTop + viewHeight;
+  if (visible) return null;
+  return Math.max(0, lineTop - (viewHeight - lineHeight) / 2);
+}
