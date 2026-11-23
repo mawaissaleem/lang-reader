@@ -112,7 +112,8 @@ const useStore = create<StoreState>((set, get) => ({
       selectedWord: w,
       selectedSentence: sentence ?? null,
       selectedTextRef: get().textRef,
-      sidePanelOpen: true,
+      // the video reader keeps the panel closed until "Details" is pressed
+      sidePanelOpen: get().openPanelOnSelect || get().sidePanelOpen,
       wordResult: null,
       wordError: null,
       wordLoading: true,
@@ -299,6 +300,8 @@ const useStore = create<StoreState>((set, get) => ({
   },
   highlightMode: "underline",
   setHighlightMode: (m) => set({ highlightMode: m }),
+  openPanelOnSelect: true,
+  setOpenPanelOnSelect: (open) => set({ openPanelOnSelect: open }),
   sidePanelOpen: false,
   setSidePanelOpen: (open) => set({ sidePanelOpen: open }),
   userWords: {},

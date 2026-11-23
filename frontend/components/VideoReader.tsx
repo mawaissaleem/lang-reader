@@ -1,9 +1,10 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import useStore from "@/store/useStore";
-import WordToken from "@/components/WordToken";
+import CueText from "@/components/CueText";
+import VideoTimeline from "@/components/VideoTimeline";
+import VideoWordCard from "@/components/VideoWordCard";
 import { fetchSentenceTranslation } from "@/lib/api";
-import { sentenceAt } from "@/lib/words";
 import { useStatusHotkeys } from "@/lib/useStatusHotkeys";
 import {
   clock,
@@ -18,6 +19,8 @@ import {
 interface YTPlayer {
   seekTo(s: number, allowSeekAhead: boolean): void;
   getCurrentTime(): number;
+  getDuration(): number;
+  pauseVideo(): void;
   setPlaybackRate(r: number): void;
   playVideo(): void;
   destroy(): void;
@@ -50,6 +53,8 @@ export default function VideoReader({
   cues: Cue[];
 }) {
   const highlightMode = useStore((s) => s.highlightMode);
+  const sidePanelOpen = useStore((s) => s.sidePanelOpen);
+  const setOpenPanelOnSelect = useStore((s) => s.setOpenPanelOnSelect);
   const box = useRef<HTMLDivElement>(null);
   const player = useRef<YTPlayer | null>(null);
   const lineRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -63,6 +68,29 @@ export default function VideoReader({
   const id = videoId(url);
 
   useStatusHotkeys();
+
+  // a word opens the compact card here, not the side panel; "Details" opens the panel
+  useEffect(() => {
+    setOpenPanelOnSelect(false);
+    return () => setOpenPanelOnSelect(true);
+  }, [setOpenPanelOnSelect]);
+
+  // E toggles the English line, unless the user is typing
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== "e" || e.ctrlKey || e.metaKey || e.altKey)
+        return;
+      const t = e.target as HTMLElement | null;
+      if (
+        t?.isContentEditable ||
+        /^(INPUT|TEXTAREA|SELECT)$/.test(t?.tagName ?? "")
+      )
+        return;
+      setShowEnglish((v) => !v);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -130,10 +158,27 @@ export default function VideoReader({
     [cues],
   );
 
+  const pauseOnWord = () => player.current?.pauseVideo?.();
+
   const pickSpeed = (r: number) => {
     setSpeed(r);
     player.current?.setPlaybackRate(r);
   };
+
+  // side by side from lg when the panel is closed, from xl when it is open (the player needs room for the overlay and card)
+  const layout = sidePanelOpen
+    ? {
+        root: "xl:flex-row",
+        player: "xl:flex-1 xl:min-w-[240px] xl:shrink",
+        transcript:
+          "xl:flex-none xl:w-[480px] xl:min-w-[340px] xl:shrink xl:min-h-0",
+      }
+    : {
+        root: "lg:flex-row",
+        player: "lg:flex-1 lg:min-w-[240px] lg:shrink",
+        transcript:
+          "lg:flex-none lg:w-[480px] lg:min-w-[340px] lg:shrink lg:min-h-0",
+      };
 
   const btn =
     "px-3 py-1.5 text-[12px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset";
@@ -148,13 +193,30 @@ export default function VideoReader({
     );
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 h-full">
+    <div className={`flex flex-col ${layout.root} gap-6 h-full`}>
       {/* Player: takes what is left; min width keeps it usable when the word panel is open */}
-      <div className="lg:flex-1 lg:min-w-[240px] shrink-0 lg:shrink">
-        <div
-          ref={box}
-          className="aspect-video w-full rounded-xl overflow-hidden bg-black"
-        />
+      <div className={`shrink-0 ${layout.player}`}>
+        <div className="relative aspect-video w-full rounded-xl overflow-hidden bg-black">
+          <div ref={box} className="absolute inset-0 [&>iframe]:size-full" />
+          {/* the wrapper lets clicks through to the player's own controls; only the words take them */}
+          {current >= 0 && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-12 flex flex-col items-center gap-1 px-4 text-center">
+              <CueText
+                index={current}
+                text={cues[current].text}
+                highlightMode={highlightMode}
+                onWordClick={pauseOnWord}
+                className="pointer-events-auto rounded-lg bg-black/70 px-3 py-1 text-lg leading-snug text-white sm:text-2xl"
+              />
+              {showEnglish && english[current] && (
+                <p className="rounded bg-black/70 px-2 py-0.5 text-sm text-white/80">
+                  {english[current]}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+        <VideoTimeline player={player} cues={cues} />
         <div className="flex flex-wrap items-center gap-3 mt-4 px-4 py-2.5 bg-[#1a1a1f] border border-white/[0.07] rounded-xl">
           <div className="flex rounded-lg overflow-hidden border border-white/[0.08]">
             <button
@@ -189,9 +251,13 @@ export default function VideoReader({
               onChange={(e) => setShowEnglish(e.target.checked)}
               className="accent-blue-500"
             />
-            Show English
+            Show English{" "}
+            <kbd className="ml-1 rounded border border-white/10 px-1 text-[10px]">
+              E
+            </kbd>
           </label>
         </div>
+        <VideoWordCard />
       </div>
 
       {/* Transcript: ~480px, shrinks to 340px before the player gives way; min-h keeps it readable when stacked */}
@@ -199,17 +265,16 @@ export default function VideoReader({
         ref={transcript}
         onWheel={() => (lastUserScroll.current = Date.now())}
         onTouchMove={() => (lastUserScroll.current = Date.now())}
-        className="relative flex-1 lg:flex-none lg:w-[480px] lg:min-w-[340px] lg:shrink min-h-64 lg:min-h-0 overflow-y-auto bg-[#111114] border border-white/[0.07] rounded-2xl p-3"
+        className={`relative flex-1 ${layout.transcript} min-h-64 overflow-y-auto bg-[#111114] border border-white/[0.07] rounded-2xl p-3`}
       >
         {cues.map((cue, ci) => {
-          const tokens = cue.text.split(/(\s+)/);
           return (
             <div
               key={ci}
               ref={(el) => {
                 lineRefs.current[ci] = el;
               }}
-              className={`flex gap-3 rounded-lg px-3 py-2 leading-7 ${ci === current ? "bg-accent-soft border-l-2 border-accent" : "border-l-2 border-transparent"}`}
+              className={`flex gap-3 rounded-lg px-3 py-2 leading-7 ${ci === current ? "bg-accent-soft border-l-2 border-accent" : "border-l-2 border-transparent"} ${ci < current ? "opacity-60" : ""}`}
             >
               <button
                 onClick={() => jump(ci)}
@@ -219,21 +284,12 @@ export default function VideoReader({
                 {clock(cue.start)}
               </button>
               <div className="min-w-0 flex-1 text-white/75">
-                <p className="font-reading">
-                  {tokens.map((token, ti) =>
-                    /^\s+$/.test(token) ? (
-                      <span key={ti}>{token}</span>
-                    ) : (
-                      <WordToken
-                        key={ti}
-                        id={`${ci}:${ti}`}
-                        word={token}
-                        highlightMode={highlightMode}
-                        sentence={() => sentenceAt(tokens, ti)}
-                      />
-                    ),
-                  )}
-                </p>
+                <CueText
+                  index={ci}
+                  text={cue.text}
+                  highlightMode={highlightMode}
+                  onWordClick={pauseOnWord}
+                />
                 {showEnglish && english[ci] && (
                   <p className="text-[13px] text-white/35">{english[ci]}</p>
                 )}

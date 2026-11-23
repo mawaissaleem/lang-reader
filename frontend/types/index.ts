@@ -72,6 +72,9 @@ export interface StoreState {
   saveSelectedWord: (anki?: boolean) => Promise<void>;
   highlightMode: HighlightMode;
   setHighlightMode: (m: HighlightMode) => void;
+  // false in the video reader, where a word opens a compact card instead of the panel
+  openPanelOnSelect: boolean;
+  setOpenPanelOnSelect: (open: boolean) => void;
   sidePanelOpen: boolean;
   setSidePanelOpen: (open: boolean) => void;
   // saved words by lowercase text; id is user_words.id (what the status endpoint takes)

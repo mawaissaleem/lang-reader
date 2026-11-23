@@ -1,3 +1,5 @@
+import { cleanWord } from "@/lib/words";
+
 export interface Cue {
   start: number;
   end: number;
@@ -46,4 +48,43 @@ export function scrollTopFor(
     lineTop >= viewTop && lineTop + lineHeight <= viewTop + viewHeight;
   if (visible) return null;
   return Math.max(0, lineTop - (viewHeight - lineHeight) / 2);
+}
+
+/** How many words of a line have no saved status (the reader's "new" words). */
+export function newWordCount(
+  text: string,
+  statusOf: (word: string) => unknown,
+): number {
+  return text
+    .split(/\s+/)
+    .map(cleanWord)
+    .filter((w) => w && !statusOf(w)).length;
+}
+
+export interface Tick {
+  /** position along the timeline, 0..1 */
+  at: number;
+  /** height, 0..1: the line's new-word count against the cap */
+  level: number;
+}
+
+const TICK_CAP = 5;
+
+/** One tick per cue that has new words; none when the duration is unknown. */
+export function ticksFor(
+  cues: Cue[],
+  newCount: (text: string) => number,
+  duration: number,
+): Tick[] {
+  if (!(duration > 0)) return [];
+  const ticks: Tick[] = [];
+  for (const cue of cues) {
+    const count = newCount(cue.text);
+    if (count === 0) continue;
+    ticks.push({
+      at: Math.min(1, cue.start / duration),
+      level: Math.min(count, TICK_CAP) / TICK_CAP,
+    });
+  }
+  return ticks;
 }

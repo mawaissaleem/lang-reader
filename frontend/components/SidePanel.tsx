@@ -18,7 +18,7 @@ const SOURCES = [
   { id: "ai", label: "AI" },
 ];
 
-const ARTICLE_CLASS = {
+export const ARTICLE_CLASS = {
   der: "text-blue-400",
   die: "text-rose-400",
   das: "text-green-400",

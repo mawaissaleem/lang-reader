@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   clock,
+  newWordCount,
+  ticksFor,
   currentCue,
   scrollTopFor,
   userScrolledRecently,
@@ -64,5 +66,31 @@ describe("scrollTopFor", () => {
   });
   it("never goes negative for a line near the top", () => {
     expect(scrollTopFor(10, 40, 200, 300)).toBe(0);
+  });
+});
+
+describe("newWordCount", () => {
+  const known = (w: string) => (w === "Haus" ? "known" : undefined);
+  it("counts words without a status and skips punctuation", () => {
+    expect(newWordCount("Das Haus, 42 ... ist", known)).toBe(2);
+  });
+});
+
+describe("ticksFor", () => {
+  const two = [
+    { start: 10, end: 12, text: "a" },
+    { start: 50, end: 52, text: "b" },
+    { start: 80, end: 82, text: "c" },
+  ];
+  const counts: Record<string, number> = { a: 2, b: 0, c: 9 };
+  const count = (t: string) => counts[t];
+  it("skips lines without new words and places the rest by start time", () => {
+    expect(ticksFor(two, count, 100).map((t) => t.at)).toEqual([0.1, 0.8]);
+  });
+  it("scales height by count and caps it", () => {
+    expect(ticksFor(two, count, 100).map((t) => t.level)).toEqual([0.4, 1]);
+  });
+  it("is empty while the duration is unknown", () => {
+    expect(ticksFor(two, count, 0)).toEqual([]);
   });
 });
