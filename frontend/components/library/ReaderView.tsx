@@ -19,7 +19,8 @@ export default function ReaderView({
   onBack: () => void;
 }) {
   return (
-    <div className="min-h-screen flex flex-col">
+    // Fixed viewport height: the text and the word panel scroll on their own, so the panel's Save bar stays at the screen bottom.
+    <div className="h-screen flex flex-col">
       {/* Header */}
       <header className="border-b border-white/[0.06] px-6 py-4 flex items-center gap-3 bg-[#0d0d0f]">
         <button

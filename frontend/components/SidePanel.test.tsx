@@ -21,6 +21,11 @@ vi.mock("@/lib/api", () => ({
   syncAnki: vi.fn(),
   pullAnki: vi.fn(),
   fetchAiAnswer: vi.fn(),
+  fetchLlmModels: vi.fn(async () => ({
+    models: [],
+    selected: null,
+    default: null,
+  })),
   addSentenceCard: vi.fn(),
 }));
 
@@ -28,6 +33,7 @@ import {
   addSentenceCard,
   fetchAiAnswer,
   fetchAnkiConnected,
+  fetchLlmModels,
   fetchUserWords,
   lookupWord,
   pullAnki,
@@ -547,5 +553,73 @@ describe("SidePanel reader sentence", () => {
       }),
     );
     expect(screen.queryByRole("button", { name: "+ Anki" })).toBeNull();
+  });
+});
+
+describe("word panel senses", () => {
+  it("shows 3 of 14 senses until expanded", () => {
+    const meanings = Array.from({ length: 14 }, (_, i) => `sense ${i + 1}`);
+    open({ pons: { meanings, word_class: "verb" } });
+    expect(screen.getAllByRole("listitem")).toHaveLength(3);
+    expect(screen.getByRole("tab", { name: /PONS.*3 of 14/ })).toBeTruthy();
+    const toggle = screen.getByRole("button", { name: /Show 11 more senses/ });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(toggle);
+    expect(screen.getAllByRole("listitem")).toHaveLength(14);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("has no toggle for 3 senses or fewer", () => {
+    open({ pons: { meanings: ["a", "b", "c"], word_class: null } });
+    expect(screen.queryByRole("button", { name: /more sense/ })).toBeNull();
+  });
+});
+
+describe("in this sentence box", () => {
+  const withSentence = () => {
+    useStore.setState({ ai: {} });
+    open();
+    act(() => useStore.setState({ selectedSentence: "Das Haus ist groß." }));
+  };
+
+  it("is hidden when Ollama has no model", async () => {
+    withSentence();
+    await act(async () => {});
+    expect(screen.queryByTestId("in-sentence")).toBeNull();
+  });
+
+  it("offers the meaning on request when Ollama is ready", async () => {
+    vi.mocked(fetchAiAnswer).mockReset();
+    vi.mocked(fetchLlmModels).mockResolvedValueOnce({
+      models: [{ name: "qwen", size: 1 }],
+      selected: null,
+      default: null,
+    });
+    withSentence();
+    expect(
+      await screen.findByRole("button", { name: "Meaning in this sentence" }),
+    ).toBeTruthy();
+    expect(fetchAiAnswer).not.toHaveBeenCalled();
+  });
+
+  it("shows a meaning the AI already gave, even without Ollama", async () => {
+    withSentence();
+    act(() =>
+      useStore.setState({
+        ai: {
+          "haus\nDas Haus ist groß.": {
+            status: "done",
+            answer: {
+              result: { meaning_in_context: "a building to live in" },
+              model: "qwen",
+              cached: true,
+            },
+          },
+        },
+      } as never),
+    );
+    expect(screen.getByTestId("in-sentence").textContent).toContain(
+      "a building to live in",
+    );
   });
 });

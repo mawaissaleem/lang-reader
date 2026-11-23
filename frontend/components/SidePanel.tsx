@@ -6,7 +6,9 @@ import clsx from "clsx";
 import React from "react";
 import AiTab from "@/components/AiTab";
 import AnkiFooter from "@/components/AnkiFooter";
+import InSentenceBox from "@/components/InSentenceBox";
 import PlayButton from "@/components/PlayButton";
+import SenseList, { SENSE_LIMIT } from "@/components/SenseList";
 import SentenceBlock from "@/components/SentenceBlock";
 import { useAnkiOutbox } from "@/lib/useAnkiOutbox";
 
@@ -51,6 +53,9 @@ export default function SidePanel() {
   } = useStore();
 
   const [showPref, setShowPref] = React.useState(false);
+  // the word whose senses are all shown; a new word starts folded again
+  const [expandedWord, setExpandedWord] = React.useState<string | null>(null);
+  const expanded = !!wordResult && expandedWord === wordResult.word;
   const anki = useAnkiOutbox();
   async function save(withAnki: boolean) {
     await saveSelectedWord(withAnki);
@@ -214,27 +219,38 @@ export default function SidePanel() {
                   </div>
                 </div>
 
+                {activeSource !== "ai" && <InSentenceBox />}
+
                 {/* One tab per source — switching never re-queries */}
                 <div
                   role="tablist"
                   className="flex gap-4 border-b border-white/[0.07]"
                 >
-                  {tabs.map((t) => (
-                    <button
-                      key={t.id}
-                      role="tab"
-                      aria-selected={activeSource === t.id}
-                      onClick={() => setActiveSource(t.id)}
-                      className={clsx(
-                        "pb-2 -mb-px text-[11px] font-semibold tracking-widest uppercase border-b-2 transition-colors",
-                        activeSource === t.id
-                          ? "border-blue-400 text-blue-300"
-                          : "border-transparent text-white/30 hover:text-white/55",
-                      )}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
+                  {tabs.map((t) => {
+                    const total =
+                      wordResult.translations[t.id]?.meanings.length ?? 0;
+                    return (
+                      <button
+                        key={t.id}
+                        role="tab"
+                        aria-selected={activeSource === t.id}
+                        onClick={() => setActiveSource(t.id)}
+                        className={clsx(
+                          "pb-2 -mb-px text-[11px] font-semibold tracking-widest uppercase border-b-2 transition-colors",
+                          activeSource === t.id
+                            ? "border-blue-400 text-blue-300"
+                            : "border-transparent text-white/30 hover:text-white/55",
+                        )}
+                      >
+                        {t.label}
+                        {total > SENSE_LIMIT && (
+                          <span className="ml-1.5 font-normal normal-case tracking-normal text-white/30">
+                            {expanded ? total : `${SENSE_LIMIT} of ${total}`}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
 
                 {/* Meanings */}
@@ -248,19 +264,13 @@ export default function SidePanel() {
                     <p className="text-[10px] font-bold tracking-widest uppercase text-blue-400 mb-2.5">
                       English
                     </p>
-                    <ul className="flex flex-col gap-1.5 m-0 p-0 list-none">
-                      {active.meanings.map((meaning, i) => (
-                        <li
-                          key={i}
-                          className="flex gap-2 text-[13px] text-white/75 leading-relaxed"
-                        >
-                          <span className="text-blue-400/50 tabular-nums flex-shrink-0">
-                            {i + 1}.
-                          </span>
-                          {meaning}
-                        </li>
-                      ))}
-                    </ul>
+                    <SenseList
+                      meanings={active.meanings}
+                      expanded={expanded}
+                      onToggle={() =>
+                        setExpandedWord(expanded ? null : wordResult.word)
+                      }
+                    />
                   </div>
                 ) : (
                   <div
