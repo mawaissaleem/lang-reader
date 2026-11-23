@@ -12,6 +12,7 @@ vi.mock("@/lib/api", () => ({
   API_BASE_URL: "http://localhost:8000",
   USER_ID: 1,
   fetchAnkiOverview: vi.fn(),
+  fetchAnkiConnected: vi.fn(async () => true),
   fetchAnkiFields: vi.fn(),
   importAnkiKnown: vi.fn(),
   fetchUserWords: vi.fn(async () => []),

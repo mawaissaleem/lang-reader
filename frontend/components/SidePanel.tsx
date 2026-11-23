@@ -189,7 +189,7 @@ export default function SidePanel() {
                     <h2
                       className="text-[26px] font-bold text-white/90 m-0 leading-tight tracking-tight"
                       style={{
-                        fontFamily: "'DM Serif Display', Georgia, serif",
+                        fontFamily: "var(--font-dm-serif), Georgia, serif",
                       }}
                     >
                       {wordResult.clicked.toLowerCase() !==

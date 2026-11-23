@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import AppNav from "@/components/AppNav";
 import { fetchProgressHistory, USER_ID } from "@/lib/api";
 import { axisLabels, chartPoints, type ProgressHistory } from "@/lib/history";
 
@@ -21,23 +21,10 @@ export default function ProgressPage() {
   const today = new Date().toLocaleDateString("en-CA");
 
   return (
-    <main
-      className="min-h-screen bg-[#0a0a0f] px-6 py-10 text-white"
-      style={{ fontFamily: "'DM Sans', sans-serif" }}
-    >
-      <div className="mx-auto max-w-2xl">
-        <Link
-          href="/library"
-          className="text-sm text-white/40 hover:text-white/80"
-        >
-          ← Library
-        </Link>
-        <h1
-          className="mt-4 text-3xl"
-          style={{ fontFamily: "'DM Serif Display', serif" }}
-        >
-          Progress
-        </h1>
+    <div className="min-h-screen bg-bg text-ink">
+      <AppNav />
+      <main className="mx-auto max-w-2xl px-6 py-10">
+        <h1 className="font-serif text-3xl">Progress</h1>
         {error && <p className="mt-6 text-sm text-red-400">{error}</p>}
         {!data && !error && (
           <p className="mt-6 text-sm text-white/40">Loading…</p>
@@ -87,20 +74,15 @@ export default function ProgressPage() {
             </section>
           </>
         )}
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-      <div
-        className="text-3xl"
-        style={{ fontFamily: "'DM Serif Display', serif" }}
-      >
-        {value}
-      </div>
+      <div className="font-serif text-3xl">{value}</div>
       <div className="mt-1 text-xs text-white/50">{label}</div>
     </div>
   );

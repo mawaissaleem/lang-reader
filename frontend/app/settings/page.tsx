@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import AppNav from "@/components/AppNav";
 import {
   fetchAnkiOverview,
   fetchAnkiFields,
@@ -137,25 +137,10 @@ export default function SettingsPage() {
     setChosen((c) => (c.includes(d) ? c.filter((x) => x !== d) : [...c, d]));
 
   return (
-    <div
-      className="min-h-screen bg-[#0d0d0f] text-white/85"
-      style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}
-    >
-      <header className="border-b border-white/[0.06] px-6 py-4">
-        <Link
-          href="/library"
-          className="text-sm text-white/40 hover:text-white/80"
-        >
-          ← Library
-        </Link>
-      </header>
+    <div className="min-h-screen bg-bg text-ink">
+      <AppNav />
       <main className="mx-auto max-w-xl px-6 py-12 flex flex-col gap-6">
-        <h1
-          className="text-4xl text-white"
-          style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}
-        >
-          Settings
-        </h1>
+        <h1 className="font-serif text-4xl text-white">Settings</h1>
         <label className="flex flex-col gap-1 text-sm font-medium text-slate-200">
           Model
           <select

@@ -265,7 +265,7 @@ export default function EntryCard({
                     fontSize: "17px",
                     fontWeight: 600,
                     color: "rgba(255,255,255,0.92)",
-                    fontFamily: "'DM Serif Display', Georgia, serif",
+                    fontFamily: "var(--font-dm-serif), Georgia, serif",
                     letterSpacing: "-0.01em",
                     background: "rgba(255,255,255,0.08)",
                     border: "1px solid rgba(255,255,255,0.2)",
@@ -284,7 +284,7 @@ export default function EntryCard({
                       color: "rgba(255,255,255,0.92)",
                       margin: 0,
                       lineHeight: 1.35,
-                      fontFamily: "'DM Serif Display', Georgia, serif",
+                      fontFamily: "var(--font-dm-serif), Georgia, serif",
                       letterSpacing: "-0.01em",
                     }}
                   >

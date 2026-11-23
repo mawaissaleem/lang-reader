@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { fetchLibrary, entryKey, USER_ID } from "@/lib/api";
+import AppNav from "@/components/AppNav";
 import AddTextDialog from "@/components/AddTextDialog";
 import ImportYouTubeDialog from "@/components/ImportYouTubeDialog";
 import EntryCard from "@/components/library/EntryCard";
@@ -51,92 +51,25 @@ export default function LibraryPage() {
         minHeight: "100vh",
         background: "#0d0d0f",
         color: "rgba(255,255,255,0.85)",
-        fontFamily: "'DM Sans', system-ui, sans-serif",
+        fontFamily: "var(--font-dm-sans), system-ui, sans-serif",
       }}
     >
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap');
-        * { box-sizing: border-box; }
-        body { margin: 0; }
-      `}</style>
-
-      {/* Top nav */}
-      <header
-        style={{
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
-          padding: "18px 40px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <div
-          style={{
-            fontSize: "18px",
-            fontWeight: 700,
-            letterSpacing: "-0.02em",
-            fontFamily: "'DM Serif Display', Georgia, serif",
-            color: "#fff",
+      <AppNav>
+        <ImportYouTubeDialog
+          triggerClassName="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          onImported={(latest) => setEntries(latest)}
+        />
+        <AddTextDialog
+          triggerLabel="Add Text"
+          triggerClassName="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          onLoadText={(entry) => {
+            open(entry);
+            fetchLibrary()
+              .then(setEntries)
+              .catch((err) => console.error("Library refresh failed", err));
           }}
-        >
-          leseraum
-          <span style={{ color: "rgba(255,255,255,0.2)", fontWeight: 400 }}>
-            .de
-          </span>
-        </div>
-        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-          {["Library", "Vocabulary", "Stats"].map((item) => (
-            <button
-              key={item}
-              style={{
-                all: "unset",
-                cursor: "pointer",
-                fontSize: "13px",
-                color:
-                  item === "Library"
-                    ? "rgba(255,255,255,0.85)"
-                    : "rgba(255,255,255,0.3)",
-                padding: "6px 14px",
-                borderRadius: "8px",
-                background:
-                  item === "Library" ? "rgba(255,255,255,0.07)" : "transparent",
-                transition: "all 0.15s",
-              }}
-            >
-              {item}
-            </button>
-          ))}
-
-          <Link
-            href="/progress"
-            className="px-3.5 py-1.5 text-[13px] text-white/30 hover:text-white/70"
-          >
-            Progress
-          </Link>
-          <Link
-            href="/settings"
-            className="px-3.5 py-1.5 text-[13px] text-white/30 hover:text-white/70"
-          >
-            Settings
-          </Link>
-
-          <ImportYouTubeDialog
-            triggerClassName="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-white/10"
-            onImported={(latest) => setEntries(latest)}
-          />
-
-          <AddTextDialog
-            triggerLabel="Add Text"
-            triggerClassName="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-white/10"
-            onLoadText={(entry) => {
-              open(entry);
-              fetchLibrary()
-                .then(setEntries)
-                .catch((err) => console.error("Library refresh failed", err));
-            }}
-          />
-        </div>
-      </header>
+        />
+      </AppNav>
 
       <main
         style={{
@@ -151,7 +84,7 @@ export default function LibraryPage() {
             style={{
               fontSize: "clamp(32px, 5vw, 48px)",
               fontWeight: 400,
-              fontFamily: "'DM Serif Display', Georgia, serif",
+              fontFamily: "var(--font-dm-serif), Georgia, serif",
               letterSpacing: "-0.02em",
               margin: "0 0 10px 0",
               color: "#fff",

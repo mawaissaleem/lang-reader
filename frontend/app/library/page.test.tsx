@@ -18,6 +18,7 @@ vi.mock("@/lib/api", async (orig) => ({
   deleteEntry: vi.fn(),
   fetchUserWords: vi.fn(async () => []),
   fetchTranslatorPriority: vi.fn(async () => []),
+  fetchAnkiConnected: vi.fn(async () => true),
 }));
 vi.mock("next/link", () => ({
   default: ({ children }: { children: React.ReactNode }) => <a>{children}</a>,
