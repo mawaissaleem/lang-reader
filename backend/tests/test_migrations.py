@@ -1,3 +1,4 @@
+import json
 import os
 import sqlite3
 import tempfile
@@ -296,6 +297,38 @@ class MigrationTests(unittest.TestCase):
         self.assertNotIn(
             "sentence_cards", inspect(create_engine(self.url)).get_table_names()
         )
+
+    def test_0014_decodes_html_entities_in_pons_meanings(self):
+        from alembic import command
+
+        cfg = Config(str(BASE_DIR / "alembic.ini"))
+        cfg.set_main_option("sqlalchemy.url", self.url)
+        command.upgrade(cfg, "0013")
+        encoded = '["it&#39;s", "a &amp;lt; b"]'
+        other = '["it&#39;s"]'
+        with sqlite3.connect(self.path) as c:
+            c.execute(
+                "insert into dictionary (id, german_word, english_meanings, source, raw_response) "
+                "values (1, 'es', ?, 'pons', ?), (2, 'tee', ?, 'libretranslate', null)",
+                (encoded, encoded, other),
+            )
+            c.execute(
+                "insert into translations (word_id, source, meanings, raw_response) "
+                "values (1, 'pons', ?, ?), (2, 'libretranslate', ?, null)",
+                (encoded, encoded, other),
+            )
+        command.upgrade(cfg, "head")
+        with sqlite3.connect(self.path) as c:
+            dictionary = c.execute(
+                "select english_meanings, raw_response from dictionary order by id"
+            ).fetchall()
+            translations = c.execute(
+                "select meanings, raw_response from translations order by word_id"
+            ).fetchall()
+        for rows in (dictionary, translations):
+            self.assertEqual(json.loads(rows[0][0]), ["it's", "a &lt; b"])
+            self.assertEqual(rows[0][1], encoded)
+            self.assertEqual(rows[1][0], other)
 
     def test_rerun_is_noop(self):
         run_migrations(self.url)

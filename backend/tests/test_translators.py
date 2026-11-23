@@ -52,6 +52,30 @@ class TestTranslators(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(res["translations"], ["house", "home"])
             self.assertEqual(res["source"], "pons")
 
+    async def test_pons_decodes_html_entities_once(self):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        targets = ["it&#39;s <b>nothing</b>", "a &amp;lt; b"]
+        mock_response.json.return_value = [
+            {
+                "hits": [
+                    {
+                        "roms": [
+                            {
+                                "arabs": [
+                                    {"translations": [{"target": x} for x in targets]}
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+        with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = mock_response
+            res = await method1_pons("haus", "dummy_key")
+        self.assertEqual(res["translations"], ["it's nothing", "a &lt; b"])
+
     async def test_pons_not_found_204(self):
         mock_response = MagicMock()
         mock_response.status_code = 204

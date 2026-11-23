@@ -1,3 +1,5 @@
+import html
+
 import httpx
 from typing import Optional, Dict, Any
 
@@ -73,7 +75,8 @@ async def method1_pons(word: str, api_key: Optional[str]) -> Dict[str, Any]:
                 word_class = rom["wordclass"]
             for arab in rom.get("arabs", []):
                 for translation in arab.get("translations", []):
-                    english = strip_html(translation.get("target", ""))
+                    # PONS sends entities like &#39;; decode once, after tags are stripped
+                    english = html.unescape(strip_html(translation.get("target", "")))
                     if english and english not in translations:
                         translations.append(english)
 
