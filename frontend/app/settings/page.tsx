@@ -1,27 +1,73 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import AppNav from "@/components/AppNav";
+import AiModel, { select } from "@/components/settings/AiModel";
+import DeckCards from "@/components/settings/DeckCards";
+import ReadingSection from "@/components/settings/ReadingSection";
+import ServicesList from "@/components/settings/ServicesList";
+import TranslatorOrder, {
+  type Provider,
+} from "@/components/settings/TranslatorOrder";
 import {
   fetchAnkiOverview,
   fetchAnkiFields,
   importAnkiKnown,
-  fetchLlmModels,
-  fetchRunningModels,
-  unloadLlmModel,
-  unloadsIn,
-  type RunningModel,
-  saveLlmModel,
-  type LlmModels,
   API_BASE_URL,
   USER_ID,
 } from "@/lib/api";
 import useStore from "@/store/useStore";
 
-const select =
-  "w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white";
+const SECTIONS = [
+  { id: "reading", title: "Reading" },
+  { id: "services", title: "Services" },
+  { id: "translations", title: "Translations" },
+  { id: "anki", title: "Anki" },
+  { id: "keyboard", title: "Keyboard" },
+];
+
+// the reader's hotkeys, as the reader defines them
+const HOTKEYS = [
+  ["1 / 2 / 3", "Mark the selected word as learning 1, 2 or 3"],
+  ["K", "Mark the selected word as known"],
+  ["I", "Ignore the selected word"],
+  ["H", "Turn highlights on or off"],
+  ["F", "Turn focus mode on or off"],
+  ["E", "Show or hide the English line (videos)"],
+  ["Left / Right arrow", "Previous or next page of a long text"],
+  ["Shift + click", "Extend the selection to a phrase or a separable verb"],
+];
+
+function Section({
+  id,
+  title,
+  intro,
+  children,
+}: {
+  id: string;
+  title: string;
+  intro: string;
+  children: ReactNode;
+}) {
+  return (
+    <section
+      id={id}
+      aria-labelledby={`${id}-title`}
+      className="scroll-mt-6 rounded-2xl border border-line bg-surface p-6"
+    >
+      <h2 id={`${id}-title`} className="font-serif text-2xl text-ink">
+        {title}
+      </h2>
+      <p className="mb-5 mt-1 text-sm text-muted">{intro}</p>
+      <div className="flex flex-col gap-5">{children}</div>
+    </section>
+  );
+}
 
 export default function SettingsPage() {
   const loadUserWords = useStore((s) => s.loadUserWords);
+  const priority = useStore((s) => s.translatorPriority);
+  const setPriority = useStore((s) => s.setTranslatorPriority);
+  const loadPriority = useStore((s) => s.loadTranslatorPriority);
   const [decks, setDecks] = useState<string[]>([]);
   const [models, setModels] = useState<string[]>([]);
   const [fields, setFields] = useState<string[]>([]);
@@ -36,58 +82,13 @@ export default function SettingsPage() {
     skipped: number;
   } | null>(null);
 
-  const [llm, setLlm] = useState<LlmModels | null>(null);
-  const [llmError, setLlmError] = useState<string | null>(null);
-  const [running, setRunning] = useState<RunningModel[]>([]);
+  useEffect(() => loadPriority(), [loadPriority]);
 
-  useEffect(() => {
-    const load = () =>
-      Promise.all([fetchLlmModels(), fetchRunningModels()])
-        .then(([m, r]) => {
-          setLlm(m);
-          setRunning(r);
-          setLlmError(null);
-        })
-        .catch((e: Error) => {
-          setLlm(null);
-          setLlmError(e.message);
-        });
-    load();
-    window.addEventListener("focus", load); // a model pulled in another window shows up on return
-    return () => window.removeEventListener("focus", load);
-  }, []);
-
-  async function chooseModel(name: string) {
-    try {
-      await saveLlmModel(name || null);
-      setLlm((cur) => cur && { ...cur, selected: name || null });
-      setLlmError(null);
-    } catch (e) {
-      setLlmError(e instanceof Error ? e.message : "Could not save the model");
-    }
-  }
-
-  const active = llm?.selected ?? llm?.default ?? null;
-  // /api/ps names always carry a tag, the OLLAMA_MODEL default may not
-  const tagged = active && !active.includes(":") ? `${active}:latest` : active;
-  const loaded = running.find((r) => r.name === tagged);
-
-  async function unload() {
-    if (!active) return;
-    try {
-      await unloadLlmModel(active);
-      setRunning(await fetchRunningModels());
-      setLlmError(null);
-    } catch (e) {
-      setLlmError(
-        e instanceof Error ? e.message : "Could not unload the model",
-      );
-    }
-  }
-
-  const gb = (n: number) => `${(n / 1e9).toFixed(1)} GB`;
-  const missing =
-    llm?.selected && !llm.models.some((m) => m.name === llm.selected);
+  // the stored choice is the first translator; the other one follows it as the fallback
+  const order: Provider[] =
+    priority === "pons"
+      ? ["pons", "libretranslate"]
+      : ["libretranslate", "pons"];
 
   useEffect(() => {
     fetchAnkiOverview()
@@ -139,142 +140,149 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-bg text-ink">
       <AppNav />
-      <main className="mx-auto max-w-xl px-6 py-12 flex flex-col gap-6">
-        <h1 className="font-serif text-4xl text-white">Settings</h1>
-        <label className="flex flex-col gap-1 text-sm font-medium text-slate-200">
-          Model
-          <select
-            className={select}
-            value={missing ? "" : (llm?.selected ?? "")}
-            onChange={(e) => chooseModel(e.target.value)}
-            disabled={!llm}
+      <div className="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-12 md:flex-row">
+        <aside className="md:w-48 md:flex-none">
+          <h1 className="mb-6 font-serif text-4xl text-ink">Settings</h1>
+          <nav
+            aria-label="Settings sections"
+            className="flex flex-wrap gap-1 md:sticky md:top-6 md:flex-col"
           >
-            <option value="">Default ({llm?.default ?? "none set"})</option>
-            {llm?.models.map((m) => (
-              <option key={m.name} value={m.name}>
-                {m.name} ({gb(m.size)})
-              </option>
-            ))}
-          </select>
-          <span className="text-xs font-normal text-slate-400">
-            Used for AI answers in the reader. Every model in your Ollama is
-            listed.
-          </span>
-        </label>
-        {active && llm && (
-          <p className="flex items-center gap-3 text-sm text-slate-300">
-            {loaded
-              ? `${active} is loaded, ${unloadsIn(loaded.expires_at)}`
-              : `${active} is not loaded`}
-            {loaded && (
-              <button
-                type="button"
-                onClick={unload}
-                className="rounded-lg bg-slate-700 px-3 py-1 text-white hover:bg-slate-600"
+            {SECTIONS.map((s) => (
+              <a
+                key={s.id}
+                href={`#${s.id}`}
+                className="rounded-lg px-3 py-2 text-sm text-muted hover:bg-surface hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
-                Unload
-              </button>
-            )}
-          </p>
-        )}
-        {llmError && (
-          <p role="alert" className="text-sm text-red-400">
-            {llmError}
-            {!llm && ". Start Ollama and refocus this window."}
-          </p>
-        )}
-        {missing && (
-          <p className="text-sm text-amber-400">
-            The saved model &quot;{llm?.selected}&quot; is no longer installed,
-            so the default is used.
-          </p>
-        )}
+                {s.title}
+              </a>
+            ))}
+          </nav>
+          <p className="mt-4 px-3 text-xs text-faint">Changes save instantly</p>
+        </aside>
 
-        <p className="text-sm text-slate-400">
-          Import the German words from your Anki decks as known, so the reader
-          highlights them. Anki is only read, never changed.
-        </p>
+        <main className="flex min-w-0 flex-1 flex-col gap-6">
+          <Section
+            id="reading"
+            title="Reading"
+            intro="How text looks while you read. The previews update as you change things."
+          >
+            <ReadingSection />
+          </Section>
 
-        <fieldset className="flex flex-col gap-1">
-          <legend className="mb-1 text-sm font-medium text-slate-200">
-            Decks
-          </legend>
-          <div className="max-h-48 overflow-y-auto rounded-lg border border-white/10 p-2">
-            {decks.map((d) => (
-              <label key={d} className="flex items-center gap-2 py-1 text-sm">
-                <input
-                  type="checkbox"
-                  checked={chosen.includes(d)}
-                  onChange={() => toggle(d)}
-                />
-                {d}
+          <Section
+            id="services"
+            title="Services"
+            intro="Everything the app talks to, in one place. Each row: status, what it means, one action."
+          >
+            <ServicesList />
+          </Section>
+
+          <Section
+            id="translations"
+            title="Translations"
+            intro="The first translator opens when you click a word. The other is the fallback."
+          >
+            <TranslatorOrder
+              order={order}
+              onChange={(next) => setPriority(next[0])}
+            />
+            <AiModel />
+          </Section>
+
+          <Section
+            id="anki"
+            title="Anki"
+            intro="Mark the words you already know in Anki as known here. Anki is only read, never changed."
+          >
+            <p className="text-sm text-ink">Decks to import</p>
+            <DeckCards decks={decks} chosen={chosen} onToggle={toggle} />
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="flex flex-col gap-1 text-sm text-ink">
+                Note type
+                <select
+                  className={select}
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                >
+                  <option value="" disabled>
+                    Choose…
+                  </option>
+                  {models.map((m) => (
+                    <option key={m}>{m}</option>
+                  ))}
+                </select>
               </label>
-            ))}
-          </div>
-        </fieldset>
+              <label className="flex flex-col gap-1 text-sm text-ink">
+                Field with the German word
+                <select
+                  className={select}
+                  value={field}
+                  onChange={(e) => setField(e.target.value)}
+                  disabled={!fields.length}
+                >
+                  {fields.map((f) => (
+                    <option key={f}>{f}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
 
-        <label className="flex flex-col gap-1 text-sm font-medium text-slate-200">
-          Note type
-          <select
-            className={select}
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
+            <button
+              onClick={run}
+              disabled={busy || !chosen.length || !model || !field}
+              className="self-start rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-40"
+            >
+              {busy
+                ? "Importing…"
+                : `Import ${chosen.length} deck${chosen.length === 1 ? "" : "s"} as known`}
+            </button>
+
+            <p className="text-sm text-muted">
+              No desktop Anki?{" "}
+              <a
+                className="text-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                href={`${API_BASE_URL}/anki/export.apkg?user_id=${USER_ID}`}
+              >
+                Export .apkg
+              </a>{" "}
+              and import it by hand. Importing it again updates the same cards.
+            </p>
+
+            {error && (
+              <p role="alert" className="text-sm text-[var(--hard)]">
+                {error}
+              </p>
+            )}
+            {result && (
+              <p className="text-sm text-muted">
+                Imported {result.imported} new words. {result.already_known}{" "}
+                were already in your list (left as they are), {result.skipped}{" "}
+                cards had no single word.
+              </p>
+            )}
+          </Section>
+
+          <Section
+            id="keyboard"
+            title="Keyboard"
+            intro="Shortcuts in the reader. Single keys are ignored while you type in a field."
           >
-            <option value="" disabled>
-              Choose…
-            </option>
-            {models.map((m) => (
-              <option key={m}>{m}</option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex flex-col gap-1 text-sm font-medium text-slate-200">
-          Field with the German word
-          <select
-            className={select}
-            value={field}
-            onChange={(e) => setField(e.target.value)}
-            disabled={!fields.length}
-          >
-            {fields.map((f) => (
-              <option key={f}>{f}</option>
-            ))}
-          </select>
-        </label>
-
-        <button
-          onClick={run}
-          disabled={busy || !chosen.length || !model || !field}
-          className="self-start rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-40"
-        >
-          {busy ? "Importing…" : "Import as known"}
-        </button>
-
-        <p className="text-sm text-slate-400">
-          No desktop Anki?{" "}
-          <a
-            className="text-blue-400 hover:underline"
-            href={`${API_BASE_URL}/anki/export.apkg?user_id=${USER_ID}`}
-          >
-            Export .apkg
-          </a>{" "}
-          and import it by hand. Importing it again updates the same cards.
-        </p>
-
-        {error && (
-          <p role="alert" className="text-sm text-red-400">
-            {error}
-          </p>
-        )}
-        {result && (
-          <p className="text-sm text-slate-300">
-            Imported {result.imported} new words. {result.already_known} were
-            already in your list (left as they are), {result.skipped} cards had
-            no single word.
-          </p>
-        )}
-      </main>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+              {HOTKEYS.map(([keys, what]) => (
+                <div key={keys} className="contents">
+                  <dt>
+                    <kbd className="rounded border border-line px-1.5 py-0.5 text-[12px] text-ink">
+                      {keys}
+                    </kbd>
+                  </dt>
+                  <dd className="text-muted">{what}</dd>
+                </div>
+              ))}
+            </dl>
+          </Section>
+        </main>
+      </div>
     </div>
   );
 }

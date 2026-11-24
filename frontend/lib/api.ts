@@ -351,6 +351,18 @@ export async function fetchAnkiConnected(): Promise<boolean> {
   }
 }
 
+export interface ServiceStatus {
+  ok: boolean;
+  detail: string;
+}
+
+/** Up/down state with a plain-words detail for PONS, LibreTranslate, Ollama and Piper. */
+export async function fetchServicesStatus(): Promise<
+  Record<"pons" | "libretranslate" | "ollama" | "piper", ServiceStatus>
+> {
+  return readJson(await fetch(`${API_BASE_URL}/services/status`));
+}
+
 export async function fetchAnkiPending(): Promise<number> {
   try {
     const r = await fetch(`${API_BASE_URL}/anki/pending`);

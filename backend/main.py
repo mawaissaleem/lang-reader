@@ -25,6 +25,7 @@ from routers import (
     library,
     llm,
     progress,
+    services,
     translation,
     tts,
     words,
@@ -75,7 +76,17 @@ app.add_middleware(
 )
 
 
-for module in (imports, library, words, translation, anki, llm, tts, progress):
+for module in (
+    imports,
+    library,
+    words,
+    translation,
+    anki,
+    llm,
+    tts,
+    progress,
+    services,
+):
     app.include_router(module.router)
 
 

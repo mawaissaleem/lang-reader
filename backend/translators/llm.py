@@ -179,6 +179,17 @@ async def list_models():
         ) from e
 
 
+async def is_up(timeout: float) -> bool:
+    """True when Ollama's model list answers in time; never raises."""
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as c:
+            r = await c.get(f"{OLLAMA_URL}/api/tags")
+        return r.is_success
+    # a bad .env URL raises many types (InvalidURL, ValueError for port > 65535, UnicodeError for IDNA); all mean "down"
+    except Exception:
+        return False
+
+
 async def running_models():
     """Models Ollama holds in memory right now: [{"name", "expires_at"}]."""
     try:

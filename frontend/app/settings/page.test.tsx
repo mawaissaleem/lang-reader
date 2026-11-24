@@ -13,6 +13,9 @@ vi.mock("@/lib/api", () => ({
   USER_ID: 1,
   fetchAnkiOverview: vi.fn(),
   fetchAnkiConnected: vi.fn(async () => true),
+  fetchAnkiPending: vi.fn(async () => 0),
+  fetchServicesStatus: vi.fn(async () => new Promise(() => {})),
+  ttsUrl: (t: string) => t,
   fetchAnkiFields: vi.fn(),
   importAnkiKnown: vi.fn(),
   fetchUserWords: vi.fn(async () => []),
@@ -78,7 +81,7 @@ describe("SettingsPage", () => {
     fireEvent.change(screen.getByLabelText("Field with the German word"), {
       target: { value: "de_word" },
     });
-    fireEvent.click(screen.getByText("Import as known"));
+    fireEvent.click(screen.getByText("Import 1 deck as known"));
     await screen.findByText(/Imported 3 new words/);
     expect(importAnkiKnown).toHaveBeenCalledWith(1, {
       decks: ["Goethe"],
@@ -98,7 +101,7 @@ describe("SettingsPage", () => {
 
   it("lists every model with its size and saves the choice", async () => {
     render(<SettingsPage />);
-    fireEvent.change(await screen.findByLabelText(/^Model/), {
+    fireEvent.change(await screen.findByLabelText(/^AI model/), {
       target: { value: "big:70b" },
     });
     expect(screen.getByText("big:70b (40.0 GB)")).toBeTruthy();

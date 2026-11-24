@@ -64,3 +64,14 @@ async def method2_libretranslate(
         "source": "libretranslate",
         "raw_response": data,
     }
+
+
+async def is_up(base_url: str, timeout: float) -> bool:
+    """True when LibreTranslate's /languages list answers in time (no translation is run); never raises."""
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.get(f"{base_url.rstrip('/')}/languages")
+        return response.is_success
+    # a bad .env URL raises many types (InvalidURL, ValueError for port > 65535, UnicodeError for IDNA); all mean "down"
+    except Exception:
+        return False
