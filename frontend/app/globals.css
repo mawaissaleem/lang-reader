@@ -16,6 +16,8 @@
     --accent-foreground: 240 10% 10%;
     --radius: 0.5rem;
 
+    /* native controls (select option lists, scrollbars) follow the dark theme */
+    color-scheme: dark;
     /* shared look: dark surfaces, blue accent, amber for words being learned */
     --bg: #0d0d0f;
     --surface: #15161a;
@@ -52,9 +54,16 @@
     --gender-das: #4ade80;
   }
 
+  /* option lists ignore the select's background on some platforms; paint them from the theme */
+  option {
+    background-color: var(--surface);
+    color: var(--text);
+  }
+
   /* Paper: warm light reading theme; the reader sets data-theme="paper" on the page it themes.
      Every status text keeps 4.5:1 against the paper background (checked by a unit test). */
   [data-theme="paper"] {
+    color-scheme: light;
     --bg: #f6f1e7;
     --surface: #fbf7ee;
     --surface-2: #efe8d8;
