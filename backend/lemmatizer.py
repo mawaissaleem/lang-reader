@@ -63,6 +63,31 @@ def phrase(words: str, sentence: str | None) -> str:
     return particle.text.lower() + verb_lemma(verb, verb.text.lower())
 
 
+def separable_particle(word: str, sentence: str | None) -> tuple[str, int] | None:
+    """(particle, skip) for the split-off particle (PTKVZ) of the verb `word` in `sentence` (an in "fängt um acht an"), else None.
+    `skip` counts the words with the particle's text between verb and particle (the preposition in "kommt an der Haltestelle an"),
+    so the reader can pick the same occurrence.
+    shortcut: the model has no parser, so this takes the first particle after the verb before the next verb or
+    punctuation; a verb in a long clause with other verbs between may miss it, upgrade to the dependency parse if so"""
+    if nlp is None or not sentence or " " in word:
+        return None
+    tokens = list(nlp(sentence))
+    verb = next(
+        (i for i, t in enumerate(tokens) if t.text.lower() == word.lower()), None
+    )
+    if verb is None or tokens[verb].pos_ not in ("VERB", "AUX"):
+        return None
+    after = tokens[verb + 1 :]
+    for i, tok in enumerate(after):
+        if tok.tag_ == "PTKVZ":
+            text = tok.text.lower()
+            skip = sum(1 for t in after[:i] if t.text.lower() == text)
+            return tok.text, skip
+        if tok.pos_ in ("VERB", "AUX", "PUNCT"):
+            return None
+    return None
+
+
 def analyze(
     word: str, sentence: str | None = None
 ) -> tuple[str, str | None, str | None]:

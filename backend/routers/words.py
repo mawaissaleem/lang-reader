@@ -12,7 +12,7 @@ import history
 import saved_words
 from anki import AnkiError, send_pending
 from database import get_db
-from lemmatizer import word_key
+from lemmatizer import separable_particle, word_key
 from models import Dictionary, UserWord
 from translation_pipeline import parse_priority
 
@@ -63,7 +63,7 @@ async def lookup_word(
     )
     found = dictionary.translations_with_meanings(cached, word, errors)
     dictionary.record_lookup(db, entry, now)
-    return dictionary.lookup_response(
+    res = dictionary.lookup_response(
         entry=entry,
         clicked=clicked,
         pos=pos,
@@ -72,6 +72,11 @@ async def lookup_word(
         found=found,
         errors=errors,
     )
+    # lets the reader select the verb's split-off particle too, so the lookup becomes the merged verb
+    particle = separable_particle(clicked, sentence)
+    if particle:
+        res["particle"], res["particle_skip"] = particle
+    return res
 
 
 def _user_word_json(uw: UserWord) -> dict:

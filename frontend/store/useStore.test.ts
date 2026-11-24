@@ -182,6 +182,39 @@ describe("lookup with sentence", () => {
     );
   });
 
+  it("a late particle lookup from an earlier click leaves the newer selection alone", async () => {
+    let resolveFirst: (v: never) => void = () => {};
+    const withParticle = {
+      ...(result as object),
+      translations: {},
+      preferred: "pons",
+      source: "pons",
+      particle: "an",
+      particle_skip: 0,
+    };
+    vi.mocked(lookupWord)
+      .mockReset()
+      .mockImplementationOnce(() => new Promise((r) => (resolveFirst = r)))
+      .mockResolvedValue({ ...withParticle, particle: undefined } as never);
+    const findFirst = vi.fn(() => ({ id: "0:6", word: "an" }));
+    // the same word in two sentences: the first lookup resolves after the second click
+    const first = useStore
+      .getState()
+      .setSelectedWord(
+        "fängt",
+        "Er fängt an.",
+        [{ id: "0:2", word: "fängt" }],
+        findFirst,
+      );
+    const newer = [{ id: "1:2", word: "fängt" }];
+    await useStore.getState().setSelectedWord("fängt", "Sie fängt nie.", newer);
+    resolveFirst(withParticle as never);
+    await first;
+    expect(findFirst).not.toHaveBeenCalled();
+    expect(useStore.getState().selectedTokens).toBe(newer);
+    expect(lookupWord).toHaveBeenCalledTimes(2);
+  });
+
   it("status of an inflected click applies to the saved base form", async () => {
     vi.mocked(patchWordStatus).mockResolvedValue(undefined as never);
     useStore.setState({

@@ -17,6 +17,7 @@ vi.mock("@/components/WordToken", async (orig) => {
   const mod = await orig<typeof import("@/components/WordToken")>();
   const Real = mod.default;
   return {
+    ...mod,
     default: (p: {
       word: string;
       highlightMode: "underline" | "highlight";

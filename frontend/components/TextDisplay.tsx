@@ -1,9 +1,9 @@
 "use client";
 import useStore from "@/store/useStore";
-import WordToken from "@/components/WordToken";
+import WordToken, { WordGap } from "@/components/WordToken";
 import ReaderFooter from "@/components/ReaderFooter";
 import { useStatusHotkeys } from "@/lib/useStatusHotkeys";
-import { sentenceAt } from "@/lib/words";
+import { particleToken, sentenceAt } from "@/lib/words";
 
 export default function TextDisplay() {
   const text = useStore((s) => s.text);
@@ -37,7 +37,7 @@ export default function TextDisplay() {
             >
               {tokens.map((token, ti) =>
                 /^\s+$/.test(token) ? (
-                  <span key={ti}>{token}</span>
+                  <WordGap key={ti} id={`${pi}:${ti}`} text={token} />
                 ) : (
                   <WordToken
                     key={ti}
@@ -45,6 +45,9 @@ export default function TextDisplay() {
                     word={token}
                     highlightMode={highlightMode}
                     sentence={() => sentenceAt(tokens, ti)}
+                    findParticle={(p, skip) =>
+                      particleToken(tokens, ti, p, skip, pi)
+                    }
                   />
                 ),
               )}

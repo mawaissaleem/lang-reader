@@ -55,6 +55,7 @@ export interface StoreState {
     w: string | null,
     sentence?: string,
     tokens?: SelectedToken[],
+    findParticle?: (particle: string, skip: number) => SelectedToken | null,
   ) => void;
   extendSelection: (token: SelectedToken, sentence: string) => void;
   wordResult: WordLookupResponse | null;

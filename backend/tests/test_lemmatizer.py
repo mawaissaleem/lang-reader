@@ -38,6 +38,29 @@ class TestLemmatize(unittest.TestCase):
         ]:
             self.assertEqual(lemmatizer.lemmatize(phrase, sentence), lemma, phrase)
 
+    def test_clicked_verb_links_its_separated_particle(self):
+        sentence = "Der Film fängt um acht an."
+        self.assertEqual(lemmatizer.separable_particle("fängt", sentence), ("an", 0))
+        # the linked pair then looks up the merged verb
+        self.assertEqual(lemmatizer.lemmatize("fängt an", sentence), "anfangen")
+
+    def test_preposition_before_the_particle_is_counted_as_skipped(self):
+        sentence = "Der Zug kommt an der Haltestelle an."
+        self.assertEqual(lemmatizer.separable_particle("kommt", sentence), ("an", 1))
+
+    def test_verb_without_particle_links_nothing(self):
+        self.assertIsNone(
+            lemmatizer.separable_particle("beginnt", "Der Film beginnt um acht.")
+        )
+
+    def test_particle_in_another_sentence_is_not_linked(self):
+        sentence = "Der Film beginnt. Er ruft dich an."
+        self.assertIsNone(lemmatizer.separable_particle("beginnt", sentence))
+
+    def test_preposition_an_is_not_a_particle(self):
+        # the model tags this "an" as a preposition (APPR), not PTKVZ
+        self.assertIsNone(lemmatizer.separable_particle("denke", "Ich denke an dich."))
+
     def test_other_phrase_stays_as_written(self):
         self.assertEqual(
             lemmatizer.lemmatize("rote Bank", "Die rote Bank ist alt."), "rote Bank"
@@ -179,6 +202,38 @@ class TestLookupUsesLemma(unittest.IsolatedAsyncioTestCase):
             )
         self.assertEqual((r["word"], r["clicked"]), ("anfangen", "fängt an"))
         self.assertEqual(pons.await_args.args[0], "anfangen")
+
+    async def test_single_verb_lookup_reports_its_particle(self):
+        engine = create_engine("sqlite:///:memory:")
+        Base.metadata.create_all(bind=engine)
+        db = sessionmaker(bind=engine)()
+        self.addCleanup(db.close)
+        pons = AsyncMock(
+            return_value={
+                "success": True,
+                "word": "fangen",
+                "translations": ["catch"],
+                "word_class": "verb",
+                "source": "pons",
+                "raw_response": {},
+            }
+        )
+        with patch("translation_pipeline.method1_pons", pons):
+            r = await lookup_word(
+                "fängt",
+                priority="pons",
+                sentence="Der Film fängt um acht an.",
+                db=db,
+            )
+            plain = await lookup_word(
+                "Film",
+                priority="pons",
+                sentence="Der Film fängt um acht an.",
+                db=db,
+            )
+        self.assertEqual((r["particle"], r["particle_skip"]), ("an", 0))
+        self.assertNotIn("particle", plain)
+        self.assertNotIn("particle_skip", plain)
 
     async def test_noun_and_verb_stay_separate_entries_and_saves(self):
         engine = create_engine("sqlite:///:memory:")

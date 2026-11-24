@@ -141,6 +141,8 @@ export interface WordLookupResponse {
   >;
   preferred: string;
   errors?: Record<string, string>;
+  particle?: string; // verb clicked alone: its separated particle in the sentence (fängt ... an)
+  particle_skip?: number; // words with the particle's text between verb and particle (the preposition in "kommt an der Haltestelle an")
 }
 
 import type { Progress } from "@/lib/progress";

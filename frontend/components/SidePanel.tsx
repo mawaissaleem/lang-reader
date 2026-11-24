@@ -4,6 +4,7 @@ import useStore from "@/store/useStore";
 import { X, BookOpen, HelpCircle, Loader2, Settings } from "lucide-react";
 import clsx from "clsx";
 import React from "react";
+import type { SelectedToken } from "@/types";
 import AiTab from "@/components/AiTab";
 import AnkiFooter from "@/components/AnkiFooter";
 import InSentenceBox from "@/components/InSentenceBox";
@@ -24,6 +25,13 @@ export const ARTICLE_CLASS = {
   die: "text-[var(--gender-die)]",
   das: "text-[var(--gender-das)]",
 };
+
+/** "fängt … an" when the selected words are not neighbours (a separated verb particle), else the clicked text as is. */
+export function clickedLabel(clicked: string, tokens: SelectedToken[]) {
+  if (tokens.length !== 2) return clicked;
+  const [a, b] = tokens.map((t) => Number(t.id.split(":")[1]));
+  return b - a > 2 ? tokens.map((t) => t.word).join(" … ") : clicked;
+}
 
 export default function SidePanel() {
   const {
@@ -202,7 +210,8 @@ export default function SidePanel() {
                       {wordResult.clicked.toLowerCase() !==
                         wordResult.word.toLowerCase() && (
                         <span className="text-[14px] font-normal text-white/35">
-                          {wordResult.clicked} →{" "}
+                          {clickedLabel(wordResult.clicked, selectedTokens)}{" "}
+                          →{" "}
                         </span>
                       )}
                       {wordResult.article && (

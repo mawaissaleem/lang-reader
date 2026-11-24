@@ -1,6 +1,6 @@
 "use client";
-import WordToken from "@/components/WordToken";
-import { sentenceAt } from "@/lib/words";
+import WordToken, { WordGap } from "@/components/WordToken";
+import { particleToken, sentenceAt } from "@/lib/words";
 import type { HighlightMode } from "@/types";
 
 /** One subtitle line as clickable word tokens; used by the transcript and the overlay on the player. */
@@ -23,7 +23,7 @@ export default function CueText({
     <p className={`font-reading ${className}`} onClick={onWordClick}>
       {tokens.map((token, ti) =>
         /^\s+$/.test(token) ? (
-          <span key={ti}>{token}</span>
+          <WordGap key={ti} id={`${index}:${ti}`} text={token} />
         ) : (
           <WordToken
             key={ti}
@@ -31,6 +31,9 @@ export default function CueText({
             word={token}
             highlightMode={highlightMode}
             sentence={() => sentenceAt(tokens, ti)}
+            findParticle={(p, skip) =>
+              particleToken(tokens, ti, p, skip, index)
+            }
           />
         ),
       )}

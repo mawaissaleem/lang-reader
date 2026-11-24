@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { cleanWord, clickedKey, entryFor } from "@/lib/words";
+import {
+  cleanWord,
+  clickedKey,
+  entryFor,
+  inSelectionRange,
+  particleToken,
+} from "@/lib/words";
 
 describe("cleanWord", () => {
   it.each([
@@ -68,5 +74,48 @@ describe("entryFor / clickedKey", () => {
   it("aliases nouns by exact clicked form, others lowercase", () => {
     expect(clickedKey({ word: "Tisch", clicked: "Tische" })).toBe("Tische");
     expect(clickedKey({ word: "gehen", clicked: "Ging" })).toBe("ging");
+  });
+});
+
+describe("particleToken", () => {
+  const tokens = "Der Zug kommt an der Haltestelle an. Er ruft an.".split(
+    /(\s+)/,
+  );
+  const verb = tokens.indexOf("kommt");
+
+  it("skips the preposition with the same text and picks the particle", () => {
+    expect(particleToken(tokens, verb, "an", 1, 0)).toEqual({
+      id: `0:${tokens.indexOf("an.")}`,
+      word: "an",
+    });
+  });
+
+  it("without a skip takes the first match", () => {
+    expect(particleToken(tokens, verb, "an", 0, 0)?.id).toBe(
+      `0:${tokens.indexOf("an")}`,
+    );
+  });
+
+  it("does not cross into the next sentence", () => {
+    expect(particleToken(tokens, verb, "an", 2, 0)).toBeNull();
+  });
+});
+
+describe("inSelectionRange", () => {
+  const sel = [
+    { id: "0:2", word: "fängt" },
+    { id: "0:8", word: "an" },
+  ];
+
+  it("covers the tokens from the first to the last selected one", () => {
+    expect(
+      ["0:2", "0:5", "0:8"].map((id) => inSelectionRange(sel, id)),
+    ).toEqual([true, true, true]);
+  });
+
+  it("excludes tokens outside, in another paragraph or with one selected word", () => {
+    expect(inSelectionRange(sel, "0:9")).toBe(false);
+    expect(inSelectionRange(sel, "1:5")).toBe(false);
+    expect(inSelectionRange(sel.slice(0, 1), "0:2")).toBe(false);
   });
 });

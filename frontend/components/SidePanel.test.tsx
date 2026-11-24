@@ -40,7 +40,7 @@ import {
   saveWord,
   syncAnki,
 } from "@/lib/api";
-import SidePanel from "@/components/SidePanel";
+import SidePanel, { clickedLabel } from "@/components/SidePanel";
 import useStore from "@/store/useStore";
 
 type T = Record<string, { meanings: string[]; word_class: string | null }>;
@@ -99,6 +99,27 @@ describe("SidePanel base form", () => {
     render(<SidePanel />);
     expect(screen.getByText("ging →")).toBeTruthy();
     expect(screen.getByRole("heading", { name: /gehen/ })).toBeTruthy();
+  });
+});
+
+describe("clickedLabel", () => {
+  const fangt = { id: "0:2", word: "fängt" };
+
+  it("joins two far-apart words with an ellipsis", () => {
+    expect(clickedLabel("fängt an", [fangt, { id: "0:8", word: "an" }])).toBe(
+      "fängt … an",
+    );
+  });
+
+  it("keeps the clicked text for neighbouring words", () => {
+    expect(clickedLabel("fängt an", [fangt, { id: "0:4", word: "an" }])).toBe(
+      "fängt an",
+    );
+  });
+
+  it("keeps the clicked text unless exactly two words are selected", () => {
+    expect(clickedLabel("fängt", [fangt])).toBe("fängt");
+    expect(clickedLabel("ging", [])).toBe("ging");
   });
 });
 

@@ -59,7 +59,7 @@ const useStore = create<StoreState>((set, get) => ({
       tokens,
     );
   },
-  setSelectedWord: async (w, sentence, tokens = []) => {
+  setSelectedWord: async (w, sentence, tokens = [], findParticle) => {
     if (!w) {
       set({
         selectedTokens: [],
@@ -133,6 +133,13 @@ const useStore = create<StoreState>((set, get) => ({
         sourceError: null,
         wordLoading: false,
       });
+      // a lone verb with a separated particle: select both, which looks up the merged verb.
+      // Skip it when a newer click selected other tokens, even for the same word text.
+      const stillSelected = get().selectedTokens === tokens;
+      if (!data.particle || tokens.length !== 1 || !sentence || !stillSelected)
+        return;
+      const particle = findParticle?.(data.particle, data.particle_skip ?? 0);
+      if (particle) await get().extendSelection(particle, sentence);
     } catch (err) {
       if (get().selectedWord !== w) return;
       set({
