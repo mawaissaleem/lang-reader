@@ -16,11 +16,15 @@ const entry = {
 
 afterEach(cleanup);
 
-function setup() {
+function setup(overrides: Partial<LibraryEntry> = {}) {
   const onOpen = vi.fn();
   const onRename = vi.fn().mockResolvedValue(undefined);
   const { container } = render(
-    <EntryCard entry={entry} onOpen={onOpen} onRename={onRename} />,
+    <EntryCard
+      entry={{ ...entry, ...overrides }}
+      onOpen={onOpen}
+      onRename={onRename}
+    />,
   );
   return { onOpen, container };
 }
@@ -46,5 +50,18 @@ describe("EntryCard", () => {
     expect(onOpen).not.toHaveBeenCalled();
     expect(screen.getByRole("textbox")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Open Ein Text" })).toBeNull();
+  });
+
+  it.each([
+    ["creator", "Creator captions"],
+    ["auto", "Auto captions"],
+  ] as const)("labels %s captions", (caption_source, label) => {
+    setup({ caption_source });
+    expect(screen.getByText(label)).toBeTruthy();
+  });
+
+  it("shows no caption label when the source is unknown", () => {
+    setup({ caption_source: null });
+    expect(screen.queryByText(/captions/i)).toBeNull();
   });
 });

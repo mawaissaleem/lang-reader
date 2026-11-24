@@ -75,6 +75,7 @@ class TestGermanImport(unittest.TestCase):
                 "url",
                 "language",
                 "extraction_method",
+                "caption_source",
                 "word_count",
                 "created_at",
             },
@@ -89,6 +90,20 @@ class TestGermanImport(unittest.TestCase):
         self.assertTrue(
             os.path.exists(os.path.join(self.tmp, "cleaned_subtitles", "abc.txt"))
         )
+
+    def test_import_stores_caption_type_and_exposes_source(self):
+        for subtitle_type, source in (
+            ("manual", "creator"),
+            ("auto-generated", "auto"),
+        ):
+            with self.subTest(subtitle_type):
+                self.db.query(Video).delete()
+                self.db.query(Subtitle).delete()
+                r = self._call({**self.ok, "subtitle_type": subtitle_type}, None)
+                self.assertEqual(
+                    self.db.query(Subtitle).one().subtitle_type, subtitle_type
+                )
+                self.assertEqual(r["caption_source"], source)
 
     def test_text_is_readable_from_another_cwd_and_for_relative_paths(self):
         from routers.library import get_subtitle_text

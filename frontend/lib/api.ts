@@ -154,7 +154,8 @@ export interface LibraryEntry {
   source: "youtube" | "manual";
   created_at: string;
   word_count: number;
-  extraction_method: string | null;
+  /** Who made the captions; null when unknown (older imports) or for texts. */
+  caption_source: "creator" | "auto" | null;
 }
 
 export async function fetchLibrary(): Promise<LibraryEntry[]> {

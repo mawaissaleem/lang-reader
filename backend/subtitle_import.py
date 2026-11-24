@@ -117,6 +117,7 @@ def save_subtitles(
         subtitle = Subtitle(
             video_id=video.id,
             extraction_method=extraction_method,
+            subtitle_type=result.get("subtitle_type"),
             vtt_path=vtt_path,
             txt_path=txt_path,
             language="de",

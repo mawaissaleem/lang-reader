@@ -8,6 +8,9 @@ def latest_subtitle(v: Video):
     return max(v.subtitles, key=lambda s: s.created_at)
 
 
+CAPTION_SOURCES = {"manual": "creator", "auto-generated": "auto"}
+
+
 def video_entry(v: Video):
     """Library entry for a video that has at least one subtitle."""
     sub = latest_subtitle(v)
@@ -20,6 +23,7 @@ def video_entry(v: Video):
         "url": v.url,
         "language": sub.language,
         "extraction_method": sub.extraction_method,
+        "caption_source": CAPTION_SOURCES.get(sub.subtitle_type),
         "word_count": sub.word_count,
         "created_at": sub.created_at,
     }

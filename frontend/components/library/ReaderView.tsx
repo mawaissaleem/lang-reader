@@ -11,12 +11,14 @@ export default function ReaderView({
   loading,
   hasText,
   video,
+  captionSource,
   onBack,
 }: {
   title: string;
   loading: boolean;
   hasText: boolean;
   video: { url: string; cues: Cue[] } | null;
+  captionSource: "creator" | "auto" | null;
   onBack: () => void;
 }) {
   return (
@@ -46,6 +48,17 @@ export default function ReaderView({
         <span className="text-sm font-medium text-white/60 truncate max-w-md">
           {title}
         </span>
+        {/* Auto captions are often wrong, so they get a warning colour; unknown sources show nothing */}
+        {captionSource === "auto" && (
+          <span className="rounded-full border border-amber-400/25 bg-amber-400/10 px-2.5 py-0.5 text-xs text-amber-300">
+            Auto captions · may contain errors
+          </span>
+        )}
+        {captionSource === "creator" && (
+          <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-xs text-white/50">
+            Creator captions
+          </span>
+        )}
         {/* Video view has no text footer, so its word stats live here */}
         {video?.cues.length ? (
           <ReaderFooter

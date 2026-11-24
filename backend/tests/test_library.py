@@ -32,6 +32,8 @@ class TestLibrary(unittest.TestCase):
         with patch("builtins.open", side_effect=AssertionError("file opened")):
             items = get_library(db=db)
         self.assertEqual(items[0]["word_count"], 42)
+        # a row without a stored caption type has an unknown source
+        self.assertIsNone(items[0]["caption_source"])
 
 
 if __name__ == "__main__":

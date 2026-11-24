@@ -39,6 +39,7 @@ export default function LibraryPage() {
         loading={readerLoading}
         hasText={!!text}
         video={video}
+        captionSource={openEntry.caption_source}
         onBack={close}
       />
     );

@@ -49,6 +49,7 @@ class MigrationTests(unittest.TestCase):
         )
         with eng.begin() as c:
             c.exec_driver_sql("alter table subtitles drop column word_count")
+            c.exec_driver_sql("alter table subtitles drop column subtitle_type")
             c.exec_driver_sql("alter table user_words drop column source")
             c.exec_driver_sql("alter table user_words drop column status")
             for col in (
@@ -329,6 +330,23 @@ class MigrationTests(unittest.TestCase):
             self.assertEqual(json.loads(rows[0][0]), ["it's", "a &lt; b"])
             self.assertEqual(rows[0][1], encoded)
             self.assertEqual(rows[1][0], other)
+
+    def test_0015_adds_nullable_subtitle_type(self):
+        from alembic import command
+
+        cfg = Config(str(BASE_DIR / "alembic.ini"))
+        cfg.set_main_option("sqlalchemy.url", self.url)
+        command.upgrade(cfg, "0014")
+        with sqlite3.connect(self.path) as c:
+            c.execute("insert into videos (id, url) values (1, 'u')")
+            c.execute(
+                "insert into subtitles (video_id, extraction_method) values (1, 'x')"
+            )
+        command.upgrade(cfg, "head")
+        with sqlite3.connect(self.path) as c:
+            self.assertIsNone(
+                c.execute("select subtitle_type from subtitles").fetchone()[0]
+            )
 
     def test_rerun_is_noop(self):
         run_migrations(self.url)

@@ -34,6 +34,8 @@ class Subtitle(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     video_id = Column(Integer, ForeignKey("videos.id"), nullable=False)
     extraction_method = Column(String, nullable=False)  # 'transcript_api' | 'yt_dlp'
+    # 'manual' | 'auto-generated'; NULL = unknown (old rows)
+    subtitle_type = Column(String)
     vtt_path = Column(String)
     txt_path = Column(String)
     language = Column(String, default="de")

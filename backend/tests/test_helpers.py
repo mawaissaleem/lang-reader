@@ -49,6 +49,7 @@ class VideoEntryTest(unittest.TestCase):
             created_at=datetime(2024, 1, 1),
             language="de",
             extraction_method="old",
+            subtitle_type="manual",
             word_count=1,
         )
         new = SimpleNamespace(
@@ -56,6 +57,7 @@ class VideoEntryTest(unittest.TestCase):
             created_at=datetime(2025, 1, 1),
             language="de",
             extraction_method="new",
+            subtitle_type="auto-generated",
             word_count=5,
         )
         return SimpleNamespace(id=9, title=title, url="u", subtitles=[old, new])
@@ -65,6 +67,7 @@ class VideoEntryTest(unittest.TestCase):
         self.assertEqual(
             (entry["id"], entry["video_id"], entry["word_count"]), (2, 9, 5)
         )
+        self.assertEqual(entry["caption_source"], "auto")
 
     def test_empty_title_becomes_untitled(self):
         self.assertEqual(video_entry(self._video(None))["title"], "Untitled")

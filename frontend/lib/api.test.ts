@@ -60,7 +60,7 @@ const entry = (type: "video" | "text"): LibraryEntry => ({
   source: type === "video" ? "youtube" : "manual",
   created_at: "",
   word_count: 1,
-  extraction_method: null,
+  caption_source: null,
 });
 
 describe("entry dispatch", () => {

@@ -12,6 +12,8 @@ function formatDate(iso: string) {
   });
 }
 
+const CAPTION_LABELS = { creator: "Creator captions", auto: "Auto captions" };
+
 function readingTime(words: number) {
   const mins = Math.ceil(words / 200);
   return `${mins} min read`;
@@ -218,20 +220,6 @@ export default function EntryCard({
                 {isYT ? <YoutubeIcon /> : <PenIcon />}
                 {isYT ? "YouTube" : "Manual"}
               </span>
-              {entry.extraction_method && (
-                <span
-                  style={{
-                    fontSize: "10px",
-                    color: "rgba(255,255,255,0.3)",
-                    fontFamily: "monospace",
-                    background: "rgba(255,255,255,0.05)",
-                    padding: "2px 7px",
-                    borderRadius: "4px",
-                  }}
-                >
-                  {entry.extraction_method}
-                </span>
-              )}
             </div>
 
             {/* Title — inline editable */}
@@ -379,6 +367,27 @@ export default function EntryCard({
               >
                 {readingTime(entry.word_count)}
               </span>
+              {entry.caption_source && (
+                <>
+                  <span
+                    style={{
+                      width: "3px",
+                      height: "3px",
+                      borderRadius: "50%",
+                      background: "rgba(255,255,255,0.2)",
+                      display: "inline-block",
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      color: "rgba(255,255,255,0.35)",
+                    }}
+                  >
+                    {CAPTION_LABELS[entry.caption_source]}
+                  </span>
+                </>
+              )}
               <span
                 style={{
                   fontSize: "11px",

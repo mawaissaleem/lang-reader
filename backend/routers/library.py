@@ -65,6 +65,7 @@ def _text_entry(t: ManualText):
         "title": t.title,
         "language": "de",
         "extraction_method": None,
+        "caption_source": None,
         "word_count": t.word_count,
         "created_at": t.created_at,
     }
