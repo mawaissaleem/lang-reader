@@ -156,6 +156,10 @@ export interface LibraryEntry {
   word_count: number;
   /** Who made the captions; null when unknown (older imports) or for texts. */
   caption_source: "creator" | "auto" | null;
+  /** Video link (thumbnail source); absent on texts. */
+  url?: string;
+  /** First characters of a text; absent on videos. */
+  preview?: string;
 }
 
 export async function fetchLibrary(): Promise<LibraryEntry[]> {
@@ -256,6 +260,25 @@ export const renameEntry = (e: LibraryEntry, title: string) =>
   e.type === "text"
     ? renameText(e.id, title)
     : renameVideo(e.video_id as number, title);
+
+// Video entries are addressed by video id, texts by text id (not the subtitle id in entry.id).
+const entryPath = (e: LibraryEntry) =>
+  `${API_BASE_URL}/library/${e.type}/${e.type === "text" ? e.id : e.video_id}`;
+
+export async function deleteEntry(e: LibraryEntry): Promise<void> {
+  await readJson(await fetch(entryPath(e), { method: "DELETE" }));
+}
+
+export async function markEntryKnown(
+  e: LibraryEntry,
+  userId: number,
+): Promise<{ changed: number }> {
+  return readJson(
+    await fetch(`${entryPath(e)}/mark-known?user_id=${userId}`, {
+      method: "POST",
+    }),
+  );
+}
 
 export async function importFromYouTube(
   url: string,

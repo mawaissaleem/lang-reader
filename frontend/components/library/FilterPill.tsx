@@ -12,21 +12,14 @@ export default function FilterPill({
 }) {
   return (
     <button
+      type="button"
+      aria-pressed={active}
       onClick={onClick}
-      style={{
-        all: "unset",
-        cursor: "pointer",
-        fontSize: "13px",
-        fontWeight: 500,
-        padding: "6px 16px",
-        borderRadius: "20px",
-        border: active
-          ? "1px solid rgba(255,255,255,0.25)"
-          : "1px solid rgba(255,255,255,0.08)",
-        background: active ? "rgba(255,255,255,0.1)" : "transparent",
-        color: active ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.35)",
-        transition: "all 0.15s ease",
-      }}
+      className={`rounded-full border px-4 py-1.5 text-[13px] font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+        active
+          ? "border-accent bg-accent-soft text-ink"
+          : "border-line text-muted hover:text-ink"
+      }`}
     >
       {label}
     </button>

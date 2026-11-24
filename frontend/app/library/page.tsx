@@ -8,15 +8,38 @@ import EntryCard from "@/components/library/EntryCard";
 import FilterPill from "@/components/library/FilterPill";
 import ReaderView from "@/components/library/ReaderView";
 import { useEntryReader } from "@/lib/useEntryReader";
+import { relativeTags } from "@/lib/progress";
+import { sortEntries, type SortKey } from "@/lib/sortEntries";
 import { useLibraryEntries } from "@/lib/useLibraryEntries";
 import useStore from "@/store/useStore";
 
+type Filter = "all" | "youtube" | "manual";
+const FILTERS: [Filter, string][] = [
+  ["all", "All"],
+  ["youtube", "YouTube"],
+  ["manual", "Manual"],
+];
+const SORTS: [SortKey, string][] = [
+  ["easiest", "Easiest for me"],
+  ["newest", "Newest"],
+  ["title", "Title"],
+];
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function LibraryPage() {
-  const [filter, setFilter] = useState<"all" | "youtube" | "manual">("all");
+  const [filter, setFilter] = useState<Filter>("all");
   const { openEntry, readerLoading, video, open, close } = useEntryReader();
-  const { entries, setEntries, loading, error, progress, rename } =
-    useLibraryEntries(openEntry !== null);
+  const [sort, setSort] = useState<SortKey>("easiest");
+  const {
+    entries,
+    setEntries,
+    loading,
+    error,
+    progress,
+    rename,
+    remove,
+    markKnown,
+  } = useLibraryEntries(openEntry !== null);
 
   const text = useStore((s) => s.text);
   const loadUserWords = useStore((s) => s.loadUserWords);
@@ -28,8 +51,13 @@ export default function LibraryPage() {
     loadTranslatorPriority();
   }, [loadUserWords, loadTranslatorPriority]);
 
-  const filtered = entries.filter((e) =>
-    filter === "all" ? true : e.source === filter,
+  const tags = relativeTags(progress);
+  const count = (f: Filter) =>
+    f === "all" ? entries.length : entries.filter((e) => e.source === f).length;
+  const shown = sortEntries(
+    entries.filter((e) => filter === "all" || e.source === filter),
+    sort,
+    progress,
   );
 
   if (openEntry) {
@@ -72,132 +100,79 @@ export default function LibraryPage() {
         />
       </AppNav>
 
-      <main
-        style={{
-          maxWidth: "860px",
-          margin: "0 auto",
-          padding: "56px 24px 80px",
-        }}
-      >
-        {/* Page heading */}
-        <div style={{ marginBottom: "40px" }}>
-          <h1
-            style={{
-              fontSize: "clamp(32px, 5vw, 48px)",
-              fontWeight: 400,
-              fontFamily: "var(--font-dm-serif), Georgia, serif",
-              letterSpacing: "-0.02em",
-              margin: "0 0 10px 0",
-              color: "#fff",
-              lineHeight: 1.1,
-            }}
-          >
-            Your Library
-          </h1>
-          <p
-            style={{
-              fontSize: "14px",
-              color: "rgba(255,255,255,0.3)",
-              margin: 0,
-            }}
-          >
-            {loading
-              ? "Loading…"
-              : `${entries.length} texts · intensive reading mode`}
-          </p>
-        </div>
+      <main className="mx-auto max-w-[1360px] px-6 pb-20 pt-12">
+        <h1 className="mb-1 font-serif text-5xl leading-tight text-ink">
+          Library
+        </h1>
+        <p className="mb-8 text-sm text-muted">
+          {loading
+            ? "Loading…"
+            : `${count("youtube")} videos · ${count("manual")} texts`}
+        </p>
 
-        {/* Filters + count row */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: "24px",
-            flexWrap: "wrap",
-            gap: "12px",
-          }}
-        >
-          <div style={{ display: "flex", gap: "8px" }}>
-            <FilterPill
-              label="All"
-              active={filter === "all"}
-              onClick={() => setFilter("all")}
-            />
-            <FilterPill
-              label="YouTube"
-              active={filter === "youtube"}
-              onClick={() => setFilter("youtube")}
-            />
-            <FilterPill
-              label="Manual"
-              active={filter === "manual"}
-              onClick={() => setFilter("manual")}
-            />
+        {/* Filters + sort */}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex gap-2">
+            {FILTERS.map(([value, label]) => (
+              <FilterPill
+                key={value}
+                label={`${label} ${count(value)}`}
+                active={filter === value}
+                onClick={() => setFilter(value)}
+              />
+            ))}
           </div>
-          <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.2)" }}>
-            {filtered.length} result{filtered.length !== 1 ? "s" : ""}
-          </span>
+          <label className="flex items-center gap-2 text-xs text-muted">
+            Sort
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as SortKey)}
+              className="rounded-lg border border-line bg-surface px-3 py-1.5 text-[13px] text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              {SORTS.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
 
-        <div
-          style={{
-            height: "1px",
-            background: "rgba(255,255,255,0.06)",
-            marginBottom: "24px",
-          }}
-        />
+        {loading && (
+          <p className="py-20 text-center text-sm text-faint">
+            Loading library…
+          </p>
+        )}
+        {error && (
+          <p className="py-20 text-center text-sm text-hard">
+            Failed to load: {error}
+          </p>
+        )}
 
-        {/* Entry list */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          {loading && (
-            <div
-              style={{
-                textAlign: "center",
-                padding: "80px 0",
-                color: "rgba(255,255,255,0.2)",
-                fontSize: "14px",
-              }}
-            >
-              Loading library…
-            </div>
-          )}
-          {error && (
-            <div
-              style={{
-                textAlign: "center",
-                padding: "80px 0",
-                color: "#ff6644",
-                fontSize: "14px",
-              }}
-            >
-              Failed to load: {error}
-            </div>
-          )}
-          {!loading &&
-            !error &&
-            filtered.map((entry) => (
+        {!loading && !error && (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {shown.map((entry) => (
               <EntryCard
                 key={entryKey(entry)}
                 entry={entry}
                 progress={progress[entryKey(entry)]}
+                tag={tags[entryKey(entry)]}
                 onOpen={() => open(entry)}
                 onRename={rename}
+                onMarkKnown={async (e) => {
+                  await markKnown(e);
+                  await loadUserWords(USER_ID);
+                }}
+                onDelete={remove}
               />
             ))}
-        </div>
-
-        {!loading && !error && filtered.length === 0 && (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "80px 0",
-              color: "rgba(255,255,255,0.2)",
-              fontSize: "14px",
-            }}
-          >
-            No entries found.
           </div>
+        )}
+
+        {!loading && !error && shown.length === 0 && (
+          <p className="py-20 text-center text-sm text-faint">
+            No entries found.
+          </p>
         )}
       </main>
     </div>

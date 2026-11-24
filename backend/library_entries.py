@@ -1,11 +1,23 @@
 """Shapes a video into the library entry the client lists, shared by the library, import and progress routes."""
 
-from models import Video
+from pathlib import Path
+from typing import Optional
+
+from database import BASE_DIR
+from models import Subtitle, Video
 
 
 def latest_subtitle(v: Video):
     """The video's newest subtitle, the one the library lists."""
     return max(v.subtitles, key=lambda s: s.created_at)
+
+
+def subtitle_text_path(sub: Subtitle) -> Optional[Path]:
+    """Path of the subtitle's cleaned .txt file, or None when it has none or the file is gone."""
+    if not sub.txt_path:
+        return None
+    path = BASE_DIR / sub.txt_path
+    return path if path.exists() else None
 
 
 CAPTION_SOURCES = {"manual": "creator", "auto-generated": "auto"}

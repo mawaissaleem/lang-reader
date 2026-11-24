@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countProgress, knownPct, levelTag } from "./progress";
+import { countProgress, knownPct, newPer100, relativeTags } from "./progress";
 
 const p = (known: number, learning: number, n: number) => ({
   known,
@@ -11,13 +11,29 @@ const p = (known: number, learning: number, n: number) => ({
 describe("progress", () => {
   it("rounds percent known", () => expect(knownPct(p(87, 0, 13))).toBe(87));
   it("is 0 for an empty text", () => expect(knownPct(p(0, 0, 0))).toBe(0));
-  it("tags 90%+ as Good level", () =>
-    expect(levelTag(p(90, 0, 10))).toBe("Good level"));
-  it("tags under 75% as Hard", () =>
-    expect(levelTag(p(74, 0, 26))).toBe("Hard"));
-  it("gives no tag between", () => expect(levelTag(p(75, 5, 20))).toBeNull());
-  it("gives no tag for an empty text", () =>
-    expect(levelTag(p(0, 0, 0))).toBeNull());
+  it("shows new words per 100", () => expect(newPer100(p(65, 0, 35))).toBe(35));
+});
+
+describe("relativeTags", () => {
+  it("tags the fewest new Easiest, the most Hardest, the rest Stretch", () => {
+    const tags = relativeTags({
+      a: p(91, 0, 9),
+      b: p(65, 0, 35),
+      c: p(68, 0, 32),
+      d: p(59, 0, 41),
+    });
+    expect(tags).toEqual({
+      a: "Easiest",
+      b: "Stretch",
+      c: "Stretch",
+      d: "Hardest",
+    });
+  });
+  it("gives no tags for one entry, equal entries or empty texts", () => {
+    expect(relativeTags({ a: p(90, 0, 10) })).toEqual({});
+    expect(relativeTags({ a: p(90, 0, 10), b: p(90, 0, 10) })).toEqual({});
+    expect(relativeTags({ a: p(0, 0, 0), b: p(90, 0, 10) })).toEqual({});
+  });
 });
 
 describe("countProgress", () => {

@@ -1,10 +1,13 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import {
+  deleteEntry,
   entryKey,
   fetchLibrary,
   fetchLibraryProgress,
+  markEntryKnown,
   renameEntry,
+  USER_ID,
   type LibraryEntry as Entry,
 } from "@/lib/api";
 import type { Progress } from "@/lib/progress";
@@ -29,13 +32,19 @@ export function useLibraryEntries(paused: boolean) {
       });
   }, []);
 
+  const refreshProgress = useCallback(
+    () =>
+      fetchLibraryProgress()
+        .then(setProgress)
+        .catch((err) => console.error("Progress load failed", err)),
+    [],
+  );
+
   // refetch on returning from the reader: statuses may have changed there
   useEffect(() => {
     if (paused) return;
-    fetchLibraryProgress()
-      .then(setProgress)
-      .catch((err) => console.error("Progress load failed", err));
-  }, [paused, entries.length]);
+    refreshProgress();
+  }, [paused, entries.length, refreshProgress]);
 
   const rename = useCallback(async (entry: Entry, newTitle: string) => {
     const result = await renameEntry(entry, newTitle);
@@ -46,5 +55,27 @@ export function useLibraryEntries(paused: boolean) {
     );
   }, []);
 
-  return { entries, setEntries, loading, error, progress, rename };
+  const remove = useCallback(async (entry: Entry) => {
+    await deleteEntry(entry);
+    setEntries((prev) => prev.filter((e) => entryKey(e) !== entryKey(entry)));
+  }, []);
+
+  const markKnown = useCallback(
+    async (entry: Entry) => {
+      await markEntryKnown(entry, USER_ID);
+      await refreshProgress();
+    },
+    [refreshProgress],
+  );
+
+  return {
+    entries,
+    setEntries,
+    loading,
+    error,
+    progress,
+    rename,
+    remove,
+    markKnown,
+  };
 }

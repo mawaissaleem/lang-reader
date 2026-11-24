@@ -68,9 +68,9 @@ describe("LibraryPage", () => {
       new Promise((r) => (late = r as typeof late)),
     );
     render(<LibraryPage />);
-    fireEvent.click(await screen.findByText("Clip"));
+    fireEvent.click(await screen.findByRole("button", { name: "Open Clip" }));
     fireEvent.click(await screen.findByText(/Library/));
-    fireEvent.click(await screen.findByText("Essay"));
+    fireEvent.click(await screen.findByRole("button", { name: "Open Essay" }));
     await screen.findByTestId("plain");
     late({
       url: "https://youtu.be/x",
@@ -88,9 +88,9 @@ describe("LibraryPage", () => {
       .mockReturnValueOnce(new Promise((r) => (late = r)))
       .mockResolvedValueOnce("essay text");
     render(<LibraryPage />);
-    fireEvent.click(await screen.findByText("Clip"));
+    fireEvent.click(await screen.findByRole("button", { name: "Open Clip" }));
     fireEvent.click(await screen.findByText(/Library/));
-    fireEvent.click(await screen.findByText("Essay"));
+    fireEvent.click(await screen.findByRole("button", { name: "Open Essay" }));
     await waitFor(() => expect(useStore.getState().text).toBe("essay text"));
     late("clip text");
     await new Promise((r) => setTimeout(r, 20));
@@ -104,10 +104,10 @@ describe("LibraryPage", () => {
       cues: [{ start: 0, end: 1, text: "hi" }],
     } as never);
     render(<LibraryPage />);
-    fireEvent.click(await screen.findByText("Clip"));
+    fireEvent.click(await screen.findByRole("button", { name: "Open Clip" }));
     await screen.findByTestId("video");
     fireEvent.click(await screen.findByText(/Library/));
-    fireEvent.click(await screen.findByText("Essay"));
+    fireEvent.click(await screen.findByRole("button", { name: "Open Essay" }));
     await screen.findByTestId("plain");
     expect(screen.queryByTestId("video")).toBeNull();
   });

@@ -25,6 +25,12 @@ def cached_words(key: tuple[str, int], stamp, read_text) -> frozenset[str]:
     return words
 
 
+def forget(*keys) -> None:
+    """Drop cached word sets."""
+    for key in keys:
+        _words_cache.pop(key, None)
+
+
 def count_status(words, statuses: dict[str, str]) -> dict[str, int]:
     """Same match as entryFor in the reader: exact form first, then lowercase. Ignored words are not counted."""
     out = {"known": 0, "learning": 0, "new": 0}

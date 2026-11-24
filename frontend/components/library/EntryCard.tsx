@@ -1,92 +1,92 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import type { LibraryEntry as Entry } from "@/lib/api";
-import { knownPct, levelTag, type Progress } from "@/lib/progress";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
+import {
+  knownPct,
+  newPer100,
+  type LevelTag,
+  type Progress,
+} from "@/lib/progress";
+import { videoId } from "@/lib/video";
+import EntryMenu from "@/components/library/EntryMenu";
 
 const CAPTION_LABELS = { creator: "Creator captions", auto: "Auto captions" };
 
-function readingTime(words: number) {
-  const mins = Math.ceil(words / 200);
-  return `${mins} min read`;
+// literal class strings so Tailwind sees them
+const TAG_CLASS: Record<LevelTag, string> = {
+  Easiest: "bg-[rgba(62,207,142,0.12)] text-good",
+  Stretch: "bg-[rgba(245,166,35,0.12)] text-amber",
+  Hardest: "bg-[rgba(255,107,107,0.12)] text-hard",
+};
+
+/** Thumbnail of a video, or the first lines of a text. */
+function Preview({ entry }: { entry: Entry }) {
+  const id = entry.url ? videoId(entry.url) : null;
+  if (entry.type === "video") {
+    return (
+      <div className="relative aspect-video overflow-hidden rounded-xl bg-surface-2">
+        {id && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={`https://i.ytimg.com/vi/${id}/hqdefault.jpg`}
+            alt=""
+            className="h-full w-full object-cover"
+          />
+        )}
+      </div>
+    );
+  }
+  return (
+    <div className="aspect-video overflow-hidden rounded-xl bg-surface-2 p-4 font-reading text-[15px] leading-relaxed text-muted">
+      <p className="line-clamp-4">{entry.preview}</p>
+    </div>
+  );
 }
 
-// ─── Icons ────────────────────────────────────────────────────────────────────
-const YoutubeIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1C24 15.9 24 12 24 12s0-3.9-.5-5.8zM9.8 15.5V8.5l6.2 3.5-6.2 3.5z" />
-  </svg>
-);
+/** Known / learning / new bar with the difficulty line and relative tag. */
+function Difficulty({ progress, tag }: { progress: Progress; tag?: LevelTag }) {
+  const pct = (n: number) => `${(n / progress.total) * 100}%`;
+  return (
+    <div className="mt-3">
+      <div className="flex h-1.5 overflow-hidden rounded-full bg-surface-2">
+        <div className="bg-accent" style={{ width: pct(progress.known) }} />
+        <div className="bg-amber" style={{ width: pct(progress.learning) }} />
+      </div>
+      <div className="mt-2 flex items-center justify-between text-xs text-muted">
+        <span>
+          <b className="text-ink">{newPer100(progress)}</b> new per 100 words ·{" "}
+          {knownPct(progress)}% known
+        </span>
+        {tag && (
+          <span
+            className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${TAG_CLASS[tag]}`}
+          >
+            {tag}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
 
-const PenIcon = () => (
-  <svg
-    width="14"
-    height="14"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-  </svg>
-);
-
-const ArrowIcon = () => (
-  <svg
-    width="16"
-    height="16"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M5 12h14M12 5l7 7-7 7" />
-  </svg>
-);
-
-// ─── Edit icon ────────────────────────────────────────────────────────────────
-const EditIcon = () => (
-  <svg
-    width="13"
-    height="13"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-  </svg>
-);
-
-// ─── Card ───────────────────────────────────────────────────────────────────
-/** One library row: open control, inline rename, and known-word progress. */
+/** One library card: open control, inline rename, difficulty, and a ⋯ menu for rename / mark known / delete. */
 export default function EntryCard({
   entry,
   progress,
+  tag,
   onOpen,
   onRename,
+  onMarkKnown,
+  onDelete,
 }: {
   entry: Entry;
   progress?: Progress;
+  tag?: LevelTag;
   onOpen: () => void;
   onRename: (entry: Entry, newTitle: string) => Promise<void>;
+  onMarkKnown: (entry: Entry) => Promise<void>;
+  onDelete: (entry: Entry) => Promise<void>;
 }) {
-  const isYT = entry.source === "youtube";
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(entry.title);
   const [saving, setSaving] = useState(false);
@@ -116,370 +116,103 @@ export default function EntryCard({
     }
   };
 
+  // both changes are hard to undo, so they ask first
+  const confirmThen = (question: string, run: () => Promise<void>) => () => {
+    if (!window.confirm(question)) return;
+    run().catch((err) => {
+      console.error("Entry action failed:", err);
+      window.alert(
+        `That did not work: ${err instanceof Error ? err.message : err}`,
+      );
+    });
+  };
+
+  const meta = [
+    entry.type === "video" ? "YouTube" : "Pasted text",
+    entry.caption_source && CAPTION_LABELS[entry.caption_source],
+    `${entry.word_count.toLocaleString()} words`,
+  ].filter(Boolean);
+
   return (
-    <div style={{ display: "block", width: "100%" }}>
-      <div
-        onClick={editing ? undefined : onOpen}
-        style={{
-          background: "rgba(255,255,255,0.035)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          borderRadius: "16px",
-          padding: "24px 28px",
-          transition: "all 0.2s ease",
-          cursor: editing ? "default" : "pointer",
-          position: "relative",
-          overflow: "hidden",
-        }}
-        onMouseEnter={(e) => {
-          (e.currentTarget as HTMLDivElement).style.background =
-            "rgba(255,255,255,0.065)";
-          (e.currentTarget as HTMLDivElement).style.borderColor =
-            "rgba(255,255,255,0.16)";
-          (e.currentTarget as HTMLDivElement).style.transform =
-            "translateY(-2px)";
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLDivElement).style.background =
-            "rgba(255,255,255,0.035)";
-          (e.currentTarget as HTMLDivElement).style.borderColor =
-            "rgba(255,255,255,0.08)";
-          (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
-        }}
-      >
-        {/* Keyboard open control: a sibling of Rename (never its parent). Its click bubbles to the card, which opens the entry; mouse clicks anywhere on the card do the same */}
-        {!editing && (
-          <button
-            type="button"
-            aria-label={`Open ${entry.title}`}
-            className="focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white/60"
-            style={{
-              position: "absolute",
-              inset: 0,
-              width: "100%",
-              height: "100%",
-              border: 0,
-              padding: 0,
-              background: "transparent",
-              borderRadius: "16px",
-              cursor: "pointer",
-            }}
-          />
-        )}
-
-        {/* Accent strip */}
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "3px",
-            height: "100%",
-            background: isYT
-              ? "linear-gradient(180deg, #ff4444, #ff8800)"
-              : "linear-gradient(180deg, #4f8eff, #a259ff)",
-            borderRadius: "16px 0 0 16px",
-          }}
+    <article className="relative rounded-2xl border border-line bg-surface p-3.5 transition hover:border-faint">
+      {/* Keyboard open control: a sibling of the menu (never its parent), so no button sits inside a button. Mouse clicks on the card land on it too */}
+      {!editing && (
+        <button
+          type="button"
+          aria-label={`Open ${entry.title}`}
+          onClick={onOpen}
+          className="absolute inset-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         />
+      )}
 
-        <div
-          style={{
-            position: "relative",
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "space-between",
-            gap: "16px",
-          }}
-        >
-          <div style={{ flex: 1, minWidth: 0 }}>
-            {/* Source badge */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                marginBottom: "10px",
-              }}
-            >
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "5px",
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                  color: isYT ? "#ff6644" : "#7b9fff",
-                  background: isYT
-                    ? "rgba(255,68,68,0.12)"
-                    : "rgba(79,142,255,0.12)",
-                  padding: "3px 9px",
-                  borderRadius: "20px",
-                }}
-              >
-                {isYT ? <YoutubeIcon /> : <PenIcon />}
-                {isYT ? "YouTube" : "Manual"}
-              </span>
-            </div>
-
-            {/* Title — inline editable */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                marginBottom: "12px",
-              }}
-            >
-              {editing ? (
-                <input
-                  ref={inputRef}
-                  value={draft}
-                  disabled={saving}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleSave();
-                    }
-                    if (e.key === "Escape") {
-                      setDraft(entry.title);
-                      setEditing(false);
-                    }
-                  }}
-                  onBlur={handleSave}
-                  style={{
-                    flex: 1,
-                    fontSize: "17px",
-                    fontWeight: 600,
-                    color: "rgba(255,255,255,0.92)",
-                    fontFamily: "var(--font-dm-serif), Georgia, serif",
-                    letterSpacing: "-0.01em",
-                    background: "rgba(255,255,255,0.08)",
-                    border: "1px solid rgba(255,255,255,0.2)",
-                    borderRadius: "8px",
-                    padding: "6px 10px",
-                    outline: "none",
-                    lineHeight: 1.35,
-                  }}
-                />
-              ) : (
-                <>
-                  <h3
-                    style={{
-                      fontSize: "17px",
-                      fontWeight: 600,
-                      color: "rgba(255,255,255,0.92)",
-                      margin: 0,
-                      lineHeight: 1.35,
-                      fontFamily: "var(--font-dm-serif), Georgia, serif",
-                      letterSpacing: "-0.01em",
-                    }}
-                  >
-                    {entry.title}
-                  </h3>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation(); // Rename must not open the entry
-                      setDraft(entry.title);
-                      setEditing(true);
-                    }}
-                    title="Rename"
-                    aria-label="Rename"
-                    className="focus-visible:outline-2 focus-visible:outline-white/60"
-                    style={{
-                      border: 0,
-                      padding: 0,
-                      background: "transparent",
-                      cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      width: "26px",
-                      height: "26px",
-                      borderRadius: "6px",
-                      color: "rgba(255,255,255,0.25)",
-                      transition: "all 0.15s ease",
-                      flexShrink: 0,
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLButtonElement).style.color =
-                        "rgba(255,255,255,0.7)";
-                      (e.currentTarget as HTMLButtonElement).style.background =
-                        "rgba(255,255,255,0.08)";
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLButtonElement).style.color =
-                        "rgba(255,255,255,0.25)";
-                      (e.currentTarget as HTMLButtonElement).style.background =
-                        "transparent";
-                    }}
-                  >
-                    <EditIcon />
-                  </button>
-                </>
-              )}
-            </div>
-
-            {/* Meta row */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "16px",
-                flexWrap: "wrap",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "12px",
-                  color: "rgba(255,255,255,0.35)",
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                {formatDate(entry.created_at)}
-              </span>
-              <span
-                style={{
-                  width: "3px",
-                  height: "3px",
-                  borderRadius: "50%",
-                  background: "rgba(255,255,255,0.2)",
-                  display: "inline-block",
-                }}
-              />
-              <span
-                style={{ fontSize: "12px", color: "rgba(255,255,255,0.35)" }}
-              >
-                {entry.word_count.toLocaleString()} words
-              </span>
-              <span
-                style={{
-                  width: "3px",
-                  height: "3px",
-                  borderRadius: "50%",
-                  background: "rgba(255,255,255,0.2)",
-                  display: "inline-block",
-                }}
-              />
-              <span
-                style={{ fontSize: "12px", color: "rgba(255,255,255,0.35)" }}
-              >
-                {readingTime(entry.word_count)}
-              </span>
-              {entry.caption_source && (
-                <>
-                  <span
-                    style={{
-                      width: "3px",
-                      height: "3px",
-                      borderRadius: "50%",
-                      background: "rgba(255,255,255,0.2)",
-                      display: "inline-block",
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontSize: "12px",
-                      color: "rgba(255,255,255,0.35)",
-                    }}
-                  >
-                    {CAPTION_LABELS[entry.caption_source]}
-                  </span>
-                </>
-              )}
-              <span
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  color: "rgba(255,255,255,0.5)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
-                  marginLeft: "2px",
-                  background: "rgba(255,255,255,0.06)",
-                  padding: "2px 8px",
-                  borderRadius: "4px",
-                }}
-              >
-                {entry.language.toUpperCase()}
-              </span>
-            </div>
-            {progress &&
-              progress.total > 0 &&
-              (() => {
-                const tag = levelTag(progress);
-                const pct = (n: number) => `${(n / progress.total) * 100}%`;
-                return (
-                  <div style={{ marginTop: "14px" }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        height: "5px",
-                        borderRadius: "3px",
-                        overflow: "hidden",
-                        background: "rgba(255,255,255,0.06)",
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: pct(progress.known),
-                          background: "#4f8eff",
-                        }}
-                      />
-                      <div
-                        style={{
-                          width: pct(progress.learning),
-                          background: "#fbbf24",
-                        }}
-                      />
-                    </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "10px",
-                        marginTop: "8px",
-                        fontSize: "12px",
-                        color: "rgba(255,255,255,0.45)",
-                      }}
-                    >
-                      <span>
-                        {knownPct(progress)}% known · {progress.new} new
-                      </span>
-                      {tag && (
-                        <span
-                          style={{
-                            fontSize: "11px",
-                            fontWeight: 600,
-                            padding: "2px 8px",
-                            borderRadius: "20px",
-                            color: tag === "Hard" ? "#ff8866" : "#7b9fff",
-                            background:
-                              tag === "Hard"
-                                ? "rgba(255,102,68,0.12)"
-                                : "rgba(79,142,255,0.12)",
-                          }}
-                        >
-                          {tag}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })()}
-          </div>
-
-          <div
-            style={{
-              color: "rgba(255,255,255,0.2)",
-              paddingTop: "4px",
-              flexShrink: 0,
-            }}
-          >
-            <ArrowIcon />
-          </div>
+      <div className="pointer-events-none relative">
+        <Preview entry={entry} />
+        <div className="pointer-events-auto absolute right-2 top-2">
+          <EntryMenu
+            actions={[
+              {
+                label: "Rename",
+                onSelect: () => {
+                  setDraft(entry.title);
+                  setEditing(true);
+                },
+              },
+              {
+                label: "Mark all known…",
+                onSelect: confirmThen(
+                  `Mark every word in "${entry.title}" as known?`,
+                  () => onMarkKnown(entry),
+                ),
+              },
+              {
+                label: "Delete…",
+                danger: true,
+                onSelect: confirmThen(`Delete "${entry.title}"?`, () =>
+                  onDelete(entry),
+                ),
+              },
+            ]}
+          />
         </div>
       </div>
-    </div>
+
+      <p className="pointer-events-none relative mt-3 text-xs text-muted">
+        {meta.join(" · ")}
+      </p>
+
+      <div className="pointer-events-none relative mt-1">
+        {editing ? (
+          <input
+            ref={inputRef}
+            value={draft}
+            disabled={saving}
+            aria-label="Title"
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleSave();
+              }
+              if (e.key === "Escape") {
+                setDraft(entry.title);
+                setEditing(false);
+              }
+            }}
+            onBlur={handleSave}
+            className="pointer-events-auto w-full rounded-lg border border-line bg-surface-2 px-2 py-1 font-serif text-xl text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          />
+        ) : (
+          <h3 className="font-serif text-xl leading-snug text-ink">
+            {entry.title}
+          </h3>
+        )}
+      </div>
+
+      {progress && progress.total > 0 && (
+        <div className="pointer-events-none relative">
+          <Difficulty progress={progress} tag={tag} />
+        </div>
+      )}
+    </article>
   );
 }

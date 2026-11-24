@@ -1,12 +1,13 @@
 """Routes for the library: videos, subtitle text and cues, manual texts (typed, URL or file import) and the combined library list."""
 
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from webvtt.errors import MalformedCaptionError, MalformedFileError
 
+import entry_actions
 import importer
 from database import BASE_DIR, get_db
 from library_entries import video_entry
@@ -56,6 +57,9 @@ def update_video_title(video_id: int, body: TitleUpdate, db: Session = Depends(g
     return {"id": video.id, "title": video.title}
 
 
+PREVIEW_CHARS = 240  # enough for the first three lines on a library card
+
+
 def _text_entry(t: ManualText):
     return {
         "id": t.id,
@@ -66,6 +70,7 @@ def _text_entry(t: ManualText):
         "language": "de",
         "extraction_method": None,
         "caption_source": None,
+        "preview": t.content[:PREVIEW_CHARS],
         "word_count": t.word_count,
         "created_at": t.created_at,
     }
@@ -134,6 +139,30 @@ def update_text_title(text_id: int, body: TitleUpdate, db: Session = Depends(get
     t.title = title
     db.commit()
     return {"id": t.id, "title": t.title}
+
+
+@router.post("/library/{kind}/{ref_id}/mark-known")
+def mark_entry_known(
+    kind: Literal["video", "text"],
+    ref_id: int,
+    user_id: int = 1,
+    db: Session = Depends(get_db),
+):
+    """Mark every word of a video (by video id) or text known."""
+    text = entry_actions.entry_text(db, kind, ref_id)
+    if text is None:
+        raise HTTPException(status_code=404, detail="Entry or its text not found")
+    return {"changed": entry_actions.mark_all_known(db, user_id, text)}
+
+
+@router.delete("/library/{kind}/{ref_id}")
+def delete_library_entry(
+    kind: Literal["video", "text"], ref_id: int, db: Session = Depends(get_db)
+):
+    """Delete a video (by video id) or text from the library."""
+    if not entry_actions.delete_entry(db, kind, ref_id):
+        raise HTTPException(status_code=404, detail="Entry not found")
+    return {"deleted": True}
 
 
 @router.get("/library")

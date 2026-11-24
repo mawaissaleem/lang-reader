@@ -8,8 +8,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from database import BASE_DIR, get_db
-from library_entries import latest_subtitle
+from database import get_db
+from library_entries import latest_subtitle, subtitle_text_path
 from models import Dictionary, ManualText, UserWord, Video
 
 router = APIRouter()
@@ -39,8 +39,8 @@ def get_library_progress(user_id: int = 1, db: Session = Depends(get_db)):
         if not v.subtitles:
             continue
         sub = latest_subtitle(v)
-        path = BASE_DIR / sub.txt_path if sub.txt_path else None
-        if not path or not path.exists():
+        path = subtitle_text_path(sub)
+        if not path:
             continue
         words = progress.cached_words(
             ("video", sub.id),
