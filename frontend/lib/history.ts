@@ -3,46 +3,100 @@ export interface ProgressHistory {
   before: number; // known words with no recorded date
   days: [string, number][]; // [YYYY-MM-DD, cumulative known] on days it grew
   streak: { current: number; longest: number };
+  saved: [string, number][]; // [YYYY-MM-DD, distinct words saved or levelled up] on days with any
+  week_gain: number; // known now minus known 7 days ago
   today: number; // words saved or levelled up today
   goal: number; // daily target
 }
 
-const DAY = 86400000;
-const t = (d: string) => Date.parse(d + "T00:00:00Z");
-
-// Step-line points: starts at the untracked total, steps up on each growth day, runs flat to `today`.
-export function chartPoints(
-  h: ProgressHistory,
-  today: string,
-  w: number,
-  hgt: number,
-): string {
-  const x0 = h.days.length ? t(h.days[0][0]) - DAY : t(today) - DAY;
-  const span = Math.max(t(today) - x0, DAY);
-  const max = Math.max(h.known, 1);
-  const px = (ms: number) => ((ms - x0) / span) * w;
-  const py = (v: number) => hgt - (v / max) * hgt;
-  const pts: [number, number][] = [[0, py(h.before)]];
-  let prev = h.before;
-  for (const [d, n] of h.days) {
-    pts.push([px(t(d)), py(prev)], [px(t(d)), py(n)]);
-    prev = n;
-  }
-  pts.push([w, py(prev)]);
-  return pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+export type Range = 7 | 30 | "all";
+export interface DayPoint {
+  date: string;
+  known: number; // known words at the end of the day
+  gained: number; // change in known words over the day
+  saved: number; // distinct words saved or levelled up
+}
+export interface GridCell {
+  date: string;
+  saved: number;
+  level: 0 | 1 | 2 | 3; // intensity relative to the busiest day in the grid
 }
 
-// "6 May", or "6 May 2025" when the range crosses a year.
-export function axisLabels(first: string, today: string): [string, string] {
-  const fmt = (d: string, year: boolean) =>
-    new Date(t(d)).toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "short",
-      ...(year && { year: "numeric" }),
-      timeZone: "UTC",
-    });
-  const y = first.slice(0, 4) !== today.slice(0, 4);
-  return [fmt(first, y), fmt(today, y)];
+const DAY = 86400000;
+
+/** Moves a YYYY-MM-DD date by whole days (done in UTC so no time zone or DST shift). */
+export function addDays(date: string, n: number): string {
+  return new Date(Date.parse(date + "T00:00:00Z") + n * DAY)
+    .toISOString()
+    .slice(0, 10);
+}
+
+/** "20 Nov" for a YYYY-MM-DD date. */
+export function dayLabel(date: string): string {
+  return new Date(date + "T00:00:00Z").toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
+}
+
+/** One point per day from the range start to `today`: known count, its change and the saved count. */
+export function dailySeries(
+  h: ProgressHistory,
+  today: string,
+  range: Range,
+): DayPoint[] {
+  const firstActive = [h.days[0]?.[0], h.saved[0]?.[0]].filter(Boolean).sort();
+  const start =
+    range === "all" ? (firstActive[0] ?? today) : addDays(today, -(range - 1));
+  const saved = new Map(h.saved);
+  // `days` holds the cumulative count on days it grew; walk it alongside the calendar
+  let next = 0;
+  let known = h.before;
+  const knownOn = (date: string) => {
+    while (next < h.days.length && h.days[next][0] <= date) {
+      known = h.days[next][1];
+      next++;
+    }
+    return known;
+  };
+  let prev = knownOn(addDays(start, -1));
+  const out: DayPoint[] = [];
+  for (let d = start; d <= today; d = addDays(d, 1)) {
+    const k = knownOn(d);
+    out.push({ date: d, known: k, gained: k - prev, saved: saved.get(d) ?? 0 });
+    prev = k;
+  }
+  return out;
+}
+
+/** Round axis ticks (1, 2 or 5 times a power of ten) covering min..max, about four steps. */
+export function niceTicks(min: number, max: number): number[] {
+  // A flat series gets room above and below so its line sits mid-chart, not on the bottom edge
+  const bottom = max === min ? Math.max(0, min - 2) : min;
+  const top = max === min ? max + 2 : max;
+  const raw = (top - bottom) / 4;
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  const nice = [1, 2, 5, 10].map((m) => m * mag).find((x) => x >= raw) ?? mag;
+  // Word counts are whole numbers, so never step by less than one
+  const step = Math.max(1, nice);
+  const lo = Math.floor(bottom / step) * step;
+  const hi = Math.max(Math.ceil(top / step) * step, lo + step);
+  const ticks: number[] = [];
+  for (let v = lo; v <= hi; v += step) ticks.push(v);
+  return ticks;
+}
+
+/** The last 12 weeks (84 days, oldest first, each 7 consecutive days a column) ending on `today`. */
+export function activityGrid(h: ProgressHistory, today: string): GridCell[] {
+  const saved = new Map(h.saved);
+  const days = Array.from({ length: 84 }, (_, i) => addDays(today, i - 83));
+  const max = Math.max(1, ...days.map((d) => saved.get(d) ?? 0));
+  return days.map((date) => {
+    const n = saved.get(date) ?? 0;
+    const level = n === 0 ? 0 : Math.ceil((n / max) * 3);
+    return { date, saved: n, level: level as GridCell["level"] };
+  });
 }
 
 /** Share of the daily goal reached, 0-100 (capped so the ring never overfills). */

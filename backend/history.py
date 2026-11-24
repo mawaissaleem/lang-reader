@@ -38,6 +38,8 @@ def _local_day(at: datetime, tz: ZoneInfo) -> date:
 def build_progress(db, user_id: int, tz: ZoneInfo, today: date) -> dict:
     """known: words now known; `before` of them have no recorded date, `days` gives [date, cumulative] on days it grew.
     streak: consecutive local days with any save or status change; today without activity yet does not break it.
+    saved: [date, n] per day with n > 0 distinct words saved or levelled up (today's n is `today`).
+    week_gain: known now minus known at the end of the day 7 days before `today`; a word that fell off known counts against it.
     today: distinct words saved or levelled up on `today`; goal: the daily target from settings (default 25)."""
     events = (
         db.query(WordEvent)
@@ -54,21 +56,28 @@ def build_progress(db, user_id: int, tz: ZoneInfo, today: date) -> dict:
     first_known: dict[int, date] = {}
     active = set()
     last: dict[int, str] = {}  # each word's status before the current event
-    today_words = set()
+    saved_words: dict[date, set[int]] = {}
+    cutoff = today - timedelta(days=7)
+    status_at_cutoff: dict[int, str] = {}
     for e in events:
         d = _local_day(e.at, tz)
         active.add(d)
         # Count a save (no earlier event, rank 0) or a move up. "ignored" ranks 0, so saving
         # straight to ignored or moving there never counts; un-ignoring into learning does.
         prev_rank = RANK.get(last.get(e.word_id), 0)
-        if d == today and RANK.get(e.status, 0) > prev_rank:
-            today_words.add(e.word_id)
+        if RANK.get(e.status, 0) > prev_rank:
+            saved_words.setdefault(d, set()).add(e.word_id)
         last[e.word_id] = e.status
+        if d <= cutoff:
+            status_at_cutoff[e.word_id] = e.status
         if (
             e.status == "known" and e.word_id in known
         ):  # a word later moved off known is not counted
             first_known.setdefault(e.word_id, d)
     before = len(known) - len(first_known)
+    # known words with no event at all were known the whole time, so they cancel out of the gain
+    undated = len(known - last.keys())
+    known_at_cutoff = undated + sum(s == "known" for s in status_at_cutoff.values())
     per_day: dict[date, int] = {}
     for d in first_known.values():
         per_day[d] = per_day.get(d, 0) + 1
@@ -90,7 +99,9 @@ def build_progress(db, user_id: int, tz: ZoneInfo, today: date) -> dict:
         "before": before,
         "days": days,
         "streak": {"current": current, "longest": longest},
-        "today": len(today_words),
+        "saved": [[d.isoformat(), len(w)] for d, w in sorted(saved_words.items())],
+        "week_gain": len(known) - known_at_cutoff,
+        "today": len(saved_words.get(today, ())),
         "goal": daily_goal(db),
     }
 

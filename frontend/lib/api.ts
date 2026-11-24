@@ -561,3 +561,17 @@ export async function fetchProgressHistory(
   );
   return readJson(response, `Failed to fetch progress: ${response.status}`);
 }
+
+/** Saves the daily word goal (1-1000) and returns the stored value. */
+export async function setDailyGoal(goal: number): Promise<number> {
+  const response = await fetch(`${API_BASE_URL}/progress/goal`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ goal }),
+  });
+  const data = await readJson<{ goal: number }>(
+    response,
+    `Failed to save goal: ${response.status}`,
+  );
+  return data.goal;
+}

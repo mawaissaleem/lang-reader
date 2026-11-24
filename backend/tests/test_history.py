@@ -222,6 +222,46 @@ class TestProgress(Base_):
         self.event(1, "known", "2026-11-17T11:00")
         self.assertEqual(self.prog(date(2026, 11, 17))["today"], 1)
 
+    def test_saved_per_day_counts_distinct_words_in_local_days(self):
+        self.event(1, "learning1", "2026-11-16T23:30")  # 00:30 on the 17th in Berlin
+        self.event(1, "learning2", "2026-11-17T09:00")  # same word, same day
+        self.event(2, "learning1", "2026-11-10T09:00")
+        self.event(3, "ignored", "2026-11-10T09:00")  # ignoring is not progress
+        p = self.prog(date(2026, 11, 17), ZoneInfo("Europe/Berlin"))
+        self.assertEqual(p["saved"], [["2026-11-10", 1], ["2026-11-17", 1]])
+        self.assertEqual(p["today"], 1)
+
+    def test_week_gain_counts_words_that_reached_known_in_the_window(self):
+        old = self.word("old", "known")  # known long before the window
+        self.event(old.word_id, "known", "2026-11-01T09:00")
+        undated = self.word("undated", "known")  # known, no events at all
+        new = self.word("new", "known")
+        self.event(new.word_id, "learning1", "2026-11-05T09:00")
+        self.event(new.word_id, "known", "2026-11-15T09:00")
+        self.assertEqual(self.prog(date(2026, 11, 17))["week_gain"], 1)
+        self.assertEqual(undated.status, "known")
+
+    def test_week_gain_ignores_a_word_that_went_known_then_back_down(self):
+        a = self.word("a", "learning2")
+        self.event(a.word_id, "known", "2026-11-14T09:00")
+        self.event(a.word_id, "learning2", "2026-11-15T09:00")
+        self.assertEqual(self.prog(date(2026, 11, 17))["week_gain"], 0)
+
+    def test_week_gain_is_negative_when_a_known_word_dropped(self):
+        a = self.word("a", "learning1")
+        self.event(a.word_id, "known", "2026-11-01T09:00")
+        self.event(a.word_id, "learning1", "2026-11-15T09:00")
+        self.assertEqual(self.prog(date(2026, 11, 17))["week_gain"], -1)
+
+    def test_week_gain_boundary_uses_callers_timezone(self):
+        a = self.word("a", "known")
+        # 23:30 UTC on the 10th is 12:30 on the 11th in Auckland: after the cutoff on the 10th
+        self.event(a.word_id, "known", "2026-11-10T23:30")
+        auckland = ZoneInfo("Pacific/Auckland")
+        self.assertEqual(self.prog(date(2026, 11, 17), auckland)["week_gain"], 1)
+        # in UTC that event is on the 10th, the last day before the window
+        self.assertEqual(self.prog(date(2026, 11, 17), UTC)["week_gain"], 0)
+
     def test_goal_endpoint_saves_and_rejects_bad_values(self):
         main.app.dependency_overrides[database.get_db] = lambda: self.db
         self.addCleanup(main.app.dependency_overrides.clear)

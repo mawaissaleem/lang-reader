@@ -8,6 +8,8 @@ const history = {
   known: 0,
   before: 0,
   days: [],
+  saved: [],
+  week_gain: 0,
   streak: { current: 3, longest: 5 },
   today: 18,
   goal: 25,

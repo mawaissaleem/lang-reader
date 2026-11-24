@@ -1,5 +1,6 @@
 "use client";
-import { goalPct, type ProgressHistory } from "@/lib/history";
+import GoalRing from "@/components/GoalRing";
+import type { ProgressHistory } from "@/lib/history";
 import { newPer100, type Progress } from "@/lib/progress";
 import type { LibraryEntry } from "@/lib/api";
 
@@ -26,18 +27,7 @@ export default function TodayStrip({
       className="mb-8 grid overflow-hidden rounded-2xl border border-line bg-surface md:grid-cols-[300px_260px_1fr]"
     >
       <div className="flex items-center gap-4 p-5">
-        <div
-          role="img"
-          aria-label={`${history.today} of ${history.goal} words today`}
-          className="grid h-16 w-16 flex-none place-items-center rounded-full"
-          style={{
-            background: `conic-gradient(var(--accent) ${goalPct(history)}%, var(--surface-2) 0)`,
-          }}
-        >
-          <span className="col-start-1 row-start-1 grid h-[50px] w-[50px] place-items-center rounded-full bg-surface text-[13px] font-bold text-ink">
-            {history.today}/{history.goal}
-          </span>
-        </div>
+        <GoalRing today={history.today} goal={history.goal} />
         <div>
           <div className="font-semibold text-ink">Today&apos;s goal</div>
           <div className="text-[13px] text-muted">
