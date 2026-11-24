@@ -162,6 +162,8 @@ export interface LibraryEntry {
   url?: string;
   /** First characters of a text; absent on videos. */
   preview?: string;
+  /** Set when an add matched an entry already in the library; that entry is returned instead of a copy. */
+  duplicate?: boolean;
 }
 
 export async function fetchLibrary(): Promise<LibraryEntry[]> {
@@ -223,15 +225,16 @@ export const createText = (title: string, content: string) =>
     body: JSON.stringify({ title, content }),
   });
 
-export const importTextUrl = (url: string) =>
+export const importTextUrl = (url: string, title?: string) =>
   postText("/texts/import-url", {
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url }),
+    body: JSON.stringify({ url, title }),
   });
 
-export function importTextFile(file: File) {
+export function importTextFile(file: File, title?: string) {
   const body = new FormData();
   body.append("file", file);
+  if (title) body.append("title", title);
   return postText("/texts/import-file", { body });
 }
 

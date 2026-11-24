@@ -229,6 +229,14 @@ class EndpointTests(unittest.TestCase):
         tid = r.json()["id"]
         self.assertIn("Erstes Kapitel", self.client.get(f"/texts/{tid}").json()["text"])
 
+    def test_file_import_uses_typed_title(self):
+        r = self.client.post(
+            "/texts/import-file",
+            files={"file": ("b.epub", make_epub())},
+            data={"title": "Mein eigener Titel"},
+        )
+        self.assertEqual(r.json()["title"], "Mein eigener Titel")
+
     def test_file_import_error(self):
         r = self.client.post("/texts/import-file", files={"file": ("b.txt", b"hi")})
         self.assertEqual(r.status_code, 422)
@@ -240,6 +248,15 @@ class EndpointTests(unittest.TestCase):
         r = self.client.post("/texts/import-url", json={"url": "https://example.com/a"})
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()["title"], "Ein Titel")
+
+    @patch("importer.socket.getaddrinfo", return_value=PUBLIC)
+    @patch("importer.requests.get", return_value=FakeResp(ARTICLE))
+    def test_url_import_uses_typed_title(self, *_):
+        r = self.client.post(
+            "/texts/import-url",
+            json={"url": "https://example.com/a", "title": "Mein Titel"},
+        )
+        self.assertEqual(r.json()["title"], "Mein Titel")
 
     def test_url_import_error(self):
         r = self.client.post("/texts/import-url", json={"url": "file:///etc/passwd"})

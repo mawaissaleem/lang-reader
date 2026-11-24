@@ -9,7 +9,7 @@ from unittest.mock import patch
 from lemmatizer import word_key
 from library_entries import video_entry
 from translators.llm import models_to_try
-from utils import sentence_hash
+from utils import extract_video_id, sentence_hash
 
 
 class WordKeyTest(unittest.TestCase):
@@ -71,3 +71,11 @@ class VideoEntryTest(unittest.TestCase):
 
     def test_empty_title_becomes_untitled(self):
         self.assertEqual(video_entry(self._video(None))["title"], "Untitled")
+
+
+class ExtractVideoIdTest(unittest.TestCase):
+    def test_shorts_link(self):
+        self.assertEqual(
+            extract_video_id("https://www.youtube.com/shorts/abcdefghijk"),
+            "abcdefghijk",
+        )

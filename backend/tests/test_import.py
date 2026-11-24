@@ -119,11 +119,21 @@ class TestGermanImport(unittest.TestCase):
             get_subtitle_text(r["id"], db=self.db), {"text": "Hallo schöne Welt"}
         )
 
-    def test_duplicate_returns_409(self):
-        self._call(self.ok, None)
-        with self.assertRaises(HTTPException) as cm:
-            self._call(self.ok, None)
-        self.assertEqual(cm.exception.status_code, 409)
+    def test_duplicate_returns_existing_entry(self):
+        first = self._call(self.ok, None)
+        again = self._call(self.ok, None)
+        self.assertEqual(again["id"], first["id"])
+        self.assertTrue(again["duplicate"])
+        self.assertEqual(self.db.query(Video).count(), 1)
+
+    def test_video_row_without_subtitles_is_reimported(self):
+        self.db.add(Video(url=URL, title="Leer"))
+        self.db.commit()
+        r = self._call(self.ok, None)
+        self.assertNotIn("duplicate", r)
+        self.assertEqual(r["title"], "Mein Titel")
+        self.assertEqual(self.db.query(Video).count(), 1)
+        self.assertEqual(self.db.query(Subtitle).count(), 1)
 
     def test_both_not_found_lists_plain_codes(self):
         with self.assertRaises(HTTPException) as cm:

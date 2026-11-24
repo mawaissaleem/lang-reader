@@ -31,8 +31,7 @@ vi.mock("@/components/TextDisplay", () => ({
   default: () => <div data-testid="plain" />,
 }));
 vi.mock("@/components/SidePanel", () => ({ default: () => null }));
-vi.mock("@/components/AddTextDialog", () => ({ default: () => null }));
-vi.mock("@/components/ImportYouTubeDialog", () => ({ default: () => null }));
+vi.mock("@/components/AddDialog", () => ({ default: () => null }));
 
 import { fetchEntryText, fetchLibrary, fetchSubtitleCues } from "@/lib/api";
 import useStore from "@/store/useStore";

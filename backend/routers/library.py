@@ -2,7 +2,7 @@
 
 from typing import Annotated, Literal, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field, StringConstraints
 from sqlalchemy.orm import Session
 from webvtt.errors import MalformedCaptionError, MalformedFileError
@@ -88,12 +88,22 @@ def _text_entry(t: ManualText):
     }
 
 
+def _default_title(content: str) -> str:
+    """First words of the text, for when no title was given."""
+    words = content.split()
+    return " ".join(words[:6]) + ("…" if len(words) > 6 else "")
+
+
 def _save_text(db: Session, title: Optional[str], content: str):
+    """Save a text under the given title; identical content already in the library is returned flagged as a duplicate."""
     content = content.strip()
     if not content:
         raise HTTPException(status_code=422, detail="Text must not be empty")
+    existing = db.query(ManualText).filter(ManualText.content == content).first()
+    if existing:
+        return {**_text_entry(existing), "duplicate": True}
     t = ManualText(
-        title=(title or "").strip() or "Untitled",
+        title=(title or "").strip() or _default_title(content),
         content=content,
         word_count=len(content.split()),
     )
@@ -110,6 +120,7 @@ def create_text(body: TextCreate, db: Session = Depends(get_db)):
 
 class UrlImport(BaseModel):
     url: str
+    title: Optional[str] = None
 
 
 @router.post("/texts/import-url")
@@ -118,18 +129,23 @@ def import_text_url(body: UrlImport, db: Session = Depends(get_db)):
         title, text = importer.fetch_url(body.url)
     except importer.ImportError_ as e:
         raise HTTPException(status_code=422, detail=str(e))
-    return _save_text(db, title, text)
+    # a title the user typed wins over the page's own
+    return _save_text(db, body.title or title, text)
 
 
 @router.post("/texts/import-file")
-def import_text_file(file: UploadFile = File(...), db: Session = Depends(get_db)):
+def import_text_file(
+    file: UploadFile = File(...),
+    title: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+):
     # shortcut: Starlette spools the whole upload to a temp file before this 20 MB cap applies; upgrade with a request-size limit in a proxy or middleware
     data = file.file.read(importer.MAX_UPLOAD + 1)
     try:
-        title, text = importer.read_file(file.filename, data)
+        doc_title, text = importer.read_file(file.filename, data)
     except importer.ImportError_ as e:
         raise HTTPException(status_code=422, detail=str(e))
-    return _save_text(db, title or file.filename, text)
+    return _save_text(db, title or doc_title or file.filename, text)
 
 
 @router.get("/texts/{text_id}")

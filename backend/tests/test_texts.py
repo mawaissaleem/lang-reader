@@ -89,9 +89,18 @@ class TextEndpointTests(unittest.TestCase):
         self.assertEqual([e["id"] for e in lib], [entry["id"]])
         self.assertIsNone(lib[0]["video_id"])
 
-    def test_missing_title_defaults_to_untitled(self):
-        r = self.client.post("/texts", json={"content": "hallo"})
-        self.assertEqual(r.json()["title"], "Untitled")
+    def test_missing_title_defaults_to_first_words(self):
+        r = self.client.post(
+            "/texts", json={"content": "eins zwei drei vier fünf sechs sieben"}
+        )
+        self.assertEqual(r.json()["title"], "eins zwei drei vier fünf sechs…")
+
+    def test_same_content_returns_existing_entry(self):
+        first = self.create().json()
+        again = self.create(title="Anderer Titel").json()
+        self.assertEqual(again["id"], first["id"])
+        self.assertTrue(again["duplicate"])
+        self.assertEqual(len(self.client.get("/library").json()), 1)
 
     def test_empty_content_rejected(self):
         self.assertEqual(self.create(content="  \n ").status_code, 422)

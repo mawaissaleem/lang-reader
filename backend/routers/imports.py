@@ -24,7 +24,14 @@ def get_german_subtitles(
     db: Session = Depends(get_db),
 ):
     normalized_url = subtitle_import.normalize_video_url(request.url)
-    subtitle_import.ensure_not_in_library(db, normalized_url)
+    existing = subtitle_import.find_video(db, normalized_url)
+    if existing and existing.subtitles:
+        # a repeat import opens the saved entry instead of failing or copying it
+        return {**video_entry(existing), "duplicate": True}
+    if existing:
+        # a video row without subtitles has nothing to open; drop it so the URL can be imported again
+        db.delete(existing)
+        db.commit()
     result, method = subtitle_import.fetch_subtitles(request.url)
     # saved inside the request so the library entry exists when we return
     video = subtitle_import.save_subtitles(

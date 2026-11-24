@@ -2,8 +2,7 @@
 import { useState, useEffect } from "react";
 import { fetchLibrary, entryKey, USER_ID } from "@/lib/api";
 import AppNav from "@/components/AppNav";
-import AddTextDialog from "@/components/AddTextDialog";
-import ImportYouTubeDialog from "@/components/ImportYouTubeDialog";
+import AddDialog from "@/components/AddDialog";
 import EntryCard from "@/components/library/EntryCard";
 import FilterPill from "@/components/library/FilterPill";
 import ReaderView from "@/components/library/ReaderView";
@@ -91,19 +90,13 @@ export default function LibraryPage() {
       }}
     >
       <AppNav>
-        <ImportYouTubeDialog
-          triggerClassName="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          onImported={(latest) => setEntries(latest)}
-        />
-        <AddTextDialog
-          triggerLabel="Add Text"
-          triggerClassName="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          onLoadText={(entry) => {
-            open(entry);
+        <AddDialog
+          onSaved={() =>
             fetchLibrary()
               .then(setEntries)
-              .catch((err) => console.error("Library refresh failed", err));
-          }}
+              .catch((err) => console.error("Library refresh failed", err))
+          }
+          onOpen={open}
         />
       </AppNav>
 

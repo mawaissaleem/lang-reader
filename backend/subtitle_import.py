@@ -29,17 +29,9 @@ def normalize_video_url(url: str) -> str:
     return f"https://www.youtube.com/watch?v={video_id}"
 
 
-def ensure_not_in_library(db: Session, normalized_url: str) -> None:
-    """409 if this video was already imported."""
-    existing_video = db.query(Video).filter(Video.url == normalized_url).first()
-    if existing_video:
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                f"This video already exists in your library: "
-                f"{existing_video.title or 'Untitled'}"
-            ),
-        )
+def find_video(db: Session, normalized_url: str) -> Optional[Video]:
+    """The already-imported video for this URL, or None."""
+    return db.query(Video).filter(Video.url == normalized_url).first()
 
 
 def fetch_subtitles(url: str) -> Tuple[dict, str]:
