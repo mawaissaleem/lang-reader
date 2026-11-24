@@ -12,6 +12,7 @@ vi.mock("@/lib/api", async (orig) => ({
   ...(await orig<typeof import("@/lib/api")>()),
   fetchLibrary: vi.fn(),
   fetchLibraryProgress: vi.fn(async () => ({})),
+  fetchProgressHistory: vi.fn(async () => new Promise(() => {})),
   fetchEntryText: vi.fn(async () => "text"),
   fetchSubtitleCues: vi.fn(),
   renameEntry: vi.fn(),

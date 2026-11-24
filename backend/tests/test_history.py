@@ -190,6 +190,46 @@ class TestProgress(Base_):
             self.prog(date(2026, 11, 17), la)["streak"]["longest"], 2
         )  # 15:30 on the 16th, 02:00 on the 17th
 
+    def test_today_uses_local_day_and_default_goal(self):
+        self.event(1, "learning1", "2026-11-16T23:30")  # 00:30 on the 17th in Berlin
+        self.event(2, "learning1", "2026-11-17T10:00")
+        p = self.prog(date(2026, 11, 17), ZoneInfo("Europe/Berlin"))
+        self.assertEqual((p["today"], p["goal"]), (2, 25))
+        self.assertEqual(self.prog(date(2026, 11, 17), UTC)["today"], 1)
+
+    def test_today_counts_a_new_save(self):
+        self.event(1, "learning1", "2026-11-17T10:00")
+        self.assertEqual(self.prog(date(2026, 11, 17))["today"], 1)
+
+    def test_today_counts_a_level_up_of_an_older_word(self):
+        self.event(1, "learning1", "2026-11-10T10:00")
+        self.event(1, "learning2", "2026-11-17T10:00")
+        self.assertEqual(self.prog(date(2026, 11, 17))["today"], 1)
+
+    def test_today_skips_a_downgrade(self):
+        self.event(1, "known", "2026-11-10T10:00")
+        self.event(1, "learning2", "2026-11-17T10:00")
+        self.assertEqual(self.prog(date(2026, 11, 17))["today"], 0)
+
+    def test_today_skips_ignored(self):
+        self.event(1, "learning1", "2026-11-10T10:00")
+        self.event(1, "ignored", "2026-11-17T10:00")
+        self.event(2, "ignored", "2026-11-17T11:00")  # first event straight to ignored
+        self.assertEqual(self.prog(date(2026, 11, 17))["today"], 0)
+
+    def test_today_counts_a_word_changed_twice_once(self):
+        self.event(1, "learning1", "2026-11-17T10:00")
+        self.event(1, "known", "2026-11-17T11:00")
+        self.assertEqual(self.prog(date(2026, 11, 17))["today"], 1)
+
+    def test_goal_endpoint_saves_and_rejects_bad_values(self):
+        main.app.dependency_overrides[database.get_db] = lambda: self.db
+        self.addCleanup(main.app.dependency_overrides.clear)
+        c = TestClient(main.app)
+        self.assertEqual(c.put("/progress/goal", json={"goal": 40}).status_code, 200)
+        self.assertEqual(c.get("/progress").json()["goal"], 40)
+        self.assertEqual(c.put("/progress/goal", json={"goal": 0}).status_code, 422)
+
     def test_endpoint_ok_and_bad_tz(self):
         main.app.dependency_overrides[database.get_db] = lambda: self.db
         self.addCleanup(main.app.dependency_overrides.clear)

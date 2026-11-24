@@ -20,3 +20,13 @@ export function sortEntries(
   };
   return [...entries].sort(by[sort]);
 }
+
+/** The easiest entry that still has new words to learn, or undefined when everything is finished. */
+export function upNext(
+  entries: LibraryEntry[],
+  progress: Record<string, Progress>,
+): LibraryEntry | undefined {
+  return sortEntries(entries, "easiest", progress).find(
+    (e) => (progress[entryKey(e)]?.new ?? 0) > 0,
+  );
+}

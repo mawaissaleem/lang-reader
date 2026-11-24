@@ -9,7 +9,9 @@ import FilterPill from "@/components/library/FilterPill";
 import ReaderView from "@/components/library/ReaderView";
 import { useEntryReader } from "@/lib/useEntryReader";
 import { relativeTags } from "@/lib/progress";
-import { sortEntries, type SortKey } from "@/lib/sortEntries";
+import { sortEntries, upNext, type SortKey } from "@/lib/sortEntries";
+import { useProgressHistory } from "@/lib/useProgressHistory";
+import TodayStrip from "@/components/library/TodayStrip";
 import { useLibraryEntries } from "@/lib/useLibraryEntries";
 import useStore from "@/store/useStore";
 
@@ -40,6 +42,11 @@ export default function LibraryPage() {
     remove,
     markKnown,
   } = useLibraryEntries(openEntry !== null);
+
+  const { history, refresh: refreshHistory } = useProgressHistory(
+    openEntry !== null,
+  );
+  const next = upNext(entries, progress);
 
   const text = useStore((s) => s.text);
   const loadUserWords = useStore((s) => s.loadUserWords);
@@ -110,6 +117,18 @@ export default function LibraryPage() {
             : `${count("youtube")} videos · ${count("manual")} texts`}
         </p>
 
+        {!loading && !error && (
+          <TodayStrip
+            history={history}
+            next={next}
+            nextProgress={next && progress[entryKey(next)]}
+            nextLoading={
+              entries.length > 0 && Object.keys(progress).length === 0
+            }
+            onContinue={open}
+          />
+        )}
+
         {/* Filters + sort */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div className="flex gap-2">
@@ -161,7 +180,7 @@ export default function LibraryPage() {
                 onRename={rename}
                 onMarkKnown={async (e) => {
                   await markKnown(e);
-                  await loadUserWords(USER_ID);
+                  await Promise.all([loadUserWords(USER_ID), refreshHistory()]);
                 }}
                 onDelete={remove}
               />

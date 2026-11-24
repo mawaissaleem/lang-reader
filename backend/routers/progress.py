@@ -6,11 +6,12 @@ from datetime import datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from database import get_db
 from library_entries import latest_subtitle, subtitle_text_path
-from models import Dictionary, ManualText, UserWord, Video
+from models import Dictionary, ManualText, Setting, UserWord, Video
 
 router = APIRouter()
 
@@ -23,6 +24,18 @@ def get_progress(user_id: int = 1, tz: str = "UTC", db: Session = Depends(get_db
     except (ZoneInfoNotFoundError, ValueError):
         raise HTTPException(status_code=400, detail=f"Unknown timezone: {tz}")
     return history.build_progress(db, user_id, zone, datetime.now(zone).date())
+
+
+class GoalBody(BaseModel):
+    goal: int = Field(ge=1, le=1000)
+
+
+@router.put("/progress/goal")
+def set_daily_goal(body: GoalBody, db: Session = Depends(get_db)):
+    """Store the daily word goal shown on the library and progress pages."""
+    db.merge(Setting(key="daily_goal", value=body.goal))
+    db.commit()
+    return {"goal": body.goal}
 
 
 @router.get("/library/progress")

@@ -384,7 +384,6 @@ async def send_pending(db) -> dict:
 
 # (min interval in days, status), highest first. THE mapping to tune; 21 days is Anki's "mature".
 INTERVAL_STATUS = [(21, "known"), (7, "learning3"), (1, "learning2")]
-_RANK = {"learning1": 1, "learning2": 2, "learning3": 3, "known": 4}
 
 
 def status_for_interval(days: int):
@@ -426,7 +425,7 @@ async def pull_intervals(db, user_id: int) -> dict:
     for nid, cs in note_cards.items():
         new = status_for_interval(max((ivl.get(c, 0) for c in cs), default=0))
         w = by_note[nid]
-        if new and _RANK.get(new, 0) > _RANK.get(w.status, 0):
+        if new and history.RANK.get(new, 0) > history.RANK.get(w.status, 0):
             history.set_status(db, w, new)
             changed += 1
     db.commit()

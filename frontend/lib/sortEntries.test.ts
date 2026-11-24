@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LibraryEntry } from "./api";
-import { sortEntries } from "./sortEntries";
+import { sortEntries, upNext } from "./sortEntries";
 
 const e = (id: number, title: string, created_at: string) =>
   ({ id, type: "text", title, created_at }) as unknown as LibraryEntry;
@@ -22,4 +22,17 @@ describe("sortEntries", () => {
     expect(ids(sortEntries([a, b, c], "newest", progress))).toEqual([2, 3, 1]));
   it("title sorts alphabetically", () =>
     expect(ids(sortEntries([a, b, c], "title", progress))).toEqual([2, 1, 3]));
+});
+
+describe("upNext", () => {
+  it("picks the easiest entry with new words left", () => {
+    const done = {
+      ...progress,
+      "text-1": { known: 10, learning: 0, new: 0, total: 10 },
+    };
+    expect(upNext([a, b, c], progress)?.id).toBe(1);
+    expect(upNext([a, b, c], done)?.id).toBe(2);
+  });
+  it("is undefined when nothing has new words", () =>
+    expect(upNext([a, c], {})).toBeUndefined());
 });

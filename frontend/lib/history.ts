@@ -3,6 +3,8 @@ export interface ProgressHistory {
   before: number; // known words with no recorded date
   days: [string, number][]; // [YYYY-MM-DD, cumulative known] on days it grew
   streak: { current: number; longest: number };
+  today: number; // words saved or levelled up today
+  goal: number; // daily target
 }
 
 const DAY = 86400000;
@@ -42,3 +44,7 @@ export function axisLabels(first: string, today: string): [string, string] {
   const y = first.slice(0, 4) !== today.slice(0, 4);
   return [fmt(first, y), fmt(today, y)];
 }
+
+/** Share of the daily goal reached, 0-100 (capped so the ring never overfills). */
+export const goalPct = (h: Pick<ProgressHistory, "today" | "goal">) =>
+  h.goal > 0 ? Math.min(100, Math.round((h.today / h.goal) * 100)) : 0;
