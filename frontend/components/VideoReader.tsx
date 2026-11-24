@@ -219,6 +219,7 @@ export default function VideoReader({
               )}
             </div>
           )}
+          <VideoWordCard />
         </div>
         <VideoTimeline player={player} cues={cues} />
         <div className="flex flex-wrap items-center gap-3 mt-4 px-4 py-2.5 bg-surface border border-line rounded-xl">
@@ -261,7 +262,6 @@ export default function VideoReader({
             </kbd>
           </label>
         </div>
-        <VideoWordCard />
       </div>
 
       {/* Transcript: ~480px, shrinks to 340px before the player gives way; min-h keeps it readable when stacked */}

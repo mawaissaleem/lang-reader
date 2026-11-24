@@ -96,6 +96,26 @@ describe("video overlay", () => {
     expect(screen.queryByTestId("word-card")).toBeNull();
   });
 
+  it("the card sits on the video and closes with × or Escape", async () => {
+    await showOverlay();
+    const click = async () =>
+      act(async () => {
+        fireEvent.click(screen.getAllByText("Welt")[0]);
+      });
+    await click();
+    expect(screen.getByTestId("word-card").closest(".aspect-video")).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText("Close word card"));
+    });
+    expect(screen.queryByTestId("word-card")).toBeNull();
+    await click();
+    await act(async () => {
+      fireEvent.keyDown(window, { key: "Escape" });
+    });
+    expect(useStore.getState().selectedWord).toBeNull();
+    expect(screen.queryByTestId("word-card")).toBeNull();
+  });
+
   it("E toggles the English switch but not while typing", () => {
     const sw = screen.getByRole("switch") as HTMLInputElement;
     fireEvent.keyDown(window, { key: "e" });

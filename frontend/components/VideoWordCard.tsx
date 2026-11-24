@@ -1,5 +1,6 @@
 "use client";
 import clsx from "clsx";
+import { useEffect } from "react";
 import useStore from "@/store/useStore";
 import { ARTICLE_CLASS } from "@/components/SidePanel";
 import { aiKey, type WordStatus } from "@/types";
@@ -14,7 +15,7 @@ const LEVELS: { status: WordStatus; label: string }[] = [
 const small =
   "px-3 py-1 rounded-full text-[12px] border border-line transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
 
-/** Compact word card under the player: shown while a word is selected and the side panel is closed. */
+/** Compact word card laid over the top of the (paused) video, so the meaning shows where you are looking; hidden while the side panel is open. */
 export default function VideoWordCard() {
   const word = useStore((s) => s.selectedWord);
   const panelOpen = useStore((s) => s.sidePanelOpen);
@@ -37,8 +38,19 @@ export default function VideoWordCard() {
   const save = useStore((s) => s.saveSelectedWord);
   const setPanelOpen = useStore((s) => s.setSidePanelOpen);
   const genderColours = useStore((s) => s.genderColours);
+  const select = useStore((s) => s.setSelectedWord);
+  const open = Boolean(word) && !panelOpen;
 
-  if (!word || panelOpen) return null;
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") select(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, select]);
+
+  if (!open) return null;
 
   // the in-sentence meaning when the AI already gave one, else the first sense of the open source
   const meaning =
@@ -49,10 +61,21 @@ export default function VideoWordCard() {
         : undefined;
 
   return (
+    // sits on the video, so it keeps the dark look in every reader theme
     <section
       data-testid="word-card"
-      className="mt-3 rounded-xl border border-line bg-surface px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-2"
+      data-theme="dark"
+      aria-label="Word"
+      className="absolute inset-x-3 top-3 z-10 max-h-[calc(100%-1.5rem)] overflow-y-auto rounded-xl border border-white/10 bg-black/85 backdrop-blur px-4 py-3 pr-10 flex flex-wrap items-center gap-x-6 gap-y-2 shadow-lg"
     >
+      <button
+        onClick={() => select(null)}
+        aria-label="Close word card"
+        title="Close (Esc)"
+        className="absolute right-2 top-2 size-7 rounded-full text-muted hover:text-ink hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      >
+        ×
+      </button>
       <div className="min-w-0 flex-1 basis-48">
         <p className="m-0 font-serif text-2xl leading-tight text-ink">
           {result?.article && (
