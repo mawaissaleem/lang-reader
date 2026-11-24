@@ -1,10 +1,12 @@
 "use client";
-import { useEffect } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReaderFooter from "@/components/ReaderFooter";
 import SidePanel from "@/components/SidePanel";
 import TextDisplay from "@/components/TextDisplay";
 import VideoReader from "@/components/VideoReader";
 import DisplayMenu from "@/components/library/DisplayMenu";
+import PageBar from "@/components/library/PageBar";
+import { newForms, splitPages } from "@/lib/pages";
 import { TEXT_SIZE_REM } from "@/lib/display";
 import useStore from "@/store/useStore";
 import type { Cue } from "@/lib/video";
@@ -30,6 +32,23 @@ export default function ReaderView({
   const loadDisplay = useStore((s) => s.loadDisplay);
   // saved Display settings load after mount so the server and first client render match
   useEffect(() => loadDisplay(), [loadDisplay]);
+
+  // Pages are for typed or imported texts only; videos (even without timed lines) scroll as one.
+  const text = useStore((s) => s.text);
+  const isText = useStore((s) => s.textRef?.kind === "text");
+  const textId = useStore((s) => s.textRef?.id);
+  const userWords = useStore((s) => s.userWords);
+  const pages = useMemo(() => (isText ? splitPages(text) : []), [isText, text]);
+  const [requestedPage, setPage] = useState(0);
+  const page = Math.min(requestedPage, Math.max(pages.length - 1, 0));
+  const pageText = pages.length ? pages[page] : text;
+  const mainRef = useRef<HTMLElement>(null);
+  const goToPage = useCallback((next: number) => {
+    // token ids restart on every page, so a selection would mark the wrong word
+    useStore.getState().setSelectedWord("");
+    setPage(next);
+    mainRef.current?.scrollTo(0, 0);
+  }, []);
 
   return (
     // Fixed viewport height: the text and the word panel scroll on their own, so the panel's Save bar stays at the screen bottom.
@@ -79,12 +98,22 @@ export default function ReaderView({
             className="ml-4"
           />
         ) : null}
+        {isText && !video?.cues.length && pages.length > 0 ? (
+          <PageBar
+            key={textId}
+            page={page}
+            pageCount={pages.length}
+            onPage={goToPage}
+            newWords={newForms(pageText, userWords)}
+          />
+        ) : null}
         <DisplayMenu showFocus={!video?.cues.length} />
       </header>
 
       {/* TextDisplay + SidePanel — exact same structure as root page */}
       <div className="flex flex-1 overflow-hidden">
         <main
+          ref={mainRef}
           data-theme={theme}
           style={{ fontSize: TEXT_SIZE_REM[textSize] }}
           className="flex-1 overflow-y-auto p-8 bg-bg text-ink"
@@ -100,7 +129,7 @@ export default function ReaderView({
           ) : video?.cues.length ? (
             <VideoReader url={video.url} cues={video.cues} />
           ) : (
-            <TextDisplay />
+            <TextDisplay pageText={pageText} />
           )}
         </main>
         <SidePanel />

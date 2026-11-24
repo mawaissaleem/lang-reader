@@ -32,7 +32,7 @@ export default function ReaderFooter({
     >
       <span>
         {p.total} unique words · {knownPct(p)}% known · {p.learning} learning ·{" "}
-        {p.new} new
+        {p.new} new in this text
       </span>
       {legend && (
         <span className="ml-auto flex items-center gap-3 text-[11px]">

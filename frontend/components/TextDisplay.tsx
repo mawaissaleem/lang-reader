@@ -5,7 +5,8 @@ import ReaderFooter from "@/components/ReaderFooter";
 import { useStatusHotkeys } from "@/lib/useStatusHotkeys";
 import { particleToken, sentenceAt } from "@/lib/words";
 
-export default function TextDisplay() {
+/** The reader's text; `pageText` shows just one page of it while the footer still counts the whole text. */
+export default function TextDisplay({ pageText }: { pageText?: string }) {
   const text = useStore((s) => s.text);
   const title = useStore((s) => s.title);
   const highlightMode = useStore((s) => s.highlightMode);
@@ -13,7 +14,7 @@ export default function TextDisplay() {
   // paragraph of the selected word; in focus mode the others fade
   const activePara = useStore((s) => s.selectedTokens[0]?.id.split(":")[0]);
   useStatusHotkeys();
-  const paragraphs = text.split(/\n+/).filter(Boolean);
+  const paragraphs = (pageText ?? text).split(/\n+/).filter(Boolean);
 
   return (
     <div className="max-w-3xl mx-auto">

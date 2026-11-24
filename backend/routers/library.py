@@ -1,9 +1,9 @@
 """Routes for the library: videos, subtitle text and cues, manual texts (typed, URL or file import) and the combined library list."""
 
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, StringConstraints
 from sqlalchemy.orm import Session
 from webvtt.errors import MalformedCaptionError, MalformedFileError
 
@@ -19,6 +19,18 @@ router = APIRouter()
 
 class TitleUpdate(BaseModel):
     title: str
+
+
+class PageWords(BaseModel):
+    # one page holds a few hundred words; the cap only guards against absurd requests
+    words: list[Annotated[str, StringConstraints(min_length=1, max_length=100)]] = (
+        Field(min_length=1, max_length=2000)
+    )
+
+
+class PageUndo(BaseModel):
+    word_ids: list[int] = Field(max_length=2000)
+    event_ids: list[int] = Field(max_length=2000)
 
 
 class TextCreate(BaseModel):
@@ -153,6 +165,27 @@ def mark_entry_known(
     if text is None:
         raise HTTPException(status_code=404, detail="Entry or its text not found")
     return {"changed": entry_actions.mark_all_known(db, user_id, text)}
+
+
+@router.post("/library/mark-new-known")
+def mark_page_new_known(
+    body: PageWords, user_id: int = 1, db: Session = Depends(get_db)
+):
+    """Mark the given words known only where the user has not saved them yet; returns the ids to undo it."""
+    result = entry_actions.mark_new_known(db, user_id, body.words)
+    return {
+        "changed": result.changed,
+        "word_ids": result.created_word_ids,
+        "event_ids": result.event_ids,
+    }
+
+
+@router.post("/library/undo-mark-new-known")
+def undo_page_new_known(
+    body: PageUndo, user_id: int = 1, db: Session = Depends(get_db)
+):
+    """Undo a mark-new-known run: remove the words and history events it created and the user has not touched since."""
+    return entry_actions.undo_mark_new_known(db, user_id, body.word_ids, body.event_ids)
 
 
 @router.delete("/library/{kind}/{ref_id}")

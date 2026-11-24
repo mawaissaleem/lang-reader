@@ -1,5 +1,6 @@
 """Whole-entry actions for the library: read an entry's text, mark all its words known, delete it."""
 
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -8,7 +9,7 @@ from sqlalchemy.orm import Session
 import history
 import progress
 from library_entries import latest_subtitle, subtitle_text_path
-from models import Dictionary, ManualText, UserWord, Video
+from models import Dictionary, ManualText, UserWord, Video, WordEvent
 
 
 def entry_text(db: Session, kind: str, ref_id: int) -> Optional[str]:
@@ -25,15 +26,28 @@ def entry_text(db: Session, kind: str, ref_id: int) -> Optional[str]:
     return path.read_text(encoding="utf-8")
 
 
-def mark_all_known(db: Session, user_id: int, text: str) -> int:
-    """Set every word of `text` to known (saving the new ones); ignored words stay ignored. Returns how many changed."""
-    forms = progress.unique_words(text)
+@dataclass
+class MarkResult:
+    """What a mark-known run did: how many words changed, and the rows it created (so they can be undone)."""
+
+    changed: int = 0
+    created_word_ids: list = field(default_factory=list)  # UserWord ids
+    event_ids: list = field(default_factory=list)  # WordEvent ids of the created words
+
+
+def mark_forms_known(
+    db: Session, user_id: int, forms, only_new: bool = False
+) -> MarkResult:
+    """Set each word form to known (saving unsaved ones); ignored and already-known words stay as they are.
+    With `only_new`, words the user already saved (learning included) are left alone.
+    Does not commit: the caller commits, or rolls back to undo the whole run."""
     # one query each for the dictionary rows and the user's saved words, matched on the form as written or lowercased
     dictionary = {d.german_word: d for d in db.query(Dictionary)}
     saved = {
         uw.word_id: uw for uw in db.query(UserWord).filter(UserWord.user_id == user_id)
     }
-    changed = 0
+    result = MarkResult()
+    created = []  # (UserWord, WordEvent) pairs, whose ids exist after the flush below
     # sorted so "Haus" is matched before "haus" every run, not in set (hash) order
     for form in sorted(forms):
         entry = dictionary.get(form) or dictionary.get(form.lower())
@@ -55,12 +69,88 @@ def mark_all_known(db: Session, user_id: int, text: str) -> int:
             )
             db.add(uw)
             saved[entry.id] = uw
-            history.record(db, user_id, entry.id, "known")
-            changed += 1
-        elif uw.status not in ("known", "ignored"):
-            changed += history.set_status(db, uw, "known")
+            created.append((uw, history.record(db, user_id, entry.id, "known")))
+            result.changed += 1
+        elif not only_new and uw.status not in ("known", "ignored"):
+            result.changed += history.set_status(db, uw, "known")
+    db.flush()
+    result.created_word_ids = [uw.id for uw, _ in created]
+    result.event_ids = [ev.id for _, ev in created]
+    return result
+
+
+def mark_all_known(db: Session, user_id: int, text: str) -> int:
+    """Set every word of `text` to known (saving the new ones); ignored words stay ignored. Returns how many changed."""
+    result = mark_forms_known(db, user_id, progress.unique_words(text))
     db.commit()
-    return changed
+    return result.changed
+
+
+def mark_new_known(db: Session, user_id: int, words) -> MarkResult:
+    """Mark the not-yet-saved words known in one transaction; any failure writes nothing."""
+    forms = {w for w in map(progress.clean_word, words) if w}
+    try:
+        result = mark_forms_known(db, user_id, forms, only_new=True)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return result
+
+
+def undo_mark_new_known(
+    db: Session, user_id: int, word_ids: list, event_ids: list
+) -> dict:
+    """Remove the saved words (and their history events) a mark_new_known run created, in one transaction.
+    Ids alone are not trusted (SQLite reuses them), so a word is removed only while it is still exactly as
+    the run left it: known, nothing the user added since, and its only history event is the one the run wrote.
+    Returns the ids actually removed."""
+    try:
+        # bare known words: no meaning source, sentence, text link, notes or Anki card added since
+        candidates = (
+            db.query(UserWord)
+            .filter(
+                UserWord.id.in_(word_ids),
+                UserWord.user_id == user_id,
+                UserWord.status == "known",
+                UserWord.source.is_(None),
+                UserWord.context_sentence.is_(None),
+                UserWord.text_kind.is_(None),
+                UserWord.text_id.is_(None),
+                UserWord.notes.is_(None),
+                UserWord.anki_status == "none",
+                UserWord.anki_note_id.is_(None),
+            )
+            .all()
+        )
+        events_by_word = {}
+        for event in db.query(WordEvent).filter(
+            WordEvent.user_id == user_id,
+            WordEvent.word_id.in_([uw.word_id for uw in candidates]),
+        ):
+            events_by_word.setdefault(event.word_id, []).append(event)
+
+        # a second event means the word's status changed after the run, so it is the user's now
+        allowed_events = set(event_ids)
+        removed_words, removed_events = [], []
+        for uw in candidates:
+            events = events_by_word.get(uw.word_id, [])
+            if len(events) != 1 or events[0].id not in allowed_events:
+                continue
+            removed_words.append(uw.id)
+            removed_events.append(events[0].id)
+            db.delete(uw)
+            # removed so today's goal and streak are not inflated by an undone action
+            db.delete(events[0])
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return {
+        "removed": len(removed_words),
+        "word_ids": removed_words,
+        "event_ids": removed_events,
+    }
 
 
 def delete_entry(db: Session, kind: str, ref_id: int) -> bool:

@@ -282,6 +282,47 @@ export async function markEntryKnown(
   );
 }
 
+/** What a page's "mark new words known" run created, kept so it can be undone exactly. */
+export interface PageMarkResult {
+  changed: number;
+  word_ids: number[];
+  event_ids: number[];
+}
+
+/** Marks the given words known, but only those the user has not saved yet; one all-or-nothing request. */
+export async function markNewWordsKnown(
+  words: string[],
+  userId: number,
+): Promise<PageMarkResult> {
+  return readJson(
+    await fetch(`${API_BASE_URL}/library/mark-new-known?user_id=${userId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ words }),
+    }),
+  );
+}
+
+/** Removes exactly the words and history events a markNewWordsKnown call created. */
+export async function undoMarkNewWordsKnown(
+  result: PageMarkResult,
+  userId: number,
+): Promise<{ removed: number; word_ids: number[]; event_ids: number[] }> {
+  return readJson(
+    await fetch(
+      `${API_BASE_URL}/library/undo-mark-new-known?user_id=${userId}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          word_ids: result.word_ids,
+          event_ids: result.event_ids,
+        }),
+      },
+    ),
+  );
+}
+
 export async function importFromYouTube(
   url: string,
   title?: string,

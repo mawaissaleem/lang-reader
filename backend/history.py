@@ -10,15 +10,15 @@ DEFAULT_DAILY_GOAL = 25
 RANK = {"learning1": 1, "learning2": 2, "learning3": 3, "known": 4}
 
 
-def record(db, user_id: int, word_id: int, status: str) -> None:
-    db.add(
-        WordEvent(
-            user_id=user_id,
-            word_id=word_id,
-            status=status,
-            at=datetime.now(timezone.utc),
-        )
+def record(db, user_id: int, word_id: int, status: str) -> WordEvent:
+    event = WordEvent(
+        user_id=user_id,
+        word_id=word_id,
+        status=status,
+        at=datetime.now(timezone.utc),
     )
+    db.add(event)
+    return event
 
 
 def set_status(db, uw: UserWord, status: str) -> bool:
