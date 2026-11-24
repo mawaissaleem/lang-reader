@@ -3,7 +3,8 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  :root,
+  [data-theme="dark"] {
     --background: 0 0% 98%;
     --foreground: 240 10% 10%;
     --border: 240 6% 88%;
@@ -28,6 +29,58 @@
     --amber: #f5a623;
     --good: #3ecf8e;
     --hard: #ff6b6b;
+
+    /* word status colours: text on its own background, plus the underline colour */
+    --st-new-bg: rgba(59, 130, 246, 0.1);
+    --st-new-text: #bfdbfe;
+    --st-l1-bg: rgba(251, 191, 36, 0.35);
+    --st-l1-text: #fde68a;
+    --st-l1-line: #fbbf24;
+    --st-l2-bg: rgba(251, 191, 36, 0.2);
+    --st-l2-text: #fde68a;
+    --st-l2-line: rgba(251, 191, 36, 0.6);
+    --st-l3-bg: rgba(251, 191, 36, 0.1);
+    --st-l3-text: #e0e0e6;
+    --st-l3-line: rgba(251, 191, 36, 0.3);
+    --st-known-text: #cfd0d8;
+    --st-ignored-text: #6b6f7b;
+
+    /* warnings, and the der / die / das article colours */
+    --warn-text: #fcd34d;
+    --gender-der: #60a5fa;
+    --gender-die: #fb7185;
+    --gender-das: #4ade80;
+  }
+
+  /* Paper: warm light reading theme; the reader sets data-theme="paper" on the page it themes.
+     Every status text keeps 4.5:1 against the paper background (checked by a unit test). */
+  [data-theme="paper"] {
+    --bg: #f6f1e7;
+    --surface: #fbf7ee;
+    --surface-2: #efe8d8;
+    --line: #e5dccb;
+    --text: #2b2721;
+    --muted: #5f574a;
+    --faint: #6b6458;
+    --accent: #2563eb;
+    --accent-soft: rgba(37, 99, 235, 0.12);
+    --st-new-bg: rgba(37, 99, 235, 0.14);
+    --st-new-text: #1e40af;
+    --st-l1-bg: rgba(217, 119, 6, 0.3);
+    --st-l1-text: #5b3a06;
+    --st-l1-line: #b45309;
+    --st-l2-bg: rgba(217, 119, 6, 0.2);
+    --st-l2-text: #5b3a06;
+    --st-l2-line: rgba(180, 83, 9, 0.7);
+    --st-l3-bg: rgba(217, 119, 6, 0.1);
+    --st-l3-text: #2b2721;
+    --st-l3-line: rgba(180, 83, 9, 0.4);
+    --st-known-text: #2b2721;
+    --st-ignored-text: #6b6458;
+    --warn-text: #92400e;
+    --gender-der: #1d4ed8;
+    --gender-die: #be123c;
+    --gender-das: #166534;
   }
 }
 

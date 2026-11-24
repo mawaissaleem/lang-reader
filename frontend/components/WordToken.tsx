@@ -30,9 +30,10 @@ export default function WordToken({
           s.selectedWord === clean.toLowerCase()),
   );
   const extendSelection = useStore((s) => s.extendSelection);
+  const highlightsOn = useStore((s) => s.highlightsOn);
 
   if (!clean) {
-    return <span className="text-white/20">{word}</span>;
+    return <span className="text-faint">{word}</span>;
   }
 
   return (
@@ -45,8 +46,10 @@ export default function WordToken({
       className={clsx(
         "cursor-pointer rounded px-0.5 transition-all duration-150",
         isSelected &&
-          "ring-2 ring-blue-400 ring-offset-1 ring-offset-[#111114] rounded",
-        status ? STATUS_CLASS[status][highlightMode] : NEW_CLASS,
+          "ring-2 ring-accent ring-offset-1 ring-offset-surface rounded",
+        // Highlights off: plain text, so the page reads like a book
+        highlightsOn &&
+          (status ? STATUS_CLASS[status][highlightMode] : NEW_CLASS),
         "hover:opacity-70",
       )}
     >

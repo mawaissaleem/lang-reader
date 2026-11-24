@@ -182,12 +182,12 @@ export default function VideoReader({
 
   const btn =
     "px-3 py-1.5 text-[12px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset";
-  const on = "bg-blue-500/20 text-blue-400";
-  const off = "text-white/30 hover:text-white/60 hover:bg-white/[0.04]";
+  const on = "bg-accent-soft text-accent";
+  const off = "text-muted hover:text-ink hover:bg-surface-2";
 
   if (!id)
     return (
-      <div className="text-white/40 text-sm">
+      <div className="text-muted text-sm">
         Cannot find the video for this entry.
       </div>
     );
@@ -200,7 +200,11 @@ export default function VideoReader({
           <div ref={box} className="absolute inset-0 [&>iframe]:size-full" />
           {/* the wrapper lets clicks through to the player's own controls; only the words take them */}
           {current >= 0 && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-12 flex flex-col items-center gap-1 px-4 text-center">
+            // subtitles sit on black video, so they keep the dark status colours in every theme
+            <div
+              data-theme="dark"
+              className="pointer-events-none absolute inset-x-0 bottom-12 flex flex-col items-center gap-1 px-4 text-center"
+            >
               <CueText
                 index={current}
                 text={cues[current].text}
@@ -217,8 +221,8 @@ export default function VideoReader({
           )}
         </div>
         <VideoTimeline player={player} cues={cues} />
-        <div className="flex flex-wrap items-center gap-3 mt-4 px-4 py-2.5 bg-[#1a1a1f] border border-white/[0.07] rounded-xl">
-          <div className="flex rounded-lg overflow-hidden border border-white/[0.08]">
+        <div className="flex flex-wrap items-center gap-3 mt-4 px-4 py-2.5 bg-surface border border-line rounded-xl">
+          <div className="flex rounded-lg overflow-hidden border border-line">
             <button
               onClick={() => jump(current - 1)}
               className={`${btn} ${off}`}
@@ -227,23 +231,23 @@ export default function VideoReader({
             </button>
             <button
               onClick={() => jump(current + 1)}
-              className={`${btn} ${off} border-l border-white/[0.08]`}
+              className={`${btn} ${off} border-l border-line`}
             >
               Next
             </button>
           </div>
-          <div className="flex rounded-lg overflow-hidden border border-white/[0.08]">
+          <div className="flex rounded-lg overflow-hidden border border-line">
             {SPEEDS.map((r, i) => (
               <button
                 key={r}
                 onClick={() => pickSpeed(r)}
-                className={`${btn} ${i ? "border-l border-white/[0.08]" : ""} ${speed === r ? on : off}`}
+                className={`${btn} ${i ? "border-l border-line" : ""} ${speed === r ? on : off}`}
               >
                 {r}x
               </button>
             ))}
           </div>
-          <label className="ml-auto flex items-center gap-2 text-[12px] text-white/50 cursor-pointer">
+          <label className="ml-auto flex items-center gap-2 text-[12px] text-muted cursor-pointer">
             <input
               type="checkbox"
               role="switch"
@@ -252,7 +256,7 @@ export default function VideoReader({
               className="accent-blue-500"
             />
             Show English{" "}
-            <kbd className="ml-1 rounded border border-white/10 px-1 text-[10px]">
+            <kbd className="ml-1 rounded border border-line px-1 text-[10px]">
               E
             </kbd>
           </label>
@@ -265,7 +269,7 @@ export default function VideoReader({
         ref={transcript}
         onWheel={() => (lastUserScroll.current = Date.now())}
         onTouchMove={() => (lastUserScroll.current = Date.now())}
-        className={`relative flex-1 ${layout.transcript} min-h-64 overflow-y-auto bg-[#111114] border border-white/[0.07] rounded-2xl p-3`}
+        className={`relative flex-1 ${layout.transcript} min-h-64 overflow-y-auto bg-surface border border-line rounded-2xl p-3`}
       >
         {cues.map((cue, ci) => {
           return (
@@ -278,12 +282,12 @@ export default function VideoReader({
             >
               <button
                 onClick={() => jump(ci)}
-                className="shrink-0 w-10 text-left text-[11px] tabular-nums text-white/30 hover:text-blue-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded"
+                className="shrink-0 w-10 text-left text-[11px] tabular-nums text-faint hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded"
                 title="Jump to this line"
               >
                 {clock(cue.start)}
               </button>
-              <div className="min-w-0 flex-1 text-white/75">
+              <div className="min-w-0 flex-1 text-ink">
                 <CueText
                   index={ci}
                   text={cue.text}
@@ -291,7 +295,7 @@ export default function VideoReader({
                   onWordClick={pauseOnWord}
                 />
                 {showEnglish && english[ci] && (
-                  <p className="text-[13px] text-white/35">{english[ci]}</p>
+                  <p className="text-[13px] text-muted">{english[ci]}</p>
                 )}
               </div>
             </div>

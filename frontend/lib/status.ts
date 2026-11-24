@@ -8,36 +8,50 @@ export const STATUS_KEYS: Record<string, WordStatus> = {
   i: "ignored",
 };
 
+/** False when a key press is a browser shortcut or typing in a field, so a single-letter hotkey must ignore it. */
+export function isHotkeyEvent(e: KeyboardEvent): boolean {
+  if (e.ctrlKey || e.metaKey || e.altKey) return false;
+  const t = e.target as HTMLElement | null;
+  return !(
+    t &&
+    (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))
+  );
+}
+
 // null when the event is not a status shortcut (typing in a field, modifiers held, other key)
 export function statusForKey(e: KeyboardEvent): WordStatus | null {
-  if (e.ctrlKey || e.metaKey || e.altKey) return null;
-  const t = e.target as HTMLElement | null;
-  if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)))
-    return null;
+  if (!isHotkeyEvent(e)) return null;
   return STATUS_KEYS[e.key.toLowerCase()] ?? null;
 }
 
-// literal class strings so Tailwind sees them
-export const NEW_CLASS = "bg-blue-500/10 text-blue-200";
+// Colours come from the --st-* tokens in globals.css so the Paper theme can swap them.
+// Literal class strings so Tailwind sees them.
+export const NEW_CLASS = "bg-[var(--st-new-bg)] text-[var(--st-new-text)]";
 export const STATUS_CLASS: Record<
   WordStatus,
   { underline: string; highlight: string }
 > = {
   learning1: {
     underline:
-      "underline decoration-amber-400 decoration-2 underline-offset-3 text-amber-200",
-    highlight: "bg-amber-400/35 text-amber-100",
+      "underline decoration-[var(--st-l1-line)] decoration-2 underline-offset-3 text-[var(--st-l1-text)]",
+    highlight: "bg-[var(--st-l1-bg)] text-[var(--st-l1-text)]",
   },
   learning2: {
     underline:
-      "underline decoration-amber-400/60 decoration-2 underline-offset-3 text-amber-200/90",
-    highlight: "bg-amber-400/20 text-amber-100/90",
+      "underline decoration-[var(--st-l2-line)] decoration-2 underline-offset-3 text-[var(--st-l2-text)]",
+    highlight: "bg-[var(--st-l2-bg)] text-[var(--st-l2-text)]",
   },
   learning3: {
     underline:
-      "underline decoration-amber-400/30 decoration-2 underline-offset-3 text-white/80",
-    highlight: "bg-amber-400/10 text-white/80",
+      "underline decoration-[var(--st-l3-line)] decoration-2 underline-offset-3 text-[var(--st-l3-text)]",
+    highlight: "bg-[var(--st-l3-bg)] text-[var(--st-l3-text)]",
   },
-  known: { underline: "text-white/75", highlight: "text-white/75" },
-  ignored: { underline: "text-white/30", highlight: "text-white/30" },
+  known: {
+    underline: "text-[var(--st-known-text)]",
+    highlight: "text-[var(--st-known-text)]",
+  },
+  ignored: {
+    underline: "text-[var(--st-ignored-text)]",
+    highlight: "text-[var(--st-ignored-text)]",
+  },
 };

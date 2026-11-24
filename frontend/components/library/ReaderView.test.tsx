@@ -40,3 +40,12 @@ describe("ReaderView caption badge", () => {
     expect(screen.queryByText(/captions/i)).toBeNull();
   });
 });
+
+describe("ReaderView toolbar", () => {
+  it("holds the back button, the title and the Display menu", () => {
+    renderWith(null);
+    expect(screen.getByText("Library")).toBeTruthy();
+    expect(screen.getByText("t")).toBeTruthy();
+    expect(screen.getByText("Display ▾")).toBeTruthy();
+  });
+});

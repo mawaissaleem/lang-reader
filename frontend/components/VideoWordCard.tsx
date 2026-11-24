@@ -36,6 +36,7 @@ export default function VideoWordCard() {
   const setWordStatus = useStore((s) => s.setWordStatus);
   const save = useStore((s) => s.saveSelectedWord);
   const setPanelOpen = useStore((s) => s.setSidePanelOpen);
+  const genderColours = useStore((s) => s.genderColours);
 
   if (!word || panelOpen) return null;
 
@@ -55,7 +56,11 @@ export default function VideoWordCard() {
       <div className="min-w-0 flex-1 basis-48">
         <p className="m-0 font-serif text-2xl leading-tight text-ink">
           {result?.article && (
-            <span className={ARTICLE_CLASS[result.article]}>
+            <span
+              className={
+                genderColours ? ARTICLE_CLASS[result.article] : undefined
+              }
+            >
               {result.article}{" "}
             </span>
           )}
@@ -122,7 +127,9 @@ export default function VideoWordCard() {
         </div>
       </div>
       {saveError && (
-        <p className="basis-full m-0 text-[12px] text-amber">{saveError}</p>
+        <p className="basis-full m-0 text-[12px] text-[var(--warn-text)]">
+          {saveError}
+        </p>
       )}
     </section>
   );

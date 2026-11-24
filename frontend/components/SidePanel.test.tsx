@@ -113,11 +113,28 @@ describe("SidePanel article", () => {
         clicked: "Tisch",
         article: "der",
       } as never,
+      genderColours: true,
     });
     render(<SidePanel />);
     const article = screen.getByText("der");
-    expect(article.className).toContain("text-blue-400");
+    expect(article.className).toContain("--gender-der");
     expect(screen.getByRole("heading", { name: "der Tisch" })).toBeTruthy();
+  });
+
+  it("leaves the article plain when gender colours are off", () => {
+    open();
+    cleanup();
+    useStore.setState({
+      wordResult: {
+        ...(result(both) as object),
+        word: "Tisch",
+        clicked: "Tisch",
+        article: "der",
+      } as never,
+      genderColours: false,
+    });
+    render(<SidePanel />);
+    expect(screen.getByText("der").className).not.toContain("--gender");
   });
 
   it("shows no article when there is none", () => {

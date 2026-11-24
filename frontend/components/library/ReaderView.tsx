@@ -1,8 +1,12 @@
 "use client";
+import { useEffect } from "react";
 import ReaderFooter from "@/components/ReaderFooter";
 import SidePanel from "@/components/SidePanel";
 import TextDisplay from "@/components/TextDisplay";
 import VideoReader from "@/components/VideoReader";
+import DisplayMenu from "@/components/library/DisplayMenu";
+import { TEXT_SIZE_REM } from "@/lib/display";
+import useStore from "@/store/useStore";
 import type { Cue } from "@/lib/video";
 
 /** Reader screen for one library entry: plain text, or a synced video when timed lines exist. */
@@ -21,14 +25,23 @@ export default function ReaderView({
   captionSource: "creator" | "auto" | null;
   onBack: () => void;
 }) {
+  const theme = useStore((s) => s.theme);
+  const textSize = useStore((s) => s.textSize);
+  const loadDisplay = useStore((s) => s.loadDisplay);
+  // saved Display settings load after mount so the server and first client render match
+  useEffect(() => loadDisplay(), [loadDisplay]);
+
   return (
     // Fixed viewport height: the text and the word panel scroll on their own, so the panel's Save bar stays at the screen bottom.
     <div className="h-screen flex flex-col">
       {/* Header */}
-      <header className="border-b border-white/[0.06] px-6 py-4 flex items-center gap-3 bg-[#0d0d0f]">
+      <header
+        data-theme={theme}
+        className="border-b border-line px-6 py-4 flex items-center gap-3 bg-bg text-ink"
+      >
         <button
           onClick={onBack}
-          className="flex items-center gap-2 text-sm text-white/40 hover:text-white/80 transition-colors"
+          className="flex items-center gap-2 text-sm text-muted hover:text-ink transition-colors"
         >
           <svg
             width="16"
@@ -44,18 +57,18 @@ export default function ReaderView({
           </svg>
           Library
         </button>
-        <span className="text-white/10">／</span>
-        <span className="text-sm font-medium text-white/60 truncate max-w-md">
+        <span className="text-faint">/</span>
+        <span className="text-sm font-medium text-ink truncate max-w-md">
           {title}
         </span>
         {/* Auto captions are often wrong, so they get a warning colour; unknown sources show nothing */}
         {captionSource === "auto" && (
-          <span className="rounded-full border border-amber-400/25 bg-amber-400/10 px-2.5 py-0.5 text-xs text-amber-300">
+          <span className="rounded-full border border-amber-400/25 bg-amber-400/10 px-2.5 py-0.5 text-xs text-[var(--warn-text)]">
             Auto captions · may contain errors
           </span>
         )}
         {captionSource === "creator" && (
-          <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-xs text-white/50">
+          <span className="rounded-full border border-line bg-surface px-2.5 py-0.5 text-xs text-muted">
             Creator captions
           </span>
         )}
@@ -63,20 +76,25 @@ export default function ReaderView({
         {video?.cues.length ? (
           <ReaderFooter
             text={video.cues.map((c) => c.text).join("\n")}
-            className="ml-auto"
+            className="ml-4"
           />
         ) : null}
+        <DisplayMenu showFocus={!video?.cues.length} />
       </header>
 
       {/* TextDisplay + SidePanel — exact same structure as root page */}
       <div className="flex flex-1 overflow-hidden">
-        <main className="flex-1 overflow-y-auto p-8">
+        <main
+          data-theme={theme}
+          style={{ fontSize: TEXT_SIZE_REM[textSize] }}
+          className="flex-1 overflow-y-auto p-8 bg-bg text-ink"
+        >
           {loading ? (
-            <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+            <div className="flex items-center justify-center h-full text-muted text-sm">
               Loading text…
             </div>
           ) : !hasText ? (
-            <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+            <div className="flex items-center justify-center h-full text-muted text-sm">
               No text found for this entry.
             </div>
           ) : video?.cues.length ? (

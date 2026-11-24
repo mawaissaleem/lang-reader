@@ -8,6 +8,7 @@ import {
   WordStatus,
 } from "@/types";
 import { clickedKey } from "@/lib/words";
+import { DEFAULT_DISPLAY, loadDisplay, saveDisplay } from "@/lib/display";
 import {
   lookupWord,
   fetchSentenceTranslation,
@@ -298,8 +299,12 @@ const useStore = create<StoreState>((set, get) => ({
       });
     }
   },
-  highlightMode: "underline",
-  setHighlightMode: (m) => set({ highlightMode: m }),
+  ...DEFAULT_DISPLAY, // always the defaults at first render; saved values load after mount
+  setDisplay: (patch) => {
+    set(patch);
+    saveDisplay(get());
+  },
+  loadDisplay: () => set(loadDisplay()),
   openPanelOnSelect: true,
   setOpenPanelOnSelect: (open) => set({ openPanelOnSelect: open }),
   sidePanelOpen: false,

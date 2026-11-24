@@ -71,9 +71,22 @@ describe("WordToken status class", () => {
       ...["learning1", "learning2", "learning3", "known", "ignored"].map(st),
     ];
     expect(new Set(all).size).toBe(6);
-    expect(all[0]).toContain("bg-blue-500/10");
-    expect(all[1]).toContain("decoration-amber-400 ");
-    expect(all[5]).toContain("text-white/30");
+    expect(all[0]).toContain("--st-new-bg");
+    expect(all[1]).toContain("--st-l1-line");
+    expect(all[5]).toContain("--st-ignored-text");
+  });
+});
+
+describe("WordToken highlights off", () => {
+  it("drops the status colour so the page reads as plain text", () => {
+    cleanup();
+    useStore.setState({
+      userWords: { eins: { id: 1, status: "learning1" } } as never,
+      highlightsOn: false,
+    });
+    const cls = render(<TextDisplay />).getByText("eins").className;
+    useStore.setState({ highlightsOn: true });
+    expect(cls).not.toContain("--st-");
   });
 });
 

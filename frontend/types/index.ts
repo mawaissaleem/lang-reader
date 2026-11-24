@@ -1,4 +1,14 @@
 export type HighlightMode = "underline" | "highlight";
+export type ReaderTheme = "dark" | "paper";
+export type TextSize = "S" | "M" | "L";
+export interface DisplaySettings {
+  theme: ReaderTheme;
+  textSize: TextSize;
+  highlightsOn: boolean;
+  focusMode: boolean;
+  genderColours: boolean;
+  highlightMode: HighlightMode;
+}
 export type WordStatus =
   "learning1" | "learning2" | "learning3" | "known" | "ignored";
 
@@ -71,7 +81,14 @@ export interface StoreState {
   ) => Promise<void>;
   saveSelectedWord: (anki?: boolean) => Promise<void>;
   highlightMode: HighlightMode;
-  setHighlightMode: (m: HighlightMode) => void;
+  // reader Display menu; persisted together in localStorage
+  theme: ReaderTheme;
+  textSize: TextSize;
+  highlightsOn: boolean;
+  focusMode: boolean;
+  genderColours: boolean;
+  setDisplay: (patch: Partial<DisplaySettings>) => void;
+  loadDisplay: () => void;
   // false in the video reader, where a word opens a compact card instead of the panel
   openPanelOnSelect: boolean;
   setOpenPanelOnSelect: (open: boolean) => void;

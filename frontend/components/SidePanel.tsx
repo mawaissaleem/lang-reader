@@ -18,10 +18,11 @@ const SOURCES = [
   { id: "ai", label: "AI" },
 ];
 
+// Article colours come from the --gender-* tokens so the Paper theme can swap them.
 export const ARTICLE_CLASS = {
-  der: "text-blue-400",
-  die: "text-rose-400",
-  das: "text-green-400",
+  der: "text-[var(--gender-der)]",
+  die: "text-[var(--gender-die)]",
+  das: "text-[var(--gender-das)]",
 };
 
 export default function SidePanel() {
@@ -50,6 +51,7 @@ export default function SidePanel() {
     sentenceError,
     title,
     selectedTokens,
+    genderColours,
   } = useStore();
 
   const [showPref, setShowPref] = React.useState(false);
@@ -204,7 +206,13 @@ export default function SidePanel() {
                         </span>
                       )}
                       {wordResult.article && (
-                        <span className={ARTICLE_CLASS[wordResult.article]}>
+                        <span
+                          className={
+                            genderColours
+                              ? ARTICLE_CLASS[wordResult.article]
+                              : undefined
+                          }
+                        >
                           {wordResult.article}{" "}
                         </span>
                       )}
