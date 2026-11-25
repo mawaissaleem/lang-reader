@@ -13,7 +13,7 @@ LibreTranslate is an open-source, self-hosted machine translation engine. By def
 3. [Method 2: Docker Compose (Recommended)](#method-2-docker-compose-recommended)
 4. [Testing & Verification](#testing--verification)
 5. [Docker Management Commands](#docker-management-commands)
-6. [Python Backend Integration](#python-backend-integration)
+6. [Connect the App](#connect-the-app)
 7. [Advanced Configuration & Options](#advanced-configuration--options)
 8. [Troubleshooting & Common Issues](#troubleshooting--common-issues)
 
@@ -214,57 +214,19 @@ Here is a handy reference for managing the LibreTranslate container:
 
 ---
 
-## Python Backend Integration
+## Connect the App
 
-To query the local LibreTranslate service from the FastAPI backend:
+The backend already has a LibreTranslate client (`backend/translators/libretranslate.py`), so there is no code to write.
 
-### Async using `httpx` (recommended for FastAPI)
+1. If LibreTranslate runs on another port or machine, set its address in `backend/.env`. The default is `http://localhost:5000`:
+   ```env
+   LIBRETRANSLATE_URL=http://localhost:5000
+   ```
+2. Restart the backend.
+3. Open **Settings → Services**. The **LibreTranslate** row should say "Running at localhost:5000". Press **Test** to check again.
+4. Open **Settings → Translations** to choose whether PONS or LibreTranslate opens first when you click a word. The other one is the fallback. To set the starting order before you open Settings, use `DEFAULT_TRANSLATION_PRIORITY=libretranslate,pons` in `backend/.env`.
 
-```python
-import httpx
-from typing import Optional
-
-LIBRETRANSLATE_URL = "http://localhost:5000"
-
-async def translate_de_to_en(text: str) -> Optional[str]:
-    """Translate German text or word to English using local LibreTranslate."""
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        try:
-            response = await client.post(
-                f"{LIBRETRANSLATE_URL}/translate",
-                json={
-                    "q": text,
-                    "source": "de",
-                    "target": "en",
-                    "format": "text",
-                },
-            )
-            if response.status_code == 200:
-                data = response.json()
-                return data.get("translatedText")
-            return None
-        except httpx.RequestError as e:
-            print(f"[LibreTranslate] Service unavailable: {e}")
-            return None
-```
-
-### Synchronous using `requests`
-
-```python
-import requests
-
-def translate_de_to_en_sync(text: str) -> str:
-    url = "http://localhost:5000/translate"
-    payload = {
-        "q": text,
-        "source": "de",
-        "target": "en",
-        "format": "text"
-    }
-    response = requests.post(url, json=payload, timeout=10)
-    response.raise_for_status()
-    return response.json()["translatedText"]
-```
+In the reader, LibreTranslate has its own tab in the side panel, and it also translates the whole sentence around the clicked word.
 
 ---
 
