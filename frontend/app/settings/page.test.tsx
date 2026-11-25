@@ -101,10 +101,11 @@ describe("SettingsPage", () => {
 
   it("lists every model with its size and saves the choice", async () => {
     render(<SettingsPage />);
-    fireEvent.change(await screen.findByLabelText(/^AI model/), {
+    // the select renders before the model list loads; wait for the options so a slow runner does not race
+    expect(await screen.findByText("big:70b (40.0 GB)")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText(/^AI model/), {
       target: { value: "big:70b" },
     });
-    expect(screen.getByText("big:70b (40.0 GB)")).toBeTruthy();
     expect(screen.getByText("Default (qwen2.5:3b)")).toBeTruthy();
     await waitFor(() => expect(saveLlmModel).toHaveBeenCalledWith("big:70b"));
   });
