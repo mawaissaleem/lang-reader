@@ -1,3 +1,4 @@
+import json
 import os
 import sqlite3
 import sys
@@ -15,7 +16,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import anki
 import main
 from database import get_db
-from models import Base, Dictionary, Translation, UserWord
+from models import Base, Dictionary, Setting, Translation, UserWord
 
 
 def read_notes(path):
@@ -70,6 +71,22 @@ class ExportTest(unittest.TestCase):
         self.assertEqual(n1, 2)  # "none" (e.g. imported known) words are left out
         self.assertEqual([r[0] for r in a], [r[0] for r in b])
         self.assertEqual(len({r[0] for r in a}), 2)
+
+    def test_deck_name_comes_from_settings(self):
+        def deck_names():
+            with tempfile.NamedTemporaryFile(suffix=".apkg") as f:
+                anki.export_apkg(self.db, 1, f.name)
+                with tempfile.TemporaryDirectory() as d:
+                    zipfile.ZipFile(f.name).extractall(d)
+                    con = sqlite3.connect(os.path.join(d, "collection.anki2"))
+                    decks = con.execute("select decks from col").fetchone()[0]
+                    con.close()
+            return [v["name"] for v in json.loads(decks).values()]
+
+        self.assertIn("German::Reader::Words", deck_names())
+        self.db.add(Setting(key="anki_deck_words", value="Mein::Wörter"))
+        self.db.commit()
+        self.assertIn("Mein::Wörter", deck_names())
 
     def test_endpoint_downloads_apkg(self):
         r = self.client.get("/anki/export.apkg")

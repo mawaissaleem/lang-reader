@@ -367,6 +367,8 @@ export async function fetchTranslators(): Promise<Translator[]> {
 export interface UserSettings {
   translator_priority: string[] | null;
   anki_default: boolean | null;
+  anki_deck_words?: string | null;
+  anki_deck_sentences?: string | null;
 }
 
 export async function fetchSettings(): Promise<UserSettings> {
@@ -375,7 +377,12 @@ export async function fetchSettings(): Promise<UserSettings> {
 
 /** Saves only the keys given and returns every saved setting. */
 export async function saveSettings(
-  changes: Partial<{ translator_priority: string[]; anki_default: boolean }>,
+  changes: Partial<{
+    translator_priority: string[];
+    anki_default: boolean;
+    anki_deck_words: string;
+    anki_deck_sentences: string;
+  }>,
 ): Promise<UserSettings> {
   return readJson(
     await fetch(`${API_BASE_URL}/settings`, {

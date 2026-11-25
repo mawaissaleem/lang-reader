@@ -15,8 +15,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import anki
 import main
 import database
-from models import Base, SentenceCard
-from tests.test_anki import FakeAnki, client_for
+from models import Base, SentenceCard, Setting
+from tests.test_anki import FakeAnki, client_for, memory_db
 from tests.test_anki_outbox import closed
 
 BODY = {
@@ -118,14 +118,23 @@ class SentenceApiTest(unittest.TestCase):
         )
         self.assertEqual(fake.actions()[-1], "sync")
 
+    def test_custom_sentence_deck_name(self):
+        db = memory_db()
+        db.add(Setting(key="anki_deck_sentences", value="Mein::Sätze"))
+        db.commit()
+        note = anki._build_sentence_note(db, SentenceCard(**BODY))
+        self.assertEqual(note["deckName"], "Mein::Sätze")
+
     def test_inflected_form_is_not_bolded(self):
         note = anki._build_sentence_note(
-            SentenceCard(**{**BODY, "sentence_de": "Die Häuser sind groß."})
+            memory_db(),
+            SentenceCard(**{**BODY, "sentence_de": "Die Häuser sind groß."}),
         )
         self.assertEqual(note["fields"]["SentenceDE"], "Die Häuser sind groß.")
 
     def test_clicked_form_is_bolded_not_the_lemma(self):
         note = anki._build_sentence_note(
+            memory_db(),
             SentenceCard(
                 **{
                     **BODY,
@@ -133,12 +142,13 @@ class SentenceApiTest(unittest.TestCase):
                     "target_word": "gehen",
                     "bold": ["ging"],
                 }
-            )
+            ),
         )
         self.assertEqual(note["fields"]["SentenceDE"], "Er <b>ging</b> nach Hause.")
 
     def test_separable_verb_bolds_both_parts(self):
         note = anki._build_sentence_note(
+            memory_db(),
             SentenceCard(
                 **{
                     **BODY,
@@ -146,7 +156,7 @@ class SentenceApiTest(unittest.TestCase):
                     "target_word": "anfangen",
                     "bold": ["fängt", "an"],
                 }
-            )
+            ),
         )
         self.assertEqual(
             note["fields"]["SentenceDE"], "Er <b>fängt</b> morgen <b>an</b>."

@@ -39,9 +39,9 @@ async def anki_status():
 
 
 @router.post("/anki/setup")
-async def anki_setup():
+async def anki_setup(db: Session = Depends(get_db)):
     try:
-        return await anki_ensure_setup()
+        return await anki_ensure_setup(db)
     except AnkiError as e:
         raise HTTPException(status_code=502, detail=str(e))
 

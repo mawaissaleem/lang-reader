@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import AppNav from "@/components/AppNav";
 import AiModel, { select } from "@/components/settings/AiModel";
 import DeckCards from "@/components/settings/DeckCards";
+import AnkiDeckNames from "@/components/settings/AnkiDeckNames";
 import ReadingSection from "@/components/settings/ReadingSection";
 import ServicesList from "@/components/settings/ServicesList";
 import TranslatorOrder from "@/components/settings/TranslatorOrder";
@@ -190,6 +191,7 @@ export default function SettingsPage() {
             title="Anki"
             intro="Mark the words you already know in Anki as known here. Anki is only read, never changed."
           >
+            <AnkiDeckNames />
             <p className="text-sm text-ink">Decks to import</p>
             <DeckCards decks={decks} chosen={chosen} onToggle={toggle} />
 

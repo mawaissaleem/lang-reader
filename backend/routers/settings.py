@@ -20,6 +20,14 @@ class UserSettings(BaseModel):
 
     translator_priority: Optional[list[str]] = None
     anki_default: Optional[bool] = None
+    # blank means "use the built-in deck name"
+    anki_deck_words: Optional[str] = None
+    anki_deck_sentences: Optional[str] = None
+
+    @field_validator("anki_deck_words", "anki_deck_sentences")
+    @classmethod
+    def trimmed(cls, name):
+        return name.strip() if name is not None else name
 
     @field_validator("translator_priority")
     @classmethod

@@ -6,6 +6,9 @@ from fastapi.testclient import TestClient
 
 import anki
 import main
+from models import Base, Setting
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 
 def client_for(handler):
@@ -14,6 +17,12 @@ def client_for(handler):
         "anki.httpx.AsyncClient",
         lambda **kw: real(transport=httpx.MockTransport(handler), **kw),
     )
+
+
+def memory_db():
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(bind=engine)
+    return sessionmaker(bind=engine)()
 
 
 class InvokeTest(unittest.IsolatedAsyncioTestCase):
@@ -88,18 +97,27 @@ class SetupTest(unittest.IsolatedAsyncioTestCase):
     async def test_creates_then_idempotent(self):
         fake = FakeAnki(decks=["Default"], models=["Basic"])
         with client_for(fake):
-            first = await anki.ensure_setup()
+            first = await anki.ensure_setup(memory_db())
             n = len(fake.calls)
-            second = await anki.ensure_setup()
+            second = await anki.ensure_setup(memory_db())
         self.assertEqual(len(first["decks"]), 2)
         self.assertEqual(len(first["models"]), 2)
         self.assertEqual(second, {"decks": [], "models": []})
         self.assertEqual(fake.actions()[n:], ["deckNames", "modelNames"])
 
+    async def test_creates_decks_with_saved_names(self):
+        db = memory_db()
+        db.add(Setting(key="anki_deck_words", value="Mein::Wörter"))
+        db.commit()
+        fake = FakeAnki()
+        with client_for(fake):
+            r = await anki.ensure_setup(db)
+        self.assertEqual(r["decks"], ["Mein::Wörter", "German::Reader::Sentences"])
+
     async def test_models_have_fields_and_two_templates(self):
         fake = FakeAnki()
         with client_for(fake):
-            await anki.ensure_setup()
+            await anki.ensure_setup(memory_db())
         models = {p["modelName"]: p for a, p in fake.calls if a == "createModel"}
         self.assertEqual(
             models["Reader Word"]["inOrderFields"][:2], ["Lemma", "Article"]
@@ -111,7 +129,7 @@ class SetupTest(unittest.IsolatedAsyncioTestCase):
     async def test_existing_model_not_modified(self):
         fake = FakeAnki(decks=anki.DECKS, models=["Reader Word"])
         with client_for(fake):
-            r = await anki.ensure_setup()
+            r = await anki.ensure_setup(memory_db())
         self.assertEqual(r["models"], ["Reader Sentence"])
         self.assertNotIn("createDeck", fake.actions())
         self.assertEqual(

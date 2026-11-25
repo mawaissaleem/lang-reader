@@ -14,7 +14,7 @@ import anki
 from routers.anki import anki_sync, anki_pending
 from routers.words import save_word
 from fastapi import HTTPException
-from models import Base, Dictionary, ManualText, Translation, UserWord
+from models import Base, Dictionary, ManualText, Setting, Translation, UserWord
 from tests.test_anki import FakeAnki, client_for
 
 
@@ -108,6 +108,24 @@ class OutboxTest(unittest.IsolatedAsyncioTestCase):
         return await save_word(
             self.word_id, source="pons", anki=anki_flag, body=ctx, db=self.db
         )
+
+    async def test_custom_deck_name_reaches_add_note(self):
+        self.db.add(Setting(key="anki_deck_words", value="Mein::Wörter"))
+        self.db.commit()
+        fake = Fake()
+        with client_for(fake):
+            await self._save()
+        note = next(p for a, p in fake.calls if a == "addNote")["note"]
+        self.assertEqual(note["deckName"], "Mein::Wörter")
+
+    async def test_blank_deck_name_uses_default(self):
+        self.db.add(Setting(key="anki_deck_words", value="  "))
+        self.db.commit()
+        fake = Fake()
+        with client_for(fake):
+            await self._save()
+        note = next(p for a, p in fake.calls if a == "addNote")["note"]
+        self.assertEqual(note["deckName"], "German::Reader::Words")
 
     async def test_plain_save_leaves_anki_none_and_sends_nothing(self):
         fake = Fake()

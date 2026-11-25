@@ -70,6 +70,14 @@ async def note_type_fields(note_type: str):
 
 DECKS = ["German::Reader::Words", "German::Reader::Sentences"]
 
+
+def deck_names(db) -> list[str]:
+    """[words deck, sentences deck]: the names saved in Settings, else the defaults."""
+    keys = ("anki_deck_words", "anki_deck_sentences")
+    rows = [db.get(Setting, k) for k in keys]
+    return [(row.value if row else "").strip() or d for row, d in zip(rows, DECKS)]
+
+
 _CSS = ".card { font-family: sans-serif; font-size: 20px; text-align: center; }"
 _PLURAL = "{{#Plural}}<div>Pl.: {{Plural}}</div>{{/Plural}}"
 _AUDIO = "{{#Audio}}<div>{{Audio}}</div>{{/Audio}}"
@@ -115,11 +123,11 @@ MODELS = {
 }
 
 
-async def ensure_setup() -> dict:
+async def ensure_setup(db) -> dict:
     """Create the Reader decks and note types if missing. Existing ones are never touched."""
     created = {"decks": [], "models": []}
     have_decks = set(await list_decks())
-    for deck in DECKS:
+    for deck in deck_names(db):
         if deck not in have_decks:
             await invoke("createDeck", deck=deck)
             created["decks"].append(deck)
@@ -167,7 +175,7 @@ def _build_note(db, uw: UserWord) -> dict:
     if slug:
         tags.append(f"reader::src::{slug}")
     return {
-        "deckName": DECKS[0],
+        "deckName": deck_names(db)[0],
         "modelName": "Reader Word",
         "fields": {
             "Lemma": uw.word.german_word,
@@ -185,7 +193,7 @@ def _build_note(db, uw: UserWord) -> dict:
     }
 
 
-def _build_sentence_note(sc: SentenceCard) -> dict:
+def _build_sentence_note(db, sc: SentenceCard) -> dict:
     de = html.escape(sc.sentence_de, quote=False)
     # bold the clicked forms (reader) or else the lemma where it appears literally (AI examples)
     forms = sorted(
@@ -209,7 +217,7 @@ def _build_sentence_note(sc: SentenceCard) -> dict:
     if slug:
         tags.append(f"reader::src::{slug}")
     return {
-        "deckName": DECKS[1],
+        "deckName": deck_names(db)[1],
         "modelName": "Reader Sentence",
         "fields": {
             "SentenceDE": de,
@@ -335,7 +343,7 @@ async def send_pending(db) -> dict:
         sent = failed = 0
         mapping = get_mapping(db)
         if words or sentences:
-            await ensure_setup()
+            await ensure_setup(db)
         # (row, label, note builder, duplicate finder, mapped-deck check)
         jobs = [
             (
@@ -351,7 +359,7 @@ async def send_pending(db) -> dict:
             (
                 s,
                 s.target_word,
-                lambda s=s: _build_sentence_note(s),
+                lambda s=s: _build_sentence_note(db, s),
                 _find_sentence,
                 None,
             )
@@ -551,7 +559,7 @@ def export_apkg(db, user_id: int, path: str) -> int:
         fields=[{"name": f} for f in fields],
         templates=[{"name": n, "qfmt": f, "afmt": b} for n, f, b in cards],
     )
-    deck = genanki.Deck(_DECK_ID, DECKS[0])
+    deck = genanki.Deck(_DECK_ID, deck_names(db)[0])
     rows = (
         db.query(UserWord)
         .filter(UserWord.user_id == user_id, UserWord.anki_status != "none")

@@ -42,7 +42,12 @@ class SettingsApiTest(ApiTestCase):
     def test_empty_by_default(self):
         self.assertEqual(
             self.client.get("/settings").json(),
-            {"translator_priority": None, "anki_default": None},
+            {
+                "translator_priority": None,
+                "anki_default": None,
+                "anki_deck_words": None,
+                "anki_deck_sentences": None,
+            },
         )
 
     def test_put_saves_only_sent_keys(self):
@@ -52,9 +57,18 @@ class SettingsApiTest(ApiTestCase):
         )
         self.assertEqual(
             r.json(),
-            {"translator_priority": ["libretranslate", "pons"], "anki_default": True},
+            {
+                "translator_priority": ["libretranslate", "pons"],
+                "anki_default": True,
+                "anki_deck_words": None,
+                "anki_deck_sentences": None,
+            },
         )
         self.assertEqual(self.client.get("/settings").json(), r.json())
+
+    def test_deck_name_is_trimmed(self):
+        r = self.client.put("/settings", json={"anki_deck_words": "  Mein::Deck "})
+        self.assertEqual(r.json()["anki_deck_words"], "Mein::Deck")
 
     def test_unknown_key_is_422(self):
         r = self.client.put("/settings", json={"theme": "dark"})
@@ -101,7 +115,8 @@ class LookupUsesSavedPriorityTest(ApiTestCase):
 
     def test_saved_order_is_used_without_priority_query(self):
         self.client.put("/settings", json={"translator_priority": ["libretranslate"]})
-        self.assertEqual(self.look()["preferred"], "libretranslate")
+        with patch.dict(os.environ, {"DEFAULT_TRANSLATION_PRIORITY": "pons"}):
+            self.assertEqual(self.look()["preferred"], "libretranslate")
 
     def test_priority_query_wins_over_saved(self):
         self.client.put("/settings", json={"translator_priority": ["libretranslate"]})
