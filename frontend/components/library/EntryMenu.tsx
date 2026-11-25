@@ -70,7 +70,8 @@ export default function EntryMenu({ actions }: { actions: MenuAction[] }) {
             setOpen(true);
           }
         }}
-        className="flex h-8 w-8 items-center justify-center rounded-lg bg-black/60 text-ink hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        // sits on a thumbnail image, so black/white stay in every theme
+        className="flex h-8 w-8 items-center justify-center rounded-lg bg-black/60 text-white hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
         ⋯
       </button>

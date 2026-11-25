@@ -82,7 +82,7 @@ export default function ReaderView({
         </span>
         {/* Auto captions are often wrong, so they get a warning colour; unknown sources show nothing */}
         {captionSource === "auto" && (
-          <span className="rounded-full border border-amber-400/25 bg-amber-400/10 px-2.5 py-0.5 text-xs text-[var(--warn-text)]">
+          <span className="rounded-full border border-[var(--st-l3-line)] bg-[var(--st-l3-bg)] px-2.5 py-0.5 text-xs text-[var(--warn-text)]">
             Auto captions · may contain errors
           </span>
         )}

@@ -92,26 +92,24 @@ export default function SidePanel() {
   return (
     <aside
       className={clsx(
-        "flex flex-col h-full flex-shrink-0 bg-[#111114] transition-all duration-300 overflow-hidden",
-        sidePanelOpen
-          ? "w-80 min-w-80 border-l border-white/[0.07]"
-          : "w-0 min-w-0",
+        "flex flex-col h-full flex-shrink-0 bg-surface transition-all duration-300 overflow-hidden",
+        sidePanelOpen ? "w-80 min-w-80 border-l border-line" : "w-0 min-w-0",
       )}
     >
       {sidePanelOpen && (
         <>
           {/* Header */}
-          <div className="flex flex-col gap-2 px-5 py-4 border-b border-white/[0.07] flex-shrink-0">
+          <div className="flex flex-col gap-2 px-5 py-4 border-b border-line flex-shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <BookOpen size={15} className="text-blue-400" />
-                <span className="text-[13px] font-semibold text-white/80 tracking-tight">
+                <BookOpen size={15} className="text-accent" />
+                <span className="text-[13px] font-semibold text-ink tracking-tight">
                   Word Details
                 </span>
               </div>
               <button
                 onClick={handleClose}
-                className="text-white/25 hover:text-white/70 transition-colors"
+                className="text-faint hover:text-ink transition-colors"
               >
                 <X size={15} />
               </button>
@@ -119,16 +117,16 @@ export default function SidePanel() {
 
             {/* Translator preference — open settings to change */}
             <div className="flex items-center justify-between">
-              <div className="text-[11px] font-semibold text-white/60">
+              <div className="text-[11px] font-semibold text-muted">
                 Preferred translator:
               </div>
               <div className="flex items-center gap-2">
-                <div className="text-[12px] font-semibold text-white/80 uppercase">
+                <div className="text-[12px] font-semibold text-ink uppercase">
                   {translatorPriority === "pons" ? "PONS" : "LibreTranslate"}
                 </div>
                 <button
                   onClick={() => setShowPref((s) => !s)}
-                  className="p-1 rounded hover:bg-white/[0.03] text-white/60"
+                  className="p-1 rounded hover:bg-surface-2 text-muted"
                   aria-label="Translator settings"
                 >
                   <Settings size={14} />
@@ -137,8 +135,8 @@ export default function SidePanel() {
             </div>
 
             {showPref && (
-              <div className="mt-2 p-3 rounded-lg bg-white/[0.03]">
-                <div className="text-[12px] text-white/70 mb-2">
+              <div className="mt-2 p-3 rounded-lg bg-surface-2">
+                <div className="text-[12px] text-ink mb-2">
                   Choose default translator
                 </div>
                 <div className="flex gap-2">
@@ -150,8 +148,8 @@ export default function SidePanel() {
                     className={clsx(
                       "flex-1 py-1 rounded-md transition-all tracking-wide uppercase text-[12px] font-semibold",
                       translatorPriority === "pons"
-                        ? "bg-blue-500/25 text-blue-300"
-                        : "text-white/30 hover:text-white/55",
+                        ? "bg-accent text-on-accent"
+                        : "text-faint hover:text-muted",
                     )}
                   >
                     PONS
@@ -164,8 +162,8 @@ export default function SidePanel() {
                     className={clsx(
                       "flex-1 py-1 rounded-md transition-all tracking-wide uppercase text-[12px] font-semibold",
                       translatorPriority === "libretranslate"
-                        ? "bg-blue-500/25 text-blue-300"
-                        : "text-white/30 hover:text-white/55",
+                        ? "bg-accent text-on-accent"
+                        : "text-faint hover:text-muted",
                     )}
                   >
                     LibreTranslate
@@ -178,18 +176,18 @@ export default function SidePanel() {
           {/* Body — independent scroll */}
           <div className="flex-1 overflow-y-auto p-5">
             {wordLoading ? (
-              <div className="flex items-center gap-2 mt-4 text-[13px] text-white/35">
+              <div className="flex items-center gap-2 mt-4 text-[13px] text-faint">
                 <Loader2 size={15} className="animate-spin" />
                 Looking up{" "}
-                <strong className="text-white/60">{selectedWord}</strong>…
+                <strong className="text-muted">{selectedWord}</strong>…
               </div>
             ) : wordError ? (
               <div className="flex flex-col items-center gap-3 mt-10 text-center">
-                <HelpCircle size={32} className="text-red-400/40" />
-                <p className="text-[14px] font-semibold text-white/60 m-0">
+                <HelpCircle size={32} className="text-hard" />
+                <p className="text-[14px] font-semibold text-muted m-0">
                   &quot;{selectedWord}&quot;
                 </p>
-                <p className="text-[12px] text-orange-400 m-0">{wordError}</p>
+                <p className="text-[12px] text-hard m-0">{wordError}</p>
               </div>
             ) : wordResult ? (
               <div className="flex flex-col gap-5">
@@ -197,19 +195,19 @@ export default function SidePanel() {
                 <div>
                   <div className="flex items-baseline gap-2 mb-1.5">
                     {active?.word_class && (
-                      <span className="text-[10px] font-bold tracking-widest uppercase text-blue-400">
+                      <span className="text-[10px] font-bold tracking-widest uppercase text-accent">
                         {active.word_class}
                       </span>
                     )}
                     <h2
-                      className="text-[26px] font-bold text-white/90 m-0 leading-tight tracking-tight"
+                      className="text-[26px] font-bold text-ink m-0 leading-tight tracking-tight"
                       style={{
                         fontFamily: "var(--font-dm-serif), Georgia, serif",
                       }}
                     >
                       {wordResult.clicked.toLowerCase() !==
                         wordResult.word.toLowerCase() && (
-                        <span className="text-[14px] font-normal text-white/35">
+                        <span className="text-[14px] font-normal text-faint">
                           {clickedLabel(wordResult.clicked, selectedTokens)}{" "}
                           →{" "}
                         </span>
@@ -239,10 +237,7 @@ export default function SidePanel() {
                 {activeSource !== "ai" && <InSentenceBox />}
 
                 {/* One tab per source — switching never re-queries */}
-                <div
-                  role="tablist"
-                  className="flex gap-4 border-b border-white/[0.07]"
-                >
+                <div role="tablist" className="flex gap-4 border-b border-line">
                   {tabs.map((t) => {
                     const total =
                       wordResult.translations[t.id]?.meanings.length ?? 0;
@@ -255,13 +250,13 @@ export default function SidePanel() {
                         className={clsx(
                           "pb-2 -mb-px text-[11px] font-semibold tracking-widest uppercase border-b-2 transition-colors",
                           activeSource === t.id
-                            ? "border-blue-400 text-blue-300"
-                            : "border-transparent text-white/30 hover:text-white/55",
+                            ? "border-accent text-accent"
+                            : "border-transparent text-faint hover:text-muted",
                         )}
                       >
                         {t.label}
                         {total > SENSE_LIMIT && (
-                          <span className="ml-1.5 font-normal normal-case tracking-normal text-white/30">
+                          <span className="ml-1.5 font-normal normal-case tracking-normal text-faint">
                             {expanded ? total : `${SENSE_LIMIT} of ${total}`}
                           </span>
                         )}
@@ -276,9 +271,9 @@ export default function SidePanel() {
                 ) : active ? (
                   <div
                     role="tabpanel"
-                    className="bg-blue-500/[0.07] border border-blue-400/[0.15] rounded-xl p-4"
+                    className="bg-accent-soft border border-line rounded-xl p-4"
                   >
-                    <p className="text-[10px] font-bold tracking-widest uppercase text-blue-400 mb-2.5">
+                    <p className="text-[10px] font-bold tracking-widest uppercase text-accent mb-2.5">
                       English
                     </p>
                     <SenseList
@@ -294,18 +289,16 @@ export default function SidePanel() {
                     role="tabpanel"
                     className="flex flex-col items-center gap-3 py-6 text-center"
                   >
-                    <p className="text-[12px] text-white/40 m-0">
+                    <p className="text-[12px] text-faint m-0">
                       No {activeLabel} result for this word yet.
                     </p>
                     {sourceError && (
-                      <p className="text-[12px] text-orange-400 m-0">
-                        {sourceError}
-                      </p>
+                      <p className="text-[12px] text-hard m-0">{sourceError}</p>
                     )}
                     <button
                       onClick={() => lookupSource(activeSource as string)}
                       disabled={sourceLoading}
-                      className="px-3 py-1.5 rounded-lg text-[12px] font-semibold bg-blue-500/15 text-blue-400 border border-blue-400/25 hover:bg-blue-500/25 disabled:opacity-60"
+                      className="px-3 py-1.5 rounded-lg text-[12px] font-semibold bg-accent-soft text-accent border border-line hover:brightness-110 disabled:opacity-60"
                     >
                       {sourceLoading
                         ? "Looking up…"
@@ -334,7 +327,7 @@ export default function SidePanel() {
                 )}
               </div>
             ) : (
-              <p className="text-[13px] text-white/20 mt-2">
+              <p className="text-[13px] text-faint mt-2">
                 Click any word to see its meaning.
               </p>
             )}

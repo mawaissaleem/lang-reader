@@ -62,7 +62,7 @@ export default function AddPreview({ text, userWords, captionSource }: Props) {
           <b className="text-ink">{stats.newPer100}</b> new per 100
         </span>
         {captionSource && (
-          <span className="rounded-md bg-amber-400/10 px-2 py-0.5 text-xs text-amber-300">
+          <span className="rounded-md bg-[var(--st-l3-bg)] px-2 py-0.5 text-xs text-[var(--warn-text)]">
             {CAPTION_LABEL[captionSource]}
           </span>
         )}

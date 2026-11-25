@@ -45,21 +45,21 @@ export default function AnkiFooter({
   }
 
   return (
-    <div className="px-5 py-4 border-t border-white/[0.07] flex-shrink-0">
+    <div className="px-5 py-4 border-t border-line flex-shrink-0">
       <p
         data-testid="anki-status"
-        className="flex items-center gap-1.5 text-[11px] text-white/40 m-0 mb-2"
+        className="flex items-center gap-1.5 text-[11px] text-muted m-0 mb-2"
       >
         <span
           className={clsx(
             "w-1.5 h-1.5 rounded-full",
-            connected ? "bg-green-400" : "bg-white/25",
+            connected ? "bg-good" : "bg-faint",
           )}
         />
         {connected ? "Anki connected" : "Anki not connected"}
       </p>
       {saveError && (
-        <p className="text-[12px] text-orange-400 m-0 mb-2">{saveError}</p>
+        <p className="text-[12px] text-hard m-0 mb-2">{saveError}</p>
       )}
       <div className="flex gap-2">
         {[false, true].map((anki) => {
@@ -72,10 +72,10 @@ export default function AnkiFooter({
               className={clsx(
                 "flex-1 py-2.5 rounded-xl text-[13px] font-semibold transition-all",
                 saved
-                  ? "bg-green-500/10 text-green-400 border border-green-400/25 cursor-default"
+                  ? "bg-surface-2 text-good border border-line cursor-default"
                   : primary
-                    ? "bg-blue-500 text-white hover:bg-blue-400 disabled:opacity-60"
-                    : "bg-blue-500/15 text-blue-400 border border-blue-400/25 hover:bg-blue-500/25 disabled:opacity-60",
+                    ? "bg-accent text-on-accent hover:brightness-110 disabled:opacity-60"
+                    : "bg-accent-soft text-accent border border-line hover:bg-surface-2 disabled:opacity-60",
               )}
             >
               {saving
@@ -89,7 +89,7 @@ export default function AnkiFooter({
           );
         })}
       </div>
-      <label className="flex items-center gap-1.5 text-[11px] text-white/40 mt-2 cursor-pointer">
+      <label className="flex items-center gap-1.5 text-[11px] text-muted mt-2 cursor-pointer">
         <input
           type="checkbox"
           checked={ankiDefault}
@@ -97,28 +97,26 @@ export default function AnkiFooter({
         />
         Make Save + Anki the default
       </label>
-      <div className="flex items-center justify-between gap-2 mt-2 text-[11px] text-white/40">
+      <div className="flex items-center justify-between gap-2 mt-2 text-[11px] text-muted">
         <span data-testid="anki-pending">
           {pending} {pending === 1 ? "card" : "cards"} waiting for Anki
         </span>
         <button
           onClick={onPull}
           disabled={syncing}
-          className="px-2 py-1 rounded-lg font-semibold text-blue-400 border border-blue-400/25 hover:bg-blue-500/25 disabled:opacity-50"
+          className="px-2 py-1 rounded-lg font-semibold text-accent border border-line hover:bg-accent-soft disabled:opacity-50"
         >
           Pull from Anki
         </button>
         <button
           onClick={onSync}
           disabled={syncing || pending === 0}
-          className="px-2 py-1 rounded-lg font-semibold text-blue-400 border border-blue-400/25 hover:bg-blue-500/25 disabled:opacity-50"
+          className="px-2 py-1 rounded-lg font-semibold text-accent border border-line hover:bg-accent-soft disabled:opacity-50"
         >
           {syncing ? "Syncing…" : "Sync to Anki"}
         </button>
       </div>
-      {message && (
-        <p className="text-[11px] text-white/50 m-0 mt-1">{message}</p>
-      )}
+      {message && <p className="text-[11px] text-muted m-0 mt-1">{message}</p>}
     </div>
   );
 }

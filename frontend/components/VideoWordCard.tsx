@@ -142,7 +142,7 @@ export default function VideoWordCard() {
             disabled={!result?.id || saving || saved}
             className={clsx(
               small,
-              "bg-accent text-white border-accent disabled:opacity-60",
+              "bg-accent text-on-accent border-accent disabled:opacity-60",
             )}
           >
             Save + Anki

@@ -34,7 +34,7 @@ export default function SentenceAnkiButton({
       data-testid="sentence-anki"
       onClick={() => add(de, en, word, source, bold)}
       disabled={disabled || state === "adding" || state === "sent"}
-      className="self-start px-2 py-1 rounded-lg text-[11px] font-semibold text-blue-400 border border-blue-400/25 hover:bg-blue-500/25 disabled:opacity-60"
+      className="self-start px-2 py-1 rounded-lg text-[11px] font-semibold text-accent border border-line hover:bg-accent-soft disabled:opacity-60"
     >
       {state ? LABEL[state] : "+ Anki"}
     </button>

@@ -42,28 +42,28 @@ export default function InSentenceBox() {
   return (
     <section
       data-testid="in-sentence"
-      className="rounded-xl p-4 bg-blue-500/[0.07] border border-blue-400/[0.15]"
+      className="rounded-xl p-4 bg-accent-soft border border-line"
     >
-      <p className="text-[10px] font-bold tracking-widest uppercase text-blue-400 mb-1.5">
+      <p className="text-[10px] font-bold tracking-widest uppercase text-accent mb-1.5">
         In this sentence
       </p>
       {entry?.status === "done" ? (
-        <p className="text-[15px] text-white/90 leading-snug m-0">
+        <p className="text-[15px] text-ink leading-snug m-0">
           {entry.answer.result.meaning_in_context}
         </p>
       ) : entry?.status === "loading" ? (
-        <p className="flex items-center gap-2 text-[12px] text-white/45 m-0">
+        <p className="flex items-center gap-2 text-[12px] text-muted m-0">
           <Loader2 size={14} className="animate-spin" />
           Asking the model…
         </p>
       ) : (
         <div className="flex flex-col items-start gap-1.5">
           {entry?.status === "error" && (
-            <p className="text-[12px] text-orange-400 m-0">{entry.error}</p>
+            <p className="text-[12px] text-hard m-0">{entry.error}</p>
           )}
           <button
             onClick={askAi}
-            className="px-3 py-1.5 rounded-lg text-[12px] font-semibold bg-blue-500/15 text-blue-400 border border-blue-400/25 hover:bg-blue-500/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+            className="px-3 py-1.5 rounded-lg text-[12px] font-semibold bg-accent text-on-accent hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             {entry ? "Retry" : "Meaning in this sentence"}
           </button>

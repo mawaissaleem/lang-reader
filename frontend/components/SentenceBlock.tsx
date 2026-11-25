@@ -24,20 +24,20 @@ export default function SentenceBlock({
   return (
     <div
       data-testid="sentence-box"
-      className="bg-white/[0.03] border border-white/[0.07] rounded-xl p-4"
+      className="bg-surface-2 border border-line rounded-xl p-4"
     >
-      <p className="text-[13px] text-white/80 leading-relaxed m-0 mb-2">
+      <p className="text-[13px] text-ink leading-relaxed m-0 mb-2">
         <PlayButton key={sentence} text={sentence} label="Play sentence" />{" "}
         {sentence}
       </p>
       {loading ? (
-        <p className="text-[12px] text-white/35 m-0">Translating…</p>
+        <p className="text-[12px] text-muted m-0">Translating…</p>
       ) : error ? (
-        <p className="text-[12px] text-white/35 m-0">
+        <p className="text-[12px] text-muted m-0">
           Couldn&apos;t translate the sentence
         </p>
       ) : (
-        <p className="text-[13px] text-blue-300/80 leading-relaxed m-0">
+        <p className="text-[13px] text-accent leading-relaxed m-0">
           {translation}
         </p>
       )}

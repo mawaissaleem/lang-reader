@@ -67,7 +67,7 @@ export default function PlayButton({
         onClick={click}
         aria-label={label}
         title={state === "error" ? "Audio not available" : label}
-        className="inline-flex align-middle p-1 rounded text-blue-400 hover:bg-blue-500/20"
+        className="inline-flex align-middle p-1 rounded text-accent hover:bg-accent-soft"
       >
         <Icon
           size={14}
@@ -75,7 +75,7 @@ export default function PlayButton({
         />
       </button>
       {state === "error" && (
-        <span role="alert" className="text-[11px] text-orange-400">
+        <span role="alert" className="text-[11px] text-hard">
           Audio not available
         </span>
       )}

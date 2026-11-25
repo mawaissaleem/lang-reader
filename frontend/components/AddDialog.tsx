@@ -131,13 +131,14 @@ export default function AddDialog({ onSaved, onOpen }: Props) {
     >
       <Dialog.Trigger asChild>
         <button
-          className={`inline-flex items-center gap-2 rounded-full border border-line bg-white/5 px-4 py-2 text-[13px] font-semibold text-ink transition hover:bg-white/10 ${FOCUS_RING}`}
+          className={`inline-flex items-center gap-2 rounded-full border border-line bg-surface-2 px-4 py-2 text-[13px] font-semibold text-ink transition hover:brightness-110 ${FOCUS_RING}`}
         >
           <Plus size={16} />
           Add
         </button>
       </Dialog.Trigger>
       <Dialog.Portal>
+        {/* raw black scrim on purpose: a dark backdrop reads as modal in every theme */}
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm" />
         <Dialog.Content className="fixed left-1/2 top-1/2 z-50 flex max-h-[90vh] w-[90vw] max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-y-auto rounded-[20px] border border-line bg-surface p-6 text-ink shadow-[0_30px_120px_rgba(0,0,0,0.35)]">
           <div className="flex items-center justify-between gap-4">
@@ -257,7 +258,7 @@ export default function AddDialog({ onSaved, onOpen }: Props) {
           )}
 
           {error && (
-            <p role="alert" className="text-sm text-red-400">
+            <p role="alert" className="text-sm text-hard">
               {error}
             </p>
           )}
@@ -273,14 +274,14 @@ export default function AddDialog({ onSaved, onOpen }: Props) {
             )}
             <div className="flex gap-3">
               <Dialog.Close
-                className={`rounded-2xl border border-line px-4 py-2 text-sm transition hover:bg-white/5 ${FOCUS_RING}`}
+                className={`rounded-2xl border border-line px-4 py-2 text-sm transition hover:bg-surface-2 ${FOCUS_RING}`}
               >
                 {imported ? "Close" : "Cancel"}
               </Dialog.Close>
               <button
                 onClick={handleSubmit}
                 disabled={(!canSubmit && !imported) || busy}
-                className={`rounded-2xl bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
+                className={`rounded-2xl bg-accent px-4 py-2 text-sm font-semibold text-on-accent transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
               >
                 {busy ? "Adding…" : submitLabel(kind, imported?.entry)}
               </button>

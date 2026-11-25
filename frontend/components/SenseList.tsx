@@ -18,9 +18,9 @@ export default function SenseList({ meanings, expanded, onToggle }: Props) {
         {shown.map((meaning, i) => (
           <li
             key={i}
-            className="flex gap-2 text-[13px] text-white/75 leading-relaxed"
+            className="flex gap-2 text-[13px] text-ink leading-relaxed"
           >
-            <span className="text-blue-400/50 tabular-nums flex-shrink-0">
+            <span className="text-muted tabular-nums flex-shrink-0">
               {i + 1}.
             </span>
             {meaning}
@@ -31,7 +31,7 @@ export default function SenseList({ meanings, expanded, onToggle }: Props) {
         <button
           onClick={onToggle}
           aria-expanded={expanded}
-          className="mt-2.5 text-[12px] font-semibold text-blue-400 rounded hover:text-blue-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+          className="mt-2.5 text-[12px] font-semibold text-accent rounded hover:brightness-125 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           {expanded
             ? "Show fewer senses ▴"

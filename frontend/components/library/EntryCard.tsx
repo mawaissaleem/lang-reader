@@ -14,9 +14,9 @@ const CAPTION_LABELS = { creator: "Creator captions", auto: "Auto captions" };
 
 // literal class strings so Tailwind sees them
 const TAG_CLASS: Record<LevelTag, string> = {
-  Easiest: "bg-[rgba(62,207,142,0.12)] text-good",
-  Stretch: "bg-[rgba(245,166,35,0.12)] text-amber",
-  Hardest: "bg-[rgba(255,107,107,0.12)] text-hard",
+  Easiest: "bg-[color-mix(in_srgb,var(--good)_14%,transparent)] text-good",
+  Stretch: "bg-[var(--st-l3-bg)] text-[var(--warn-text)]",
+  Hardest: "bg-[color-mix(in_srgb,var(--hard)_14%,transparent)] text-hard",
 };
 
 /** Thumbnail of a video, or the first lines of a text. */

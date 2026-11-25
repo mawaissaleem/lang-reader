@@ -84,8 +84,8 @@ export default function LibraryPage() {
     <div
       style={{
         minHeight: "100vh",
-        background: "#0d0d0f",
-        color: "rgba(255,255,255,0.85)",
+        background: "var(--bg)",
+        color: "var(--text)",
         fontFamily: "var(--font-dm-sans), system-ui, sans-serif",
       }}
     >

@@ -231,7 +231,7 @@ export default function SettingsPage() {
             <button
               onClick={run}
               disabled={busy || !chosen.length || !model || !field}
-              className="self-start rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-40"
+              className="self-start rounded-lg bg-accent px-4 py-2 text-sm font-medium text-on-accent hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-40"
             >
               {busy
                 ? "Importing…"

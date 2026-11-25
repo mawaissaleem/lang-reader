@@ -196,6 +196,7 @@ export default function VideoReader({
     <div className={`flex flex-col ${layout.root} gap-6 h-full`}>
       {/* Player: takes what is left; min width keeps it usable when the word panel is open */}
       <div className={`shrink-0 ${layout.player}`}>
+        {/* the video is black in every theme, so black and white here are intentional */}
         <div className="relative aspect-video w-full rounded-xl overflow-hidden bg-black">
           <div ref={box} className="absolute inset-0 [&>iframe]:size-full" />
           {/* the wrapper lets clicks through to the player's own controls; only the words take them */}
@@ -254,7 +255,7 @@ export default function VideoReader({
               role="switch"
               checked={showEnglish}
               onChange={(e) => setShowEnglish(e.target.checked)}
-              className="accent-blue-500"
+              className="accent-accent"
             />
             Show English{" "}
             <kbd className="ml-1 rounded border border-line px-1 text-[10px]">

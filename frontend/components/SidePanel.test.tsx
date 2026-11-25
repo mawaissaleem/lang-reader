@@ -4,6 +4,7 @@ import {
   cleanup,
   fireEvent,
   render,
+  type RenderOptions,
   screen,
   waitFor,
 } from "@testing-library/react";
@@ -60,7 +61,7 @@ const result = (translations: T) =>
     preferred: "pons",
   }) as never;
 
-function open(translations: T = both) {
+function open(translations: T = both, options?: RenderOptions) {
   useStore.setState({
     sidePanelOpen: true,
     selectedWord: "haus",
@@ -73,7 +74,7 @@ function open(translations: T = both) {
     wordSaved: false,
     sourceError: null,
   });
-  render(<SidePanel />);
+  return render(<SidePanel />, options);
 }
 
 beforeEach(() => {
@@ -373,9 +374,9 @@ describe("SidePanel Anki outbox", () => {
   it("the default checkbox makes Save + Anki primary and persists", () => {
     open();
     const btn = () => screen.getByRole("button", { name: "Save + Anki" });
-    expect(btn().className).not.toContain("bg-blue-500 ");
+    expect(btn().className).not.toContain("bg-accent ");
     fireEvent.click(screen.getByLabelText("Make Save + Anki the default"));
-    expect(btn().className).toContain("bg-blue-500 ");
+    expect(btn().className).toContain("bg-accent ");
     expect(localStorage.getItem("ankiDefault")).toBe("1");
   });
 
@@ -658,6 +659,26 @@ describe("in this sentence box", () => {
     );
     expect(screen.getByTestId("in-sentence").textContent).toContain(
       "a building to live in",
+    );
+  });
+});
+
+describe("SidePanel theming", () => {
+  it("paints from theme tokens so a linen ancestor restyles it", () => {
+    const Linen = ({ children }: { children: React.ReactNode }) => (
+      <div data-theme="linen">{children}</div>
+    );
+    // a loaded word renders the tabs, senses and Anki footer, not just the empty shell
+    const view = open(both, { wrapper: Linen });
+    expect(screen.getByText("house")).toBeTruthy();
+    const panel = view.container.querySelector("aside");
+    expect(panel?.closest("[data-theme]")?.getAttribute("data-theme")).toBe(
+      "linen",
+    );
+    expect(panel?.className).toContain("bg-surface");
+    // raw palette colours would ignore the theme
+    expect(view.container.innerHTML).not.toMatch(
+      /(?:bg|text|border)-(?:white|black|gray|zinc|slate|blue|orange|green|red)\b|#[0-9a-f]{6}/i,
     );
   });
 });
