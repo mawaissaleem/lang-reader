@@ -21,12 +21,18 @@ router = APIRouter()
 
 class StatusUpdate(BaseModel):
     status: Literal["learning1", "learning2", "learning3", "known", "ignored"]
+    form: Optional[str] = (
+        None  # the clicked form (den for der), remembered for colouring
+    )
 
 
 class SaveContext(BaseModel):
     context_sentence: Optional[str] = None
     text_kind: Optional[Literal["video", "text"]] = None
     text_id: Optional[int] = None
+    form: Optional[str] = (
+        None  # the clicked form (den for der), remembered for colouring
+    )
 
 
 # ─────────────────────────────────────────
@@ -101,6 +107,7 @@ def _user_word_json(uw: UserWord) -> dict:
         "context_sentence": uw.context_sentence,
         "text_kind": uw.text_kind,
         "text_id": uw.text_id,
+        "forms": uw.forms or [],
     }
 
 
@@ -129,6 +136,7 @@ def set_word_status(
     if not uw:
         raise HTTPException(status_code=404, detail="Saved word not found")
     history.set_status(db, uw, body.status)
+    saved_words.add_form(uw, body.form)
     db.commit()
     return {"id": uw.id, "status": uw.status}
 
@@ -154,6 +162,7 @@ async def save_word(
         .first()
     )
     if existing:
+        saved_words.add_form(existing, ctx.pop("form"))
         saved_words.update_existing(existing, source, ctx, anki)
         db.commit()
         return {

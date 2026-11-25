@@ -178,6 +178,8 @@ class UserWord(Base):
         String, nullable=True
     )  # video (subtitle id) | text; same names as /library "type"
     text_id = Column(Integer, nullable=True)
+    # clicked forms that differ from the base form (den -> der), so the reader colours them after a reload
+    forms = Column(JSON, nullable=True)
     anki_status = Column(
         String, nullable=False, default="none"
     )  # none | pending | sent | failed

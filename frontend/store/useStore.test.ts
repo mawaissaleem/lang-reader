@@ -55,7 +55,12 @@ describe("saveSelectedWord", () => {
       7,
       1,
       "pons",
-      { context_sentence: "Das Haus ist alt.", text_kind: "text", text_id: 5 },
+      {
+        form: "Haus",
+        context_sentence: "Das Haus ist alt.",
+        text_kind: "text",
+        text_id: 5,
+      },
       false,
     );
   });
@@ -97,7 +102,12 @@ describe("saveSelectedWord", () => {
       7,
       1,
       "pons",
-      { context_sentence: "Der Hund bellt.", text_kind: "text", text_id: 1 },
+      {
+        form: "Haus",
+        context_sentence: "Der Hund bellt.",
+        text_kind: "text",
+        text_id: 1,
+      },
       false,
     );
   });
@@ -114,7 +124,7 @@ describe("saveSelectedWord", () => {
     expect(useStore.getState().saveError).toMatch(/Anki rejected/);
   });
 
-  it("sends no context when no sentence was captured", async () => {
+  it("sends only the clicked form when no sentence was captured", async () => {
     vi.mocked(saveWord).mockResolvedValue({
       message: "ok",
       already_saved: false,
@@ -123,7 +133,13 @@ describe("saveSelectedWord", () => {
     vi.mocked(fetchUserWords).mockResolvedValue([]);
     useStore.setState({ selectedSentence: null, activeSource: null });
     await useStore.getState().saveSelectedWord();
-    expect(saveWord).toHaveBeenCalledWith(7, 1, undefined, undefined, false);
+    expect(saveWord).toHaveBeenCalledWith(
+      7,
+      1,
+      undefined,
+      { form: "Haus" },
+      false,
+    );
   });
 
   it("does not mark a newer word saved when the click changed during the save", async () => {
@@ -223,7 +239,7 @@ describe("lookup with sentence", () => {
       userWords: { gehen: { id: 4, status: "learning1" } },
     });
     await useStore.getState().setWordStatus("known");
-    expect(patchWordStatus).toHaveBeenCalledWith(4, "known");
+    expect(patchWordStatus).toHaveBeenCalledWith(4, "known", "ging");
     expect(useStore.getState().userWords.ging).toEqual({
       id: 4,
       status: "known",
@@ -251,6 +267,19 @@ describe("lookup with sentence", () => {
   });
 });
 
+describe("loadUserWords", () => {
+  it("colours saved clicked forms, and a saved word beats another word's form", async () => {
+    vi.mocked(fetchUserWords).mockResolvedValue([
+      { id: 1, word: "der", status: "known", forms: ["den", "die"] },
+      { id: 2, word: "die", status: "learning1", forms: [] },
+    ] as never);
+    await useStore.getState().loadUserWords(1);
+    const { userWords } = useStore.getState();
+    expect(userWords.den).toEqual({ id: 1, status: "known" });
+    expect(userWords.die).toEqual({ id: 2, status: "learning1" });
+  });
+});
+
 describe("setWordStatus", () => {
   beforeEach(() => {
     vi.mocked(patchWordStatus).mockReset();
@@ -267,7 +296,7 @@ describe("setWordStatus", () => {
     });
     await useStore.getState().setWordStatus("known");
     expect(seen).toBe("known");
-    expect(patchWordStatus).toHaveBeenCalledWith(3, "known");
+    expect(patchWordStatus).toHaveBeenCalledWith(3, "known", "Haus");
   });
 
   it("reverts and sets saveError on failure", async () => {
@@ -289,7 +318,7 @@ describe("setWordStatus", () => {
     ] as never);
     vi.mocked(patchWordStatus).mockResolvedValue();
     await useStore.getState().setWordStatus("learning3");
-    expect(patchWordStatus).toHaveBeenCalledWith(9, "learning3");
+    expect(patchWordStatus).toHaveBeenCalledWith(9, "learning3", "Haus");
     expect(useStore.getState().userWords.Haus.status).toBe("learning3");
   });
 });

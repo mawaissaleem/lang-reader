@@ -236,3 +236,27 @@ class TestSaveContext(unittest.IsolatedAsyncioTestCase):
             (row["context_sentence"], row["text_kind"], row["text_id"]),
             ("Zwei.", "video", 2),
         )
+
+
+class TestClickedForms(TestSaveContext):
+    """Clicked forms (den for der) are kept with the saved word so the reader colours them after a reload."""
+
+    def forms(self):
+        return self.client.get("/user/1/words").json()[0]["forms"]
+
+    async def test_save_remembers_form_once_and_skips_base_form(self):
+        self.client.post(self.url, json={"form": "Kaffees"})
+        self.client.post(self.url, json={"form": "Kaffees"})
+        word = self.client.get("/user/1/words").json()[0]["word"]
+        self.client.post(self.url, json={"form": word})
+        self.assertEqual(self.forms(), ["Kaffees"])
+
+    async def test_status_change_remembers_form(self):
+        self.client.post(self.url)
+        self.assertEqual(self.forms(), [])
+        uw_id = self.client.get("/user/1/words").json()[0]["id"]
+        r = self.client.patch(
+            f"/user-words/{uw_id}/status", json={"status": "known", "form": "kaffees"}
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(self.forms(), ["kaffees"])

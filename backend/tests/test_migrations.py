@@ -58,6 +58,7 @@ class MigrationTests(unittest.TestCase):
                 "text_id",
                 "anki_status",
                 "anki_note_id",
+                "forms",
             ):
                 c.exec_driver_sql(f"alter table user_words drop column {col}")
 

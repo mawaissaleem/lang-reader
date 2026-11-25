@@ -330,7 +330,7 @@ describe("SidePanel source tabs", () => {
         7,
         1,
         "libretranslate",
-        undefined,
+        { form: "haus" },
         false,
       ),
     );
@@ -367,7 +367,13 @@ describe("SidePanel Anki outbox", () => {
     open();
     fireEvent.click(screen.getByRole("button", { name: "Save + Anki" }));
     await waitFor(() =>
-      expect(saveWord).toHaveBeenCalledWith(7, 1, "pons", undefined, true),
+      expect(saveWord).toHaveBeenCalledWith(
+        7,
+        1,
+        "pons",
+        { form: "haus" },
+        true,
+      ),
     );
   });
 

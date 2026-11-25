@@ -20,6 +20,15 @@ def require_translation(word: Dictionary, source: Optional[str]) -> None:
         )
 
 
+def add_form(uw: UserWord, form: Optional[str]) -> None:
+    """Remember a clicked form of the word (the caller commits); the base form itself is not stored."""
+    if form and form != uw.word.german_word and form not in (uw.forms or []):
+        uw.forms = [
+            *(uw.forms or []),
+            form,
+        ]  # a new list, so SQLAlchemy sees the JSON change
+
+
 def update_existing(
     existing: UserWord, source: Optional[str], ctx: dict, anki: bool
 ) -> None:
@@ -46,10 +55,14 @@ def create_user_word(
 ) -> UserWord:
     """Add a new saved word and its first history entry, then commit."""
     now = datetime.now(timezone.utc)
+    form = ctx.pop("form", None)
     user_word = UserWord(
         user_id=user_id,
         word_id=word_id,
         source=source,
+        forms=[form]
+        if form and form != db.get(Dictionary, word_id).german_word
+        else None,
         **ctx,
         last_reviewed_at=now,
         added_at=now,

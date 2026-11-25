@@ -273,13 +273,14 @@ const useStore = create<StoreState>((set, get) => ({
       get();
     if (!wordResult?.id) return;
     set({ wordSaving: true, saveError: null });
-    const context = selectedSentence
-      ? {
-          context_sentence: selectedSentence,
-          text_kind: selectedTextRef?.kind,
-          text_id: selectedTextRef?.id,
-        }
-      : undefined;
+    const context = {
+      form: clickedKey(wordResult),
+      ...(selectedSentence && {
+        context_sentence: selectedSentence,
+        text_kind: selectedTextRef?.kind,
+        text_id: selectedTextRef?.id,
+      }),
+    };
     try {
       const saved = await saveWord(
         wordResult.id,
@@ -330,8 +331,13 @@ const useStore = create<StoreState>((set, get) => ({
   loadUserWords: async (userId: number) => {
     const words = await fetchUserWords(userId);
     set({
+      // clicked forms first, so a saved word with the same text as another word's form keeps its own entry
       userWords: Object.fromEntries(
-        words.map((w) => [w.word, { id: w.id, status: w.status }]),
+        words
+          .flatMap((w) =>
+            (w.forms ?? []).map((f) => [f, { id: w.id, status: w.status }]),
+          )
+          .concat(words.map((w) => [w.word, { id: w.id, status: w.status }])),
       ),
     });
   },
@@ -360,7 +366,7 @@ const useStore = create<StoreState>((set, get) => ({
       });
     setStatus(status);
     try {
-      await patchWordStatus(prev.id, status);
+      await patchWordStatus(prev.id, status, clickedKey(wordResult));
     } catch (err) {
       setStatus(prev.status);
       set({ saveError: err instanceof Error ? err.message : String(err) });

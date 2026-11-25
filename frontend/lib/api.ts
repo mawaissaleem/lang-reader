@@ -72,6 +72,7 @@ export interface UserWord {
   context_sentence: string | null;
   text_kind: "video" | "text" | null;
   text_id: number | null;
+  forms: string[]; // clicked forms that differ from the base form (den for der)
 }
 
 export async function fetchUserWords(userId: number): Promise<UserWord[]> {
@@ -84,6 +85,7 @@ export interface SaveContext {
   context_sentence?: string;
   text_kind?: "video" | "text";
   text_id?: number;
+  form?: string; // the clicked form, remembered so it keeps the word's colour after a reload
 }
 
 export async function saveWord(
@@ -113,13 +115,14 @@ export async function saveWord(
 export async function patchWordStatus(
   userWordId: number,
   status: WordStatus,
+  form?: string,
 ): Promise<void> {
   const response = await fetch(
     `${API_BASE_URL}/user-words/${userWordId}/status`,
     {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, form }),
     },
   );
   // this endpoint returns no body we need; readJson only runs to throw the server's error
