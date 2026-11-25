@@ -127,8 +127,9 @@ export default function DisplayMenu({ showFocus }: { showFocus: boolean }) {
             label="Theme"
             value={theme}
             options={[
-              { value: "dark", label: "Dark" },
-              { value: "paper", label: "Paper" },
+              { value: "midnight", label: "Midnight" },
+              { value: "grove", label: "Grove" },
+              { value: "linen", label: "Linen" },
             ]}
             onPick={(theme) => setDisplay({ theme })}
           />

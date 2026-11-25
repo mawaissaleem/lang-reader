@@ -202,7 +202,7 @@ export default function VideoReader({
           {current >= 0 && (
             // subtitles sit on black video, so they keep the dark status colours in every theme
             <div
-              data-theme="dark"
+              data-theme="midnight"
               className="pointer-events-none absolute inset-x-0 bottom-12 flex flex-col items-center gap-1 px-4 text-center"
             >
               <CueText

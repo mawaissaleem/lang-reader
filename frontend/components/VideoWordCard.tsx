@@ -64,7 +64,7 @@ export default function VideoWordCard() {
     // sits on the video, so it keeps the dark look in every reader theme
     <section
       data-testid="word-card"
-      data-theme="dark"
+      data-theme="midnight"
       aria-label="Word"
       className="absolute inset-x-3 top-3 z-10 max-h-[calc(100%-1.5rem)] overflow-y-auto rounded-xl border border-white/10 bg-black/85 backdrop-blur px-4 py-3 pr-10 flex flex-wrap items-center gap-x-6 gap-y-2 shadow-lg"
     >

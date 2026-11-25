@@ -10,8 +10,16 @@ describe("display settings", () => {
   });
 
   it("brings back what was saved, so the theme survives a reload", () => {
-    saveDisplay({ ...DEFAULT_DISPLAY, theme: "paper", textSize: "L" });
-    expect(loadDisplay()).toMatchObject({ theme: "paper", textSize: "L" });
+    saveDisplay({ ...DEFAULT_DISPLAY, theme: "grove", textSize: "L" });
+    expect(loadDisplay()).toMatchObject({ theme: "grove", textSize: "L" });
+  });
+
+  it.each([
+    ["dark", "midnight"],
+    ["paper", "linen"],
+  ])("loads an old saved %s theme as %s", (old, now) => {
+    localStorage.setItem("readerDisplay", JSON.stringify({ theme: old }));
+    expect(loadDisplay().theme).toBe(now);
   });
 
   it("falls back to the defaults when storage holds garbage", () => {

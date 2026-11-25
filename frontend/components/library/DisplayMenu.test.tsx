@@ -20,12 +20,12 @@ afterEach(cleanup);
 const open = () => fireEvent.click(screen.getByText("Display ▾"));
 
 describe("DisplayMenu", () => {
-  it("switches to Paper and saves it", () => {
+  it("switches to Linen and saves it", () => {
     render(<DisplayMenu showFocus />);
     open();
-    fireEvent.click(screen.getByText("Paper"));
-    expect(useStore.getState().theme).toBe("paper");
-    expect(localStorage.getItem("readerDisplay")).toContain('"paper"');
+    fireEvent.click(screen.getByText("Linen"));
+    expect(useStore.getState().theme).toBe("linen");
+    expect(localStorage.getItem("readerDisplay")).toContain('"linen"');
   });
 
   it("closes on Escape", () => {

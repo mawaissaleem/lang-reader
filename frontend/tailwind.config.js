@@ -17,6 +17,8 @@ module.exports = {
         muted: "var(--muted)",
         faint: "var(--faint)",
         accent: "var(--accent)",
+        accent2: "var(--accent2)",
+        "on-accent": "var(--on-accent)",
         "accent-soft": "var(--accent-soft)",
         // DEFAULT keeps the built-in amber-50…950 scale alongside the token
         amber: { DEFAULT: "var(--amber)" },

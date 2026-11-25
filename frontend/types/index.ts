@@ -1,5 +1,5 @@
 export type HighlightMode = "underline" | "highlight";
-export type ReaderTheme = "dark" | "paper";
+export type ReaderTheme = "midnight" | "grove" | "linen";
 export type TextSize = "S" | "M" | "L";
 export interface DisplaySettings {
   theme: ReaderTheme;

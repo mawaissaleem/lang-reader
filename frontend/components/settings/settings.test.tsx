@@ -165,11 +165,11 @@ describe("DeckCards", () => {
 describe("ReadingSection", () => {
   it("writes the theme to the reader's saved display settings", () => {
     render(<ReadingSection />);
-    fireEvent.click(screen.getByLabelText("Paper"));
-    expect(useStore.getState().theme).toBe("paper");
+    fireEvent.click(screen.getByLabelText("Linen"));
+    expect(useStore.getState().theme).toBe("linen");
     expect(JSON.parse(localStorage.getItem("readerDisplay")!).theme).toBe(
-      "paper",
+      "linen",
     );
-    expect(screen.getByTestId("preview-paper").dataset.theme).toBe("paper");
+    expect(screen.getByTestId("preview-linen").dataset.theme).toBe("linen");
   });
 });

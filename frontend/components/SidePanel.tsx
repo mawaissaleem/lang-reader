@@ -19,7 +19,7 @@ const SOURCES = [
   { id: "ai", label: "AI" },
 ];
 
-// Article colours come from the --gender-* tokens so the Paper theme can swap them.
+// Article colours come from the --gender-* tokens so the themes can swap them.
 export const ARTICLE_CLASS = {
   der: "text-[var(--gender-der)]",
   die: "text-[var(--gender-die)]",

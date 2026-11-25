@@ -24,7 +24,7 @@ export function statusForKey(e: KeyboardEvent): WordStatus | null {
   return STATUS_KEYS[e.key.toLowerCase()] ?? null;
 }
 
-// Colours come from the --st-* tokens in globals.css so the Paper theme can swap them.
+// Colours come from the --st-* tokens in globals.css so the themes can swap them.
 // Literal class strings so Tailwind sees them.
 export const NEW_CLASS = "bg-[var(--st-new-bg)] text-[var(--st-new-text)]";
 export const STATUS_CLASS: Record<

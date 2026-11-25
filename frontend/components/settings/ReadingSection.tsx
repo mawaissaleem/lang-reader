@@ -77,7 +77,7 @@ function Preview({ theme }: { theme: ReaderTheme }) {
   );
 }
 
-/** Reading section: the reader's own Display settings (same store and saved value) with a live Dark and Paper preview. */
+/** Reading section: the reader's own Display settings (same store and saved value) with a live preview of each theme. */
 export default function ReadingSection() {
   const theme = useStore((s) => s.theme);
   const textSize = useStore((s) => s.textSize);
@@ -95,8 +95,9 @@ export default function ReadingSection() {
         value={theme}
         onChange={(v) => setDisplay({ theme: v })}
         options={[
-          { value: "dark", text: "Dark" },
-          { value: "paper", text: "Paper" },
+          { value: "midnight", text: "Midnight" },
+          { value: "grove", text: "Grove" },
+          { value: "linen", text: "Linen" },
         ]}
       />
       <Choice
@@ -119,8 +120,9 @@ export default function ReadingSection() {
         ]}
       />
       <div className="flex flex-col gap-2 sm:flex-row" aria-label="Preview">
-        <Preview theme="dark" />
-        <Preview theme="paper" />
+        <Preview theme="midnight" />
+        <Preview theme="grove" />
+        <Preview theme="linen" />
       </div>
     </div>
   );
