@@ -1,9 +1,9 @@
 """Word translation providers (PONS, LibreTranslate) and the priority-ordered fallback pipeline."""
 
 import logging
-import os
 from typing import Any, Dict, List, Optional, Tuple
 
+import config
 from translators.libretranslate import method2_libretranslate
 from translators.pons import method1_pons
 
@@ -11,15 +11,10 @@ logger = logging.getLogger(__name__)
 VALID_PROVIDERS = ["pons", "libretranslate"]
 
 
-def libretranslate_url() -> str:
-    """LibreTranslate base URL, read from the environment on each call."""
-    return os.getenv("LIBRETRANSLATE_URL", "http://localhost:5000")
-
-
 def get_translator_providers():
     """Provider name -> async lookup function; env keys are read when this is called."""
-    pons_key = os.getenv("PONS_API_KEY")
-    url = libretranslate_url()
+    pons_key = config.pons_api_key()
+    url = config.libretranslate_url()
     return {
         "pons": lambda word: method1_pons(word, pons_key),
         "libretranslate": lambda word: method2_libretranslate(word, url),
@@ -28,7 +23,7 @@ def get_translator_providers():
 
 def parse_priority(priority_str: Optional[str]) -> List[str]:
     """Provider order from a comma list (or the env default); unknown names dropped, missing ones appended."""
-    default = os.getenv("DEFAULT_TRANSLATION_PRIORITY", "pons,libretranslate")
+    default = config.default_translation_priority()
     raw = priority_str or default or "pons,libretranslate"
     providers = [p.strip().lower() for p in raw.split(",") if p.strip()]
     result = [p for p in providers if p in VALID_PROVIDERS]

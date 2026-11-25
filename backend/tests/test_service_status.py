@@ -39,7 +39,9 @@ class ServiceStatusTest(unittest.TestCase):
 
     def test_everything_up(self):
         with (
-            patch.object(service_status.tts, "PIPER", Path(__file__)),
+            patch.object(
+                service_status.config, "piper_bin", return_value=Path(__file__)
+            ),
             patch.object(service_status.tts, "voice_path", return_value=Path(__file__)),
         ):
             body = self.get(True, pons_key="secret").json()

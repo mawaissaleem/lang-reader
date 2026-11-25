@@ -1,6 +1,8 @@
 import html
 
 import httpx
+
+import config
 from typing import Optional, Dict, Any
 
 from utils import strip_html
@@ -23,7 +25,7 @@ async def method1_pons(word: str, api_key: Optional[str]) -> Dict[str, Any]:
     headers = {"X-Secret": api_key}
 
     try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
+        async with httpx.AsyncClient(timeout=config.LOOKUP_TIMEOUT) as client:
             response = await client.get(pons_url, params=params, headers=headers)
     except httpx.RequestError as e:
         return {

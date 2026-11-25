@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 from alembic import command
@@ -6,9 +5,11 @@ from alembic.config import Config
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+import config
+
 BASE_DIR = Path(__file__).resolve().parent
 # Absolute so the DB is the same regardless of the process cwd.
-DATABASE_URL = os.getenv("DATABASE_URL") or f"sqlite:///{BASE_DIR / 'subtitles.db'}"
+DATABASE_URL = config.database_url(f"sqlite:///{BASE_DIR / 'subtitles.db'}")
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)

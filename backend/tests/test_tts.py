@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import config
 import main
 import tts
 
@@ -73,7 +74,9 @@ class TTSTest(unittest.TestCase):
 
 
 @unittest.skipUnless(
-    tts.voice_path().exists() and shutil.which("ffmpeg") and tts.PIPER.exists(),
+    tts.voice_path().exists()
+    and shutil.which("ffmpeg")
+    and config.piper_bin().exists(),
     "piper/voice/ffmpeg missing",
 )
 class RealSynthTest(unittest.TestCase):

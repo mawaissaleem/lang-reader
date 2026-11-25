@@ -13,6 +13,7 @@ from urllib.parse import unquote, urljoin, urlparse
 from xml.etree import ElementTree as ET
 
 import requests
+import urllib3
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +92,11 @@ def fetch_url(url: str) -> Tuple[str, str]:
                 continue
             if r.status_code >= 400:
                 raise ImportError_(f"The page returned HTTP {r.status_code}")
-            html = _read_body(r)
+            try:
+                html = _read_body(r)
+            except (urllib3.exceptions.HTTPError, requests.RequestException):
+                # a stall or reset after the headers arrived surfaces from the raw stream
+                raise ImportError_("Could not download that page")
             break
     if html is None:
         raise ImportError_("Too many redirects")

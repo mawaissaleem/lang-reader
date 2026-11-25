@@ -1,21 +1,14 @@
-"""App setup: environment, CORS, startup tasks and router registration."""
-
-# load_dotenv() must run before the app modules below are imported, because
-# anki, database and translators.llm read their settings from the environment at import time.
+"""App setup: CORS, startup tasks and router registration."""
 
 import asyncio
 import logging
-import os
 from contextlib import asynccontextmanager
 from typing import List
-
-from dotenv import load_dotenv
-
-load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+import config
 from anki import AnkiError, send_pending
 from database import SessionLocal, run_migrations
 from lemmatizer import load_model
@@ -68,7 +61,7 @@ app = FastAPI(title="lang-reader", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=parse_origins(os.getenv("CORS_ORIGINS", "http://localhost:3000")),
+    allow_origins=parse_origins(config.cors_origins()),
     allow_credentials=False,  # frontend uses no cookies
     allow_methods=["*"],
     allow_headers=["*"],

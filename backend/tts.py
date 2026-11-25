@@ -2,12 +2,12 @@ import asyncio
 import hashlib
 import os
 import shutil
-import sys
 import tempfile
 from pathlib import Path
 
+import config
+
 BASE_DIR = Path(__file__).resolve().parent
-PIPER = Path(sys.executable).parent / "piper"  # the venv's CLI
 # shortcut: one global lock serialises synthesis, fine for one user; use per-key locks if it ever queues
 _lock = asyncio.Lock()
 TIMEOUT = 60
@@ -19,11 +19,11 @@ class TTSError(Exception):
 
 def voice_path() -> Path:
     # absolute env value wins
-    return BASE_DIR / os.getenv("PIPER_VOICE", "voices/de_DE-thorsten-medium.onnx")
+    return BASE_DIR / config.piper_voice()
 
 
 def cache_dir() -> Path:
-    return BASE_DIR / os.getenv("TTS_CACHE_DIR", "audio_cache")
+    return BASE_DIR / config.tts_cache_dir()
 
 
 def normalize(text: str) -> str:
@@ -66,7 +66,10 @@ async def synth(text: str, out: Path):
         raise TTSError("ffmpeg not found")
     with tempfile.TemporaryDirectory() as d:
         wav = Path(d) / "a.wav"
-        await _run([PIPER, "-m", voice_path(), "-f", wav], normalize(text).encode())
+        await _run(
+            [config.piper_bin(), "-m", voice_path(), "-f", wav],
+            normalize(text).encode(),
+        )
         await _run(["ffmpeg", "-y", "-loglevel", "error", "-i", wav, out])
 
 

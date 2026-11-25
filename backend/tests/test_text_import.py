@@ -3,8 +3,9 @@ import os
 import sys
 import unittest
 import zipfile
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
+import urllib3
 from fastapi.testclient import TestClient
 from pypdf import PdfWriter
 from sqlalchemy import create_engine
@@ -166,6 +167,16 @@ class UrlTests(unittest.TestCase):
             patch("importer.time.monotonic", side_effect=lambda: clock[0]),
         ):
             with self.assertRaisesRegex(importer.ImportError_, "too long"):
+                importer.fetch_url("https://example.com/a")
+
+    @patch("importer.socket.getaddrinfo", return_value=PUBLIC)
+    def test_stall_mid_body_is_import_error(self, _dns):
+        resp = FakeResp()
+        resp.raw.read1 = Mock(
+            side_effect=urllib3.exceptions.ReadTimeoutError(None, "u", "stalled")
+        )
+        with patch("importer.requests.get", return_value=resp):
+            with self.assertRaisesRegex(importer.ImportError_, "Could not download"):
                 importer.fetch_url("https://example.com/a")
 
     @patch("importer.socket.getaddrinfo", return_value=PUBLIC)

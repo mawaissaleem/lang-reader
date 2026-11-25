@@ -173,15 +173,15 @@ class CuesTest(unittest.TestCase):
 
 class DotenvOrderTest(unittest.TestCase):
     def test_env_loaded_before_app_modules_read_it(self):
-        # a fake load_dotenv sets the variables the way a .env file would; if main
-        # imported anki/database first, they would keep their defaults
+        # a fake load_dotenv sets the variables the way a .env file would; if anki/database
+        # were imported without config loading it first, they would keep their defaults
         code = (
             "import os, dotenv\n"
             "def fake():\n"
             "    os.environ['ANKI_CONNECT_URL'] = 'http://anki.test:1'\n"
             "    os.environ['DATABASE_URL'] = 'sqlite:///:memory:'\n"
             "dotenv.load_dotenv = fake\n"
-            "import main, anki, database\n"
+            "import anki, database\n"
             "print(anki.ANKI_URL, database.DATABASE_URL)\n"
         )
         env = {

@@ -1,4 +1,6 @@
 import httpx
+
+import config
 from typing import Dict, Any
 
 
@@ -19,7 +21,7 @@ async def method2_libretranslate(
     }
 
     try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
+        async with httpx.AsyncClient(timeout=config.LOOKUP_TIMEOUT) as client:
             response = await client.post(
                 url,
                 json=payload,

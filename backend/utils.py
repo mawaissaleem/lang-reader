@@ -6,6 +6,8 @@ import re
 
 import requests
 
+import config
+
 logger = logging.getLogger(__name__)
 
 
@@ -28,7 +30,7 @@ def get_video_title(url: str) -> str:
         response = requests.get(
             "https://www.youtube.com/oembed",
             params={"url": url, "format": "json"},
-            timeout=5,
+            timeout=config.URL_CHECK_TIMEOUT,
         )
         response.raise_for_status()
         return response.json().get("title", "unknown_title")

@@ -2,11 +2,11 @@ import asyncio
 import base64
 import html
 import logging
-import os
 import re
 
 import httpx
 
+import config
 import history
 import tts
 from lemmatizer import NOUNS, analyze
@@ -22,7 +22,7 @@ from models import (
 )
 from utils import sentence_hash, strip_html
 
-ANKI_URL = os.getenv("ANKI_CONNECT_URL", "http://localhost:8765")
+ANKI_URL = config.anki_connect_url()
 
 
 class AnkiError(Exception):
@@ -36,7 +36,7 @@ class AnkiUnreachable(AnkiError):
 async def invoke(action: str, **params):
     """Call one AnkiConnect action (API version 6) and return its result."""
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=config.ANKI_TIMEOUT) as client:
             r = await client.post(
                 ANKI_URL, json={"action": action, "version": 6, "params": params}
             )

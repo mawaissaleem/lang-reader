@@ -2,6 +2,7 @@ import yt_dlp
 import os
 import shutil
 
+import config
 from database import BASE_DIR
 
 from utils import extract_video_id
@@ -12,12 +13,12 @@ def base_options() -> dict:
     options = {"quiet": True}
 
     # empty YTDLP_COOKIES_BROWSER turns browser cookies off
-    browser = os.getenv("YTDLP_COOKIES_BROWSER", "firefox")
+    browser = config.ytdlp_cookies_browser()
     if browser:
         options["cookiesfrombrowser"] = (browser,)
 
     # no js_runtimes entry when Node is neither configured nor on PATH
-    node = os.getenv("YTDLP_NODE") or shutil.which("node")
+    node = config.ytdlp_node() or shutil.which("node")
     if node:
         options["extractor_args"] = {"youtube": {"js_runtimes": [f"node:{node}"]}}
     return options

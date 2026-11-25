@@ -1,12 +1,11 @@
 """Health checks for the services the app depends on (PONS, LibreTranslate, Ollama, Piper), each reported in plain words."""
 
 import asyncio
-import os
 import shutil
 from urllib.parse import urlparse
 
+import config
 import tts
-from translation_pipeline import libretranslate_url
 from translators import libretranslate, llm
 
 CHECK_TIMEOUT = 2.0  # seconds; a stopped service must not make the settings page hang
@@ -22,14 +21,14 @@ def _host(url: str) -> str:
 
 def check_pons() -> dict:
     """Only checks that a key is set: asking PONS would spend a lookup from the monthly limit on every page load."""
-    if not os.getenv("PONS_API_KEY"):
+    if not config.pons_api_key():
         return {"ok": False, "detail": "No API key. Add PONS_API_KEY to backend/.env"}
     return {"ok": True, "detail": "API key set (not tested, so no lookups are used)"}
 
 
 async def check_libretranslate() -> dict:
     """LibreTranslate is up when its /languages list answers (no translation is run)."""
-    url = libretranslate_url()
+    url = config.libretranslate_url()
     if await libretranslate.is_up(url, CHECK_TIMEOUT):
         return {"ok": True, "detail": f"Running at {_host(url)}"}
     return {
@@ -50,7 +49,7 @@ async def check_ollama() -> dict:
 
 def check_piper() -> dict:
     """Piper is ready when its voice file and ffmpeg are on disk; nothing is synthesised."""
-    if not tts.PIPER.exists():
+    if not config.piper_bin().exists():
         return {
             "ok": False,
             "detail": "Piper is not installed, so words play without sound",

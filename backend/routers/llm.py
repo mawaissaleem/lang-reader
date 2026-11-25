@@ -1,6 +1,5 @@
 """Routes for the local LLM (Ollama): streamed word explanations and model selection."""
 
-import os
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -8,6 +7,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+import config
 from utils import sentence_hash
 from database import get_db
 from lemmatizer import word_key
@@ -32,7 +32,7 @@ async def word_ai(
     clicked = word.strip()
     lemma, pos, article = word_key(clicked, sentence)
     saved = db.get(Setting, "llm_model")
-    models = llm.models_to_try(saved and saved.value, os.getenv("OLLAMA_MODEL"))
+    models = llm.models_to_try(saved and saved.value, config.ollama_model())
     key = sentence_hash(sentence)
     entry = db.query(Dictionary).filter(Dictionary.german_word == lemma).first()
     meanings = [m for t in (entry.translations if entry else []) for m in t.meanings]
@@ -65,7 +65,7 @@ async def llm_models(db: Session = Depends(get_db)):
     return {
         "models": models,
         "selected": saved.value if saved else None,
-        "default": os.getenv("OLLAMA_MODEL"),
+        "default": config.ollama_model(),
     }
 
 

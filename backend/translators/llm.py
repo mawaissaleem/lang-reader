@@ -1,11 +1,12 @@
 """Local LLM (Ollama) helpers: output schema, prompt builder, plain call."""
 
 import json
-import os
 
 import httpx
 
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+import config
+
+OLLAMA_URL = config.ollama_url()
 
 _STR = {"type": "string"}
 _NSTR = {"type": ["string", "null"]}
@@ -86,7 +87,7 @@ def is_valid(obj):
     )
 
 
-def generate(model, prompt, timeout=180):
+def generate(model, prompt, timeout=config.LLM_GENERATE_TIMEOUT):
     """One non-streaming call; returns the raw response text."""
     r = httpx.post(
         f"{OLLAMA_URL}/api/generate",
@@ -112,7 +113,7 @@ class ModelMissing(LLMError):
     pass
 
 
-async def _stream(model, prompt, timeout=180):
+async def _stream(model, prompt, timeout=config.LLM_GENERATE_TIMEOUT):
     """Yield the text chunks of one streaming Ollama call."""
     body = {
         "model": model,
@@ -166,7 +167,7 @@ async def ask(model, prompt):
 async def list_models():
     """Every model the local Ollama has, fetched live: [{"name", "size"}]."""
     try:
-        async with httpx.AsyncClient(timeout=10) as c:
+        async with httpx.AsyncClient(timeout=config.LLM_LIST_TIMEOUT) as c:
             r = await c.get(f"{OLLAMA_URL}/api/tags")
         r.raise_for_status()
         return [
@@ -193,7 +194,7 @@ async def is_up(timeout: float) -> bool:
 async def running_models():
     """Models Ollama holds in memory right now: [{"name", "expires_at"}]."""
     try:
-        async with httpx.AsyncClient(timeout=10) as c:
+        async with httpx.AsyncClient(timeout=config.LLM_LIST_TIMEOUT) as c:
             r = await c.get(f"{OLLAMA_URL}/api/ps")
         r.raise_for_status()
         return [
@@ -209,7 +210,7 @@ async def running_models():
 async def unload(model):
     """Free a model from memory (keep_alive 0)."""
     try:
-        async with httpx.AsyncClient(timeout=30) as c:
+        async with httpx.AsyncClient(timeout=config.LLM_LOAD_TIMEOUT) as c:
             r = await c.post(
                 f"{OLLAMA_URL}/api/generate", json={"model": model, "keep_alive": 0}
             )

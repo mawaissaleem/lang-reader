@@ -150,7 +150,7 @@ Each service adds one feature. The app runs without any of them. Settings → Se
 |---|---|---|---|---|
 | Anki + AnkiConnect | Flashcards, outbox, two-way sync, import of your words | Install Anki desktop, add-on code `2055492159` | `ANKI_CONNECT_URL` | [docs/anki_setup.md](docs/anki_setup.md) |
 | Ollama | AI tab: meaning in this sentence, examples | `curl -fsSL https://ollama.com/install.sh \| sh` then `ollama pull qwen2.5:3b` | `OLLAMA_MODEL`, `OLLAMA_URL` | [docs/ollama_setup.md](docs/ollama_setup.md) |
-| Piper + ffmpeg | Audio in the side panel and on Anki cards | `pip install piper-tts`, German voice in `backend/voices/`, `apt install ffmpeg` | `PIPER_VOICE`, `TTS_CACHE_DIR` | [docs/piper_setup.md](docs/piper_setup.md) |
+| Piper + ffmpeg | Audio in the side panel and on Anki cards | `pip install piper-tts`, German voice in `backend/voices/`, `apt install ffmpeg` | `PIPER_BIN`, `PIPER_VOICE`, `TTS_CACHE_DIR` | [docs/piper_setup.md](docs/piper_setup.md) |
 | LibreTranslate | A second translator with no quota, and the sentence translation | `docker compose -f docker-compose.libretranslate.yml up -d` | `LIBRETRANSLATE_URL` | [docs/libretranslate_setup.md](docs/libretranslate_setup.md) |
 
 ### YouTube import
@@ -176,6 +176,7 @@ All backend settings go in `backend/.env`. Every key is optional.
 | `ANKI_CONNECT_URL` | `http://localhost:8765` | Where AnkiConnect listens |
 | `OLLAMA_URL` | `http://localhost:11434` | Where Ollama runs |
 | `OLLAMA_MODEL` | none | Default AI model, used until you pick one in Settings |
+| `PIPER_BIN` | `piper` from `PATH`, else the one next to the backend Python | Path to the Piper executable |
 | `PIPER_VOICE` | `voices/de_DE-thorsten-medium.onnx` | Voice file, relative to `backend/` or absolute |
 | `TTS_CACHE_DIR` | `audio_cache` | Where generated mp3 files are kept, relative to `backend/` |
 | `DATABASE_URL` | `sqlite:///backend/subtitles.db` | SQLAlchemy database URL |

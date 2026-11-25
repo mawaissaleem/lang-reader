@@ -8,7 +8,7 @@ from database import get_db
 from utils import sentence_hash
 from models import SentenceTranslation
 from translators.libretranslate import method2_libretranslate
-from translation_pipeline import libretranslate_url
+import config
 
 router = APIRouter()
 
@@ -23,7 +23,7 @@ async def translate_sentence(
     key = sentence_hash(sentence)
     row = db.query(SentenceTranslation).filter_by(sentence_hash=key).first()
     if not row:
-        res = await method2_libretranslate(sentence, libretranslate_url())
+        res = await method2_libretranslate(sentence, config.libretranslate_url())
         # failures are not cached: the next click retries
         if not res.get("success"):
             raise HTTPException(
