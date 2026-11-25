@@ -120,7 +120,7 @@ def get_user_words(mastered_only: bool = False, db: Session = Depends(get_db)):
     )
 
     if mastered_only:
-        query = query.filter(UserWord.is_mastered == True)
+        query = query.filter(UserWord.is_mastered.is_(True))
 
     user_words = query.order_by(UserWord.added_at.desc()).all()
     return [_user_word_json(uw) for uw in user_words]

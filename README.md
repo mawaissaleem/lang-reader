@@ -79,7 +79,7 @@ Shift + click   Extend the selection to a phrase or a separable verb
 | Tool | Version | Needed for |
 |---|---|---|
 | Linux or macOS | | Developed and tested on Ubuntu 22.04 |
-| Python | 3.10 or newer (CI uses 3.13) | Backend |
+| Python | 3.11 or newer (CI uses 3.13) | Backend |
 | Node.js | 20 or newer | Frontend, and yt-dlp's YouTube extraction |
 | Firefox | any, logged in to YouTube is optional | YouTube import fallback (see [Known issues](#known-issues)) |
 | PONS API key | free | Dictionary meanings. Without it, use LibreTranslate. |
@@ -226,7 +226,7 @@ Cloud boxes are on the internet (YouTube, PONS, AnkiWeb). External boxes run on 
 **Tests and checks** (the same ones CI runs on every push and pull request)
 
 ```bash
-# backend (ruff comes from: pip install -r requirements-dev.txt)
+# backend (ruff comes from: pip install -r backend/requirements-dev.txt)
 cd backend
 ../.venv/bin/python -m unittest discover -s tests
 ruff format --check .

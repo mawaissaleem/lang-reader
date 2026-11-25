@@ -9,12 +9,13 @@ from sqlalchemy import (
     Text,
     JSON,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import DeclarativeBase, relationship
 from datetime import datetime, timezone
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import UniqueConstraint
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    pass
 
 
 class Video(Base):
