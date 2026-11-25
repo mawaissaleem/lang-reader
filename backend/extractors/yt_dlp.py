@@ -1,18 +1,42 @@
 import yt_dlp
 import os
+import shutil
 
 from database import BASE_DIR
 
 from utils import extract_video_id
 
 
-def method2_yt_dlp(url: str) -> dict:
-    ydl_opts_info = {
-        "skip_download": True,
-        "quiet": True,
-        "cookiesfrombrowser": ("firefox",),
-        "extractor_args": {"youtube": {"js_runtimes": ["node:/usr/bin/node"]}},
+def base_options() -> dict:
+    """Options both yt-dlp calls share; browser and Node come from the environment."""
+    options = {"quiet": True}
+
+    # empty YTDLP_COOKIES_BROWSER turns browser cookies off
+    browser = os.getenv("YTDLP_COOKIES_BROWSER", "firefox")
+    if browser:
+        options["cookiesfrombrowser"] = (browser,)
+
+    # no js_runtimes entry when Node is neither configured nor on PATH
+    node = os.getenv("YTDLP_NODE") or shutil.which("node")
+    if node:
+        options["extractor_args"] = {"youtube": {"js_runtimes": [f"node:{node}"]}}
+    return options
+
+
+def not_found(message: str, video_title: str, languages: list) -> dict:
+    """Result dict for a video whose German subtitles cannot be fetched."""
+    return {
+        "status": "not_found",
+        "message": message,
+        "video_title": video_title,
+        "available_languages": languages,
+        "method_used": "yt_dlp",
+        "vtt_path": None,
     }
+
+
+def method2_yt_dlp(url: str) -> dict:
+    ydl_opts_info = {"skip_download": True, **base_options()}
 
     with yt_dlp.YoutubeDL(ydl_opts_info) as ydl:
         info = ydl.extract_info(url, download=False)
@@ -20,6 +44,7 @@ def method2_yt_dlp(url: str) -> dict:
     available_subtitles = info.get("subtitles", {})
     available_auto_captions = info.get("automatic_captions", {})
     video_title = info.get("title", "Unknown Title")
+    languages = list(available_subtitles.keys()) or list(available_auto_captions.keys())
 
     # manual subs beat auto captions; exact "de" beats variants like de-DE
     lang = None
@@ -30,15 +55,9 @@ def method2_yt_dlp(url: str) -> dict:
             break
 
     if not lang:
-        return {
-            "status": "not_found",
-            "message": "German subtitles not found for this video.",
-            "video_title": video_title,
-            "available_languages": list(available_subtitles.keys())
-            or list(available_auto_captions.keys()),
-            "method_used": "yt_dlp",
-            "vtt_path": None,
-        }
+        return not_found(
+            "German subtitles not found for this video.", video_title, languages
+        )
 
     output_dir = str(BASE_DIR / "subtitles")
     os.makedirs(output_dir, exist_ok=True)
@@ -50,9 +69,7 @@ def method2_yt_dlp(url: str) -> dict:
         "subtitleslangs": [lang],
         "subtitlesformat": "vtt",
         "outtmpl": f"{output_dir}/%(id)s.%(ext)s",
-        "quiet": True,
-        "cookiesfrombrowser": ("firefox",),
-        "extractor_args": {"youtube": {"js_runtimes": ["node:/usr/bin/node"]}},
+        **base_options(),
     }
 
     with yt_dlp.YoutubeDL(ydl_opts_download) as ydl:
@@ -63,15 +80,9 @@ def method2_yt_dlp(url: str) -> dict:
         "filepath"
     )
     if not vtt_path or not os.path.isfile(vtt_path):
-        return {
-            "status": "not_found",
-            "message": "German subtitles could not be downloaded.",
-            "video_title": video_title,
-            "available_languages": list(available_subtitles.keys())
-            or list(available_auto_captions.keys()),
-            "method_used": "yt_dlp",
-            "vtt_path": None,
-        }
+        return not_found(
+            "German subtitles could not be downloaded.", video_title, languages
+        )
 
     return {
         "status": "success",

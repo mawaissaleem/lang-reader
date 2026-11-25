@@ -70,7 +70,7 @@ Shift + click   Extend the selection to a phrase or a separable verb
 
 ## Known issues
 
-- **YouTube import reads Firefox cookies.** The yt-dlp fallback calls YouTube with your Firefox cookies (`backend/extractors/yt_dlp.py`) and expects Node at `/usr/bin/node`. Without Firefox or with Node somewhere else, imports that reach the fallback fail. See [YouTube import](#youtube-import).
+- **YouTube import reads browser cookies.** The yt-dlp fallback calls YouTube with your Firefox cookies by default (`backend/extractors/yt_dlp.py`). Without that browser, imports that reach the fallback can fail. Set `YTDLP_COOKIES_BROWSER` to another browser, or leave it empty. See [YouTube import](#youtube-import).
 - **One user.** The user id is fixed to `1`. Do not expose the backend to a network you do not trust: it has no login.
 - **Importing the same URL twice at the same moment** gives an error 500 instead of "already imported".
 - **No size limit on pasted text.** Web pages are capped at 5 MB and files at 20 MB, but pasted text is not.
@@ -159,9 +159,9 @@ Each service adds one feature. The app runs without any of them. Settings → Se
 The app tries two ways to get German subtitles:
 
 1. `youtube-transcript-api`, only if `backend/cookies.txt` exists (Netscape cookie format, exported from a browser that is logged in to YouTube). It is fast.
-2. `yt-dlp`, which reads cookies from your Firefox profile and runs YouTube's player code with Node at `/usr/bin/node`.
+2. `yt-dlp`, which reads cookies from your Firefox profile (`YTDLP_COOKIES_BROWSER`) and runs YouTube's player code with the Node found on your `PATH` (`YTDLP_NODE`).
 
-If imports fail, check the backend log first. Then check that Firefox is installed and that `which node` prints `/usr/bin/node`. If it does not, link it: `sudo ln -s "$(which node)" /usr/bin/node`.
+If imports fail, check the backend log first. Then check that the browser in `YTDLP_COOKIES_BROWSER` is installed (or set the key empty) and that `which node` prints a path (or set `YTDLP_NODE` to the Node binary).
 
 ## Configuration
 
@@ -171,6 +171,8 @@ All backend settings go in `backend/.env`. Every key is optional.
 |---|---|---|
 | `PONS_API_KEY` | none | PONS dictionary key. Without it, PONS lookups are skipped. |
 | `LIBRETRANSLATE_URL` | `http://localhost:5000` | Where LibreTranslate runs |
+| `YTDLP_COOKIES_BROWSER` | `firefox` | Browser whose cookies yt-dlp reads for YouTube import. Empty = no browser cookies. |
+| `YTDLP_NODE` | `node` from `PATH` | Path to the Node binary yt-dlp uses. No Node = no JS runtime is passed. |
 | `DEFAULT_TRANSLATION_PRIORITY` | `pons,libretranslate` | Translator order until you change it in Settings |
 | `ANKI_CONNECT_URL` | `http://localhost:8765` | Where AnkiConnect listens |
 | `OLLAMA_URL` | `http://localhost:11434` | Where Ollama runs |

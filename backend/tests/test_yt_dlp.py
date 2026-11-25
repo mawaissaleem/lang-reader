@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from extractors.yt_dlp import method2_yt_dlp
+from extractors.yt_dlp import base_options, method2_yt_dlp
 
 
 def fake_ydl(info, downloaded):
@@ -68,3 +68,33 @@ class YtDlpTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BaseOptionsTest(unittest.TestCase):
+    def options(self, env, which="/usr/local/bin/node"):
+        with patch.dict(os.environ, env, clear=True):
+            with patch("extractors.yt_dlp.shutil.which", return_value=which):
+                return base_options()
+
+    def test_defaults_use_firefox_and_node_from_path(self):
+        opts = self.options({})
+        self.assertEqual(opts["cookiesfrombrowser"], ("firefox",))
+        runtimes = opts["extractor_args"]["youtube"]["js_runtimes"]
+        self.assertEqual(runtimes, ["node:/usr/local/bin/node"])
+
+    def test_custom_browser(self):
+        opts = self.options({"YTDLP_COOKIES_BROWSER": "chrome"})
+        self.assertEqual(opts["cookiesfrombrowser"], ("chrome",))
+
+    def test_empty_browser_means_no_cookies(self):
+        self.assertNotIn(
+            "cookiesfrombrowser", self.options({"YTDLP_COOKIES_BROWSER": ""})
+        )
+
+    def test_custom_node_path_beats_path_lookup(self):
+        opts = self.options({"YTDLP_NODE": "/opt/node/bin/node"})
+        runtimes = opts["extractor_args"]["youtube"]["js_runtimes"]
+        self.assertEqual(runtimes, ["node:/opt/node/bin/node"])
+
+    def test_no_node_means_no_js_runtime(self):
+        self.assertNotIn("extractor_args", self.options({}, which=None))
