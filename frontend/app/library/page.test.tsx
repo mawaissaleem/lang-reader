@@ -19,6 +19,7 @@ vi.mock("@/lib/api", async (orig) => ({
   deleteEntry: vi.fn(),
   fetchUserWords: vi.fn(async () => []),
   fetchTranslatorPriority: vi.fn(async () => []),
+  fetchTranslators: vi.fn(async () => []),
   fetchAnkiConnected: vi.fn(async () => true),
 }));
 vi.mock("next/link", () => ({

@@ -6,9 +6,10 @@ vi.mock("@/lib/api", () => ({
   lookupWord: vi.fn(),
   saveWord: vi.fn(),
   fetchUserWords: vi.fn(),
+  fetchTranslators: vi.fn(),
 }));
 
-import { lookupWord } from "@/lib/api";
+import { fetchTranslators, lookupWord } from "@/lib/api";
 
 async function freshStore() {
   vi.resetModules();
@@ -39,6 +40,9 @@ describe("translatorPriority hydration", () => {
   it("ignores an invalid stored value", async () => {
     localStorage.setItem("translatorPriority", "bogus");
     const useStore = await freshStore();
+    useStore.setState({
+      translators: [{ id: "pons", name: "PONS", note: "" }],
+    });
     useStore.getState().loadTranslatorPriority();
     expect(useStore.getState().translatorPriority).toBe("pons");
   });
@@ -54,6 +58,39 @@ describe("translatorPriority hydration", () => {
       false,
       null,
     );
+  });
+});
+
+describe("translator list", () => {
+  const listed = [
+    { id: "pons", name: "PONS", note: "" },
+    { id: "fakeai", name: "Fake AI", note: "" },
+  ];
+
+  it("falls back to the first listed when the saved id is unknown", async () => {
+    localStorage.setItem("translatorPriority", "libretranslate");
+    const useStore = await freshStore();
+    useStore.getState().loadTranslatorPriority();
+    vi.mocked(fetchTranslators).mockResolvedValue([listed[1], listed[0]]);
+    await useStore.getState().loadTranslators();
+    expect(useStore.getState().translatorPriority).toBe("fakeai");
+  });
+
+  it("keeps a saved id that is listed", async () => {
+    localStorage.setItem("translatorPriority", "fakeai");
+    const useStore = await freshStore();
+    vi.mocked(fetchTranslators).mockResolvedValue(listed);
+    await useStore.getState().loadTranslators();
+    useStore.getState().loadTranslatorPriority();
+    expect(useStore.getState().translatorPriority).toBe("fakeai");
+  });
+
+  it("keeps working with an empty list when the fetch fails", async () => {
+    const useStore = await freshStore();
+    vi.mocked(fetchTranslators).mockRejectedValue(new Error("down"));
+    await useStore.getState().loadTranslators();
+    expect(useStore.getState().translators).toEqual([]);
+    expect(useStore.getState().translatorPriority).toBe("pons");
   });
 });
 

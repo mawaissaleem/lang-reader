@@ -1,12 +1,7 @@
 "use client";
 import clsx from "clsx";
-
-export type Provider = "pons" | "libretranslate";
-
-const LABELS: Record<Provider, { name: string; note: string }> = {
-  pons: { name: "PONS", note: "dictionary senses and examples" },
-  libretranslate: { name: "LibreTranslate", note: "quick machine translation" },
-};
+import type { Translator } from "@/lib/api";
+import type { Provider } from "@/types";
 
 const button =
   "rounded-md border border-line px-2 py-1 text-[13px] text-ink hover:bg-surface-2 aria-disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";
@@ -14,9 +9,11 @@ const button =
 /** Translator order as a list reordered with the Up / Down buttons or Alt+Arrow keys; the first one opens first. */
 export default function TranslatorOrder({
   order,
+  translators,
   onChange,
 }: {
   order: Provider[];
+  translators: Translator[];
   onChange: (order: Provider[]) => void;
 }) {
   // swaps an item with its neighbour; moves past either end do nothing
@@ -39,7 +36,9 @@ export default function TranslatorOrder({
   return (
     <ol aria-label="Translator order" className="flex flex-col gap-2">
       {order.map((id, i) => {
-        const { name, note } = LABELS[id];
+        const found = translators.find((t) => t.id === id);
+        const name = found?.name ?? id;
+        const note = found?.note ?? "";
         return (
           <li
             key={id}

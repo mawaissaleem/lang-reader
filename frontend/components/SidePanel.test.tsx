@@ -60,8 +60,14 @@ const result = (translations: T) =>
     preferred: "pons",
   }) as never;
 
+const LISTED = [
+  { id: "pons", name: "PONS", note: "" },
+  { id: "libretranslate", name: "LibreTranslate", note: "" },
+];
+
 function open(translations: T = both, options?: RenderOptions) {
   useStore.setState({
+    translators: LISTED,
     sidePanelOpen: true,
     selectedWord: "haus",
     selectedSentence: null,
@@ -83,6 +89,22 @@ beforeEach(() => {
   localStorage.clear();
 });
 afterEach(cleanup);
+
+describe("SidePanel translator list", () => {
+  it("renders a tab and a preference button for a third listed provider", () => {
+    open({ ...both, fakeai: { meanings: ["dwelling"], word_class: null } });
+    useStore.setState({
+      translators: [...LISTED, { id: "fakeai", name: "Fake AI", note: "" }],
+    });
+    cleanup();
+    render(<SidePanel />);
+    expect(screen.getByRole("tab", { name: /Fake AI/ })).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Translator settings" }),
+    );
+    expect(screen.getAllByText("Fake AI").length).toBeGreaterThan(1);
+  });
+});
 
 describe("SidePanel base form", () => {
   it("shows clicked -> base form only when they differ", () => {

@@ -99,12 +99,44 @@ describe("ServicesList", () => {
   });
 });
 
+const TRANSLATORS = [
+  { id: "pons", name: "PONS", note: "dictionary senses and examples" },
+  {
+    id: "libretranslate",
+    name: "LibreTranslate",
+    note: "quick machine translation",
+  },
+];
+
 describe("TranslatorOrder", () => {
+  it("renders a third provider with its own name and note", () => {
+    render(
+      <TranslatorOrder
+        order={["pons", "fakeai", "libretranslate"]}
+        translators={[
+          ...TRANSLATORS,
+          { id: "fakeai", name: "Fake AI", note: "made up for the test" },
+        ]}
+        onChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Fake AI")).toBeTruthy();
+    expect(screen.getByText("made up for the test")).toBeTruthy();
+  });
+
+  it("shows the raw id while the list has not loaded", () => {
+    render(
+      <TranslatorOrder order={["pons"]} translators={[]} onChange={vi.fn()} />,
+    );
+    expect(screen.getByText("pons")).toBeTruthy();
+  });
+
   it("moves an item with its buttons", () => {
     const onChange = vi.fn();
     render(
       <TranslatorOrder
         order={["pons", "libretranslate"]}
+        translators={TRANSLATORS}
         onChange={onChange}
       />,
     );
@@ -116,7 +148,11 @@ describe("TranslatorOrder", () => {
 
   it("keeps focus on the pressed button after it reaches the top", () => {
     const { rerender } = render(
-      <TranslatorOrder order={["pons", "libretranslate"]} onChange={vi.fn()} />,
+      <TranslatorOrder
+        order={["pons", "libretranslate"]}
+        translators={TRANSLATORS}
+        onChange={vi.fn()}
+      />,
     );
     const upButton = screen.getByRole("button", {
       name: "Move LibreTranslate up",
@@ -124,7 +160,11 @@ describe("TranslatorOrder", () => {
     upButton.focus();
     fireEvent.click(upButton);
     rerender(
-      <TranslatorOrder order={["libretranslate", "pons"]} onChange={vi.fn()} />,
+      <TranslatorOrder
+        order={["libretranslate", "pons"]}
+        translators={TRANSLATORS}
+        onChange={vi.fn()}
+      />,
     );
     expect(upButton.getAttribute("aria-disabled")).toBe("true");
     expect(document.activeElement).toBe(upButton);
@@ -135,6 +175,7 @@ describe("TranslatorOrder", () => {
     render(
       <TranslatorOrder
         order={["pons", "libretranslate"]}
+        translators={TRANSLATORS}
         onChange={onChange}
       />,
     );

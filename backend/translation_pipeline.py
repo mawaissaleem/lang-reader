@@ -1,30 +1,56 @@
 """Word translation providers (PONS, LibreTranslate) and the priority-ordered fallback pipeline."""
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Awaitable, Callable, Dict, List, NamedTuple, Optional, Tuple
 
 import config
 from translators.libretranslate import method2_libretranslate
 from translators.pons import method1_pons
 
 logger = logging.getLogger(__name__)
-VALID_PROVIDERS = ["pons", "libretranslate"]
+
+
+class Translator(NamedTuple):
+    """One translation provider: its id, display name, a short note and a factory for its lookup function."""
+
+    id: str
+    name: str
+    note: str
+    make_lookup: Callable[[], Callable[[str], Awaitable[Dict[str, Any]]]]
+
+
+def _pons_lookup():
+    key = config.pons_api_key()
+    return lambda word: method1_pons(word, key)
+
+
+def _libretranslate_lookup():
+    url = config.libretranslate_url()
+    return lambda word: method2_libretranslate(word, url)
+
+
+# Registry order is the default order; the settings list and the route read it too.
+TRANSLATORS = [
+    Translator("pons", "PONS", "dictionary senses and examples", _pons_lookup),
+    Translator(
+        "libretranslate",
+        "LibreTranslate",
+        "quick machine translation",
+        _libretranslate_lookup,
+    ),
+]
+VALID_PROVIDERS = [t.id for t in TRANSLATORS]
 
 
 def get_translator_providers():
     """Provider name -> async lookup function; env keys are read when this is called."""
-    pons_key = config.pons_api_key()
-    url = config.libretranslate_url()
-    return {
-        "pons": lambda word: method1_pons(word, pons_key),
-        "libretranslate": lambda word: method2_libretranslate(word, url),
-    }
+    return {t.id: t.make_lookup() for t in TRANSLATORS}
 
 
 def parse_priority(priority_str: Optional[str]) -> List[str]:
     """Provider order from a comma list (or the env default); unknown names dropped, missing ones appended."""
     default = config.default_translation_priority()
-    raw = priority_str or default or "pons,libretranslate"
+    raw = priority_str or default or ""
     providers = [p.strip().lower() for p in raw.split(",") if p.strip()]
     result = [p for p in providers if p in VALID_PROVIDERS]
     for v in VALID_PROVIDERS:

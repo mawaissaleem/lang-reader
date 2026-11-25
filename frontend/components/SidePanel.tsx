@@ -13,12 +13,6 @@ import SenseList, { SENSE_LIMIT } from "@/components/SenseList";
 import SentenceBlock from "@/components/SentenceBlock";
 import { useAnkiOutbox } from "@/lib/useAnkiOutbox";
 
-const SOURCES = [
-  { id: "pons", label: "PONS" },
-  { id: "libretranslate", label: "LibreTranslate" },
-  { id: "ai", label: "AI" },
-];
-
 // Article colours come from the --gender-* tokens so the themes can swap them.
 export const ARTICLE_CLASS = {
   der: "text-[var(--gender-der)]",
@@ -46,6 +40,7 @@ export default function SidePanel() {
     wordSaving,
     saveError,
     saveSelectedWord,
+    translators,
     translatorPriority,
     setTranslatorPriority,
     activeSource,
@@ -72,13 +67,20 @@ export default function SidePanel() {
     anki.refreshPending();
   }
 
-  // a source the backend returned but we don't know yet still gets a tab
+  // a tab per listed translator, then AI; a source the backend returned but did not list still gets a tab
+  const sources = [
+    ...translators.map((t) => ({ id: t.id, label: t.name })),
+    { id: "ai", label: "AI" },
+  ];
   const tabs = [
-    ...SOURCES,
+    ...sources,
     ...Object.keys(wordResult?.translations ?? {})
-      .filter((id) => !SOURCES.some((s) => s.id === id))
+      .filter((id) => !sources.some((s) => s.id === id))
       .map((id) => ({ id, label: id })),
   ];
+  const priorityName =
+    translators.find((t) => t.id === translatorPriority)?.name ??
+    translatorPriority;
   const active = activeSource
     ? wordResult?.translations[activeSource]
     : undefined;
@@ -120,7 +122,7 @@ export default function SidePanel() {
               </div>
               <div className="flex items-center gap-2">
                 <div className="text-[12px] font-semibold text-ink uppercase">
-                  {translatorPriority === "pons" ? "PONS" : "LibreTranslate"}
+                  {priorityName}
                 </div>
                 <button
                   onClick={() => setShowPref((s) => !s)}
@@ -138,34 +140,23 @@ export default function SidePanel() {
                   Choose default translator
                 </div>
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      setTranslatorPriority("pons");
-                      setShowPref(false);
-                    }}
-                    className={clsx(
-                      "flex-1 py-1 rounded-md transition-all tracking-wide uppercase text-[12px] font-semibold",
-                      translatorPriority === "pons"
-                        ? "bg-accent text-on-accent"
-                        : "text-muted hover:text-ink",
-                    )}
-                  >
-                    PONS
-                  </button>
-                  <button
-                    onClick={() => {
-                      setTranslatorPriority("libretranslate");
-                      setShowPref(false);
-                    }}
-                    className={clsx(
-                      "flex-1 py-1 rounded-md transition-all tracking-wide uppercase text-[12px] font-semibold",
-                      translatorPriority === "libretranslate"
-                        ? "bg-accent text-on-accent"
-                        : "text-muted hover:text-ink",
-                    )}
-                  >
-                    LibreTranslate
-                  </button>
+                  {translators.map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => {
+                        setTranslatorPriority(t.id);
+                        setShowPref(false);
+                      }}
+                      className={clsx(
+                        "flex-1 py-1 rounded-md transition-all tracking-wide uppercase text-[12px] font-semibold",
+                        translatorPriority === t.id
+                          ? "bg-accent text-on-accent"
+                          : "text-muted hover:text-ink",
+                      )}
+                    >
+                      {t.name}
+                    </button>
+                  ))}
                 </div>
               </div>
             )}

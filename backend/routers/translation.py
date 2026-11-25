@@ -9,8 +9,15 @@ from utils import sentence_hash
 from models import SentenceTranslation
 from translators.libretranslate import method2_libretranslate
 import config
+from translation_pipeline import TRANSLATORS
 
 router = APIRouter()
+
+
+@router.get("/translators")
+def list_translators():
+    """The available word translators in default order, for the settings list and the side panel tabs."""
+    return [{"id": t.id, "name": t.name, "note": t.note} for t in TRANSLATORS]
 
 
 @router.get("/sentence")

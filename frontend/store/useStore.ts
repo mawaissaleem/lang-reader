@@ -22,6 +22,7 @@ import {
   saveWord,
   fetchUserWords,
   patchWordStatus,
+  fetchTranslators,
   type WordLookupResponse,
 } from "@/lib/api";
 
@@ -370,12 +371,33 @@ const useStore = create<StoreState>((set, get) => ({
       set({ saveError: err instanceof Error ? err.message : String(err) });
     }
   },
-  translatorPriority: "pons", // always "pons" at first render; saved value loads after mount
+  translators: [],
+  loadTranslators: async () => {
+    try {
+      const translators = await fetchTranslators();
+      // a saved id the backend no longer offers falls back to the first listed
+      const { translatorPriority } = get();
+      const known = translators.some((t) => t.id === translatorPriority);
+      // an empty list keeps the current id rather than throwing
+      const fallback = translators[0]?.id ?? translatorPriority;
+      set({
+        translators,
+        translatorPriority: known ? translatorPriority : fallback,
+      });
+    } catch {
+      // the list stays empty; the UI shows raw ids
+    }
+  },
+  translatorPriority: "pons", // "pons" at first render; saved value loads after mount
   loadTranslatorPriority: () => {
     try {
       const saved = localStorage.getItem("translatorPriority");
-      if (saved === "pons" || saved === "libretranslate")
-        set({ translatorPriority: saved });
+      if (!saved) return;
+      // once the list is known, only an id from it is accepted
+      const { translators } = get();
+      if (translators.length && !translators.some((t) => t.id === saved))
+        return;
+      set({ translatorPriority: saved });
     } catch {}
   },
   setTranslatorPriority: async (priority) => {

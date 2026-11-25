@@ -352,6 +352,17 @@ export interface ServiceStatus {
   detail: string;
 }
 
+/** A word translator the backend offers; the list comes in default order. */
+export interface Translator {
+  id: string;
+  name: string;
+  note: string;
+}
+
+export async function fetchTranslators(): Promise<Translator[]> {
+  return readJson(await fetch(`${API_BASE_URL}/translators`));
+}
+
 /** Up/down state with a plain-words detail for PONS, LibreTranslate, Ollama and Piper. */
 export async function fetchServicesStatus(): Promise<
   Record<"pons" | "libretranslate" | "ollama" | "piper", ServiceStatus>

@@ -49,11 +49,13 @@ export default function LibraryPage() {
   const text = useStore((s) => s.text);
   const loadUserWords = useStore((s) => s.loadUserWords);
   const loadTranslatorPriority = useStore((s) => s.loadTranslatorPriority);
+  const loadTranslators = useStore((s) => s.loadTranslators);
 
   useEffect(() => {
     loadUserWords();
     loadTranslatorPriority();
-  }, [loadUserWords, loadTranslatorPriority]);
+    loadTranslators();
+  }, [loadUserWords, loadTranslatorPriority, loadTranslators]);
 
   const tags = relativeTags(progress);
   const count = (f: Filter) =>

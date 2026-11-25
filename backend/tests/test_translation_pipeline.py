@@ -78,5 +78,30 @@ class PipelineTest(unittest.IsolatedAsyncioTestCase):
         )
 
 
+class TranslatorsRouteTest(unittest.TestCase):
+    def test_lists_registry_in_order(self):
+        from fastapi.testclient import TestClient
+
+        import main
+
+        r = TestClient(main.app).get("/translators")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(
+            r.json(),
+            [
+                {
+                    "id": "pons",
+                    "name": "PONS",
+                    "note": "dictionary senses and examples",
+                },
+                {
+                    "id": "libretranslate",
+                    "name": "LibreTranslate",
+                    "note": "quick machine translation",
+                },
+            ],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

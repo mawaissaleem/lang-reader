@@ -12,7 +12,10 @@ export interface DisplaySettings {
 import type { WordStatus } from "@/lib/status";
 export type { WordStatus };
 
-import type { AiAnswer, WordLookupResponse } from "@/lib/api";
+import type { AiAnswer, Translator, WordLookupResponse } from "@/lib/api";
+
+/** A translator id as the backend lists it (for example "pons"). */
+export type Provider = string;
 
 // which library entry the reader is showing (kind = LibraryEntry.type, id = LibraryEntry.id)
 export type AiEntry =
@@ -99,7 +102,9 @@ export interface StoreState {
   userWords: Record<string, { id: number; status: WordStatus }>;
   setWordStatus: (status: WordStatus) => Promise<void>;
   loadUserWords: () => Promise<void>;
-  translatorPriority: "pons" | "libretranslate";
+  translators: Translator[]; // empty until fetched; names fall back to the id
+  loadTranslators: () => Promise<void>;
+  translatorPriority: Provider;
   loadTranslatorPriority: () => void;
-  setTranslatorPriority: (priority: "pons" | "libretranslate") => void;
+  setTranslatorPriority: (priority: Provider) => void;
 }

@@ -5,9 +5,8 @@ import AiModel, { select } from "@/components/settings/AiModel";
 import DeckCards from "@/components/settings/DeckCards";
 import ReadingSection from "@/components/settings/ReadingSection";
 import ServicesList from "@/components/settings/ServicesList";
-import TranslatorOrder, {
-  type Provider,
-} from "@/components/settings/TranslatorOrder";
+import TranslatorOrder from "@/components/settings/TranslatorOrder";
+import type { Provider } from "@/types";
 import {
   fetchAnkiOverview,
   fetchAnkiFields,
@@ -67,6 +66,8 @@ export default function SettingsPage() {
   const priority = useStore((s) => s.translatorPriority);
   const setPriority = useStore((s) => s.setTranslatorPriority);
   const loadPriority = useStore((s) => s.loadTranslatorPriority);
+  const translators = useStore((s) => s.translators);
+  const loadTranslators = useStore((s) => s.loadTranslators);
   const [decks, setDecks] = useState<string[]>([]);
   const [models, setModels] = useState<string[]>([]);
   const [fields, setFields] = useState<string[]>([]);
@@ -81,13 +82,16 @@ export default function SettingsPage() {
     skipped: number;
   } | null>(null);
 
-  useEffect(() => loadPriority(), [loadPriority]);
+  useEffect(() => {
+    loadPriority();
+    loadTranslators();
+  }, [loadPriority, loadTranslators]);
 
-  // the stored choice is the first translator; the other one follows it as the fallback
-  const order: Provider[] =
-    priority === "pons"
-      ? ["pons", "libretranslate"]
-      : ["libretranslate", "pons"];
+  // the stored choice is the first translator; the others follow it as the fallbacks
+  const order: Provider[] = [
+    priority,
+    ...translators.map((t) => t.id).filter((id) => id !== priority),
+  ];
 
   useEffect(() => {
     fetchAnkiOverview()
@@ -182,6 +186,7 @@ export default function SettingsPage() {
           >
             <TranslatorOrder
               order={order}
+              translators={translators}
               onChange={(next) => setPriority(next[0])}
             />
             <AiModel />
