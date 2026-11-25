@@ -126,6 +126,32 @@ class TestGermanImport(unittest.TestCase):
         self.assertTrue(again["duplicate"])
         self.assertEqual(self.db.query(Video).count(), 1)
 
+    def test_concurrent_duplicate_returns_existing_entry(self):
+        # another request saves the same URL after our duplicate check but before our commit
+        engine = self.db.get_bind()
+
+        def other_request_wins(path):
+            other = sessionmaker(bind=engine)()
+            video = Video(url=URL, title="Schon da")
+            video.subtitles.append(
+                Subtitle(
+                    extraction_method="yt_dlp",
+                    txt_path="x",
+                    vtt_path="y",
+                    language="de",
+                )
+            )
+            other.add(video)
+            other.commit()
+            other.close()
+            return "Hallo"
+
+        with patch("subtitle_import.extract_subtitles", other_request_wins):
+            r = self._call(self.ok, None)
+        self.assertTrue(r["duplicate"])
+        self.assertEqual(r["title"], "Schon da")
+        self.assertEqual(self.db.query(Video).count(), 1)
+
     def test_video_row_without_subtitles_is_reimported(self):
         self.db.add(Video(url=URL, title="Leer"))
         self.db.commit()

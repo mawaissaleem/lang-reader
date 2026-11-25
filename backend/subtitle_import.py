@@ -5,7 +5,7 @@ import os
 from typing import Optional, Tuple
 
 from fastapi import HTTPException
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 from webvtt.errors import MalformedCaptionError, MalformedFileError
 from youtube_transcript_api import TranscriptsDisabled
@@ -88,9 +88,11 @@ def save_subtitles(
     title: Optional[str],
     result: dict,
     extraction_method: str,
-) -> Video:
+) -> Tuple[Video, bool]:
     """Clean the .vtt to text and write the txt file, Video and Subtitle rows together.
 
+    Returns (video, duplicate). If another request imported the same URL meanwhile,
+    that existing video comes back with duplicate=True.
     On any failure the DB is rolled back so no half-imported video appears in the library.
     """
     vtt_path = result.get("vtt_path")
@@ -118,6 +120,14 @@ def save_subtitles(
         db.add(subtitle)
         db.commit()
         db.refresh(subtitle)
+    except IntegrityError:
+        # the unique URL constraint fired: a concurrent import won the race
+        db.rollback()
+        existing = find_video(db, normalized_url)
+        if existing is None:
+            logger.exception("Failed to save subtitles for %s", normalized_url)
+            raise HTTPException(status_code=500, detail="Failed to process subtitles.")
+        return existing, True
     except (
         OSError,
         SQLAlchemyError,
@@ -128,4 +138,4 @@ def save_subtitles(
         db.rollback()
         logger.exception("Failed to save subtitles for %s", normalized_url)
         raise HTTPException(status_code=500, detail="Failed to process subtitles.")
-    return video
+    return video, False

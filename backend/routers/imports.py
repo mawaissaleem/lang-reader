@@ -34,7 +34,8 @@ def get_german_subtitles(
         db.commit()
     result, method = subtitle_import.fetch_subtitles(request.url)
     # saved inside the request so the library entry exists when we return
-    video = subtitle_import.save_subtitles(
+    video, duplicate = subtitle_import.save_subtitles(
         db, normalized_url, request.title, result, method
     )
-    return video_entry(video)
+    entry = video_entry(video)
+    return {**entry, "duplicate": True} if duplicate else entry
