@@ -213,24 +213,9 @@ To back up, copy `backend/subtitles.db` while the backend is stopped. Schema cha
 
 ## Architecture
 
-```
-          Browser: Next.js app (frontend/, port 3000)
-          Library · Reader · Side panel · Progress · Settings
-                              │  HTTP / JSON
-                              ▼
-          FastAPI backend (backend/, port 8000)
-          routers/: imports · library · words · translation
-                    llm · tts · anki · progress · services
-                              │
-   ┌──────────┬───────────────┼──────────────┬──────────────┐
-   ▼          ▼               ▼              ▼              ▼
- SQLite   YouTube         Translators     Ollama         Anki desktop
- (Alembic) transcript-api  PONS (web)     :11434         AnkiConnect :8765
-           yt-dlp          LibreTranslate               └─ AnkiWeb sync
-                           :5000
-                              │
-                   spaCy (base forms) · Piper + ffmpeg (audio)
-```
+![lang-reader architecture: Next.js frontend, FastAPI backend, and the services it calls](docs/media/architecture.svg)
+
+Cloud boxes are on the internet (YouTube, PONS, AnkiWeb). External boxes run on your machine (LibreTranslate, Ollama, Anki desktop). Dashed lines are the Anki outbox and sync: cards wait while Anki is closed. The diagram is drawn with [Archify](https://github.com/tt-a1i/archify) from the code at commit `b9675a3`.
 
 ```
 backend/
