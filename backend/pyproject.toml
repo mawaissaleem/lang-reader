@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "lang-reader-backend"
 version = "1.0.0"
-description = "Backend API for YouTube subtitle downloading and language learning reader"
+description = "Read German from YouTube videos and texts, click any word to look it up, and send what you learn to Anki."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

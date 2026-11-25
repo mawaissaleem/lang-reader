@@ -65,7 +65,7 @@ async def lifespan(_app: FastAPI):
     task.cancel()
 
 
-app = FastAPI(title="YouTube Subtitle Downloader", lifespan=lifespan)
+app = FastAPI(title="lang-reader", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -92,6 +92,4 @@ for module in (
 
 @app.get("/")
 def root():
-    return {
-        "message": "YouTube Subtitle Downloader API is running. POST to /subtitles/german"
-    }
+    return {"message": "lang-reader API is running"}

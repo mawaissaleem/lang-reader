@@ -66,10 +66,6 @@ class YtDlpTest(unittest.TestCase):
         self.assertEqual(inst[1].opts["subtitleslangs"], ["de-DE"])
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class BaseOptionsTest(unittest.TestCase):
     def options(self, env, which="/usr/local/bin/node"):
         with patch.dict(os.environ, env, clear=True):
@@ -98,3 +94,7 @@ class BaseOptionsTest(unittest.TestCase):
 
     def test_no_node_means_no_js_runtime(self):
         self.assertNotIn("extractor_args", self.options({}, which=None))
+
+
+if __name__ == "__main__":
+    unittest.main()
