@@ -1,3 +1,4 @@
+import type { WordStatus } from "@/lib/status";
 import { cleanWord, entryFor } from "@/lib/words";
 
 export interface Progress {
@@ -39,7 +40,7 @@ export function relativeTags(
 // Same rules as backend/progress.py: unique cleaned forms, exact-then-lowercase status match, ignored not counted.
 export const countProgress = (
   text: string,
-  userWords: Record<string, { status: string }>,
+  userWords: Record<string, { status: WordStatus }>,
 ): Progress => {
   const p = { known: 0, learning: 0, new: 0, total: 0 };
   const words = new Set(text.split(/\s+/).map(cleanWord).filter(Boolean));

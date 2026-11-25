@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { countProgress, knownPct, newPer100, relativeTags } from "./progress";
+import type { WordStatus } from "./status";
 
 const p = (known: number, learning: number, n: number) => ({
   known,
@@ -37,7 +38,7 @@ describe("relativeTags", () => {
 });
 
 describe("countProgress", () => {
-  const uw = (o: Record<string, string>) =>
+  const uw = (o: Record<string, WordStatus>) =>
     Object.fromEntries(Object.entries(o).map(([k, status]) => [k, { status }]));
   it("counts unique cleaned words by status, skipping ignored", () => {
     const words = uw({ haus: "known", gehen: "learning1", der: "ignored" });

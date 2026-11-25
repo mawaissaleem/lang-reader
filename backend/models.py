@@ -11,7 +11,18 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, relationship
 from datetime import datetime, timezone
+from enum import Enum
 from sqlalchemy import UniqueConstraint
+
+
+class WordStatus(str, Enum):
+    """Every status a saved word can have; the strings are what is stored and sent over the API."""
+
+    LEARNING1 = "learning1"
+    LEARNING2 = "learning2"
+    LEARNING3 = "learning3"
+    KNOWN = "known"
+    IGNORED = "ignored"
 
 
 class Base(DeclarativeBase):
@@ -163,8 +174,7 @@ class UserWord(Base):
     review_count = Column(Integer, default=0)
     last_reviewed_at = Column(DateTime, nullable=True)
     notes = Column(Text, nullable=True)
-    # learning1|learning2|learning3|known|ignored
-    status = Column(String, nullable=False, default="learning1")
+    status = Column(String, nullable=False, default=WordStatus.LEARNING1.value)
     # translation source whose meaning was saved; NULL for old rows
     source = Column(String, nullable=True)
     context_sentence = Column(Text, nullable=True)

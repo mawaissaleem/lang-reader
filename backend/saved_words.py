@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 import history
-from models import Dictionary, UserWord
+from models import Dictionary, UserWord, WordStatus
 
 
 def require_translation(word: Dictionary, source: Optional[str]) -> None:
@@ -67,6 +67,6 @@ def create_user_word(
         anki_status="pending" if anki else "none",
     )
     db.add(user_word)
-    history.record(db, user_id, word_id, user_word.status or "learning1")
+    history.record(db, user_id, word_id, user_word.status or WordStatus.LEARNING1)
     db.commit()
     return user_word

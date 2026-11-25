@@ -1,12 +1,23 @@
-import type { WordStatus } from "@/types";
+/** Every word status in display order; the one frontend list (the backend keeps its own in models.py). */
+export const STATUSES = [
+  "learning1",
+  "learning2",
+  "learning3",
+  "known",
+  "ignored",
+] as const;
+export type WordStatus = (typeof STATUSES)[number];
 
-export const STATUS_KEYS: Record<string, WordStatus> = {
-  "1": "learning1",
-  "2": "learning2",
-  "3": "learning3",
-  k: "known",
-  i: "ignored",
+export const STATUS_HOTKEY: Record<WordStatus, string> = {
+  learning1: "1",
+  learning2: "2",
+  learning3: "3",
+  known: "k",
+  ignored: "i",
 };
+export const STATUS_KEYS: Record<string, WordStatus> = Object.fromEntries(
+  STATUSES.map((status) => [STATUS_HOTKEY[status], status]),
+);
 
 /** False when a key press is a browser shortcut or typing in a field, so a single-letter hotkey must ignore it. */
 export function isHotkeyEvent(e: KeyboardEvent): boolean {

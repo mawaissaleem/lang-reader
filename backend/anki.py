@@ -18,6 +18,7 @@ from models import (
     Setting,
     Subtitle,
     UserWord,
+    WordStatus,
 )
 from utils import sentence_hash, strip_html
 
@@ -381,7 +382,11 @@ async def send_pending(db) -> dict:
 # ─── Two-way: card intervals back into word status (read-only on Anki: notesInfo, cardsInfo) ───
 
 # (min interval in days, status), highest first. THE mapping to tune; 21 days is Anki's "mature".
-INTERVAL_STATUS = [(21, "known"), (7, "learning3"), (1, "learning2")]
+INTERVAL_STATUS = [
+    (21, WordStatus.KNOWN),
+    (7, WordStatus.LEARNING3),
+    (1, WordStatus.LEARNING2),
+]
 
 
 def status_for_interval(days: int):
@@ -398,7 +403,7 @@ async def pull_intervals(db, user_id: int) -> dict:
         .filter(
             UserWord.user_id == user_id,
             UserWord.anki_note_id.isnot(None),
-            UserWord.status != "ignored",
+            UserWord.status != WordStatus.IGNORED,
         )
         .all()
     )
@@ -512,11 +517,11 @@ async def import_known(db, user_id: int, mapping: dict) -> dict:
                 UserWord(
                     user_id=user_id,
                     word_id=dictionary[w],
-                    status="known",
+                    status=WordStatus.KNOWN,
                     anki_status="none",
                 )
             )
-            history.record(db, user_id, dictionary[w], "known")
+            history.record(db, user_id, dictionary[w], WordStatus.KNOWN)
             imported += 1
     db.commit()
     return {

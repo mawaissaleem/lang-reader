@@ -3,11 +3,16 @@
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from models import Setting, UserWord, WordEvent
+from models import Setting, UserWord, WordEvent, WordStatus
 
 DEFAULT_DAILY_GOAL = 25
 # How far along each learning status is; "ignored" has no rank, so moving there is never progress.
-RANK = {"learning1": 1, "learning2": 2, "learning3": 3, "known": 4}
+RANK = {
+    WordStatus.LEARNING1: 1,
+    WordStatus.LEARNING2: 2,
+    WordStatus.LEARNING3: 3,
+    WordStatus.KNOWN: 4,
+}
 
 
 def record(db, user_id: int, word_id: int, status: str) -> WordEvent:
@@ -50,7 +55,7 @@ def build_progress(db, user_id: int, tz: ZoneInfo, today: date) -> dict:
     known = {
         r[0]
         for r in db.query(UserWord.word_id).filter(
-            UserWord.user_id == user_id, UserWord.status == "known"
+            UserWord.user_id == user_id, UserWord.status == WordStatus.KNOWN
         )
     }
     first_known: dict[int, date] = {}
@@ -71,12 +76,14 @@ def build_progress(db, user_id: int, tz: ZoneInfo, today: date) -> dict:
         if d <= cutoff:
             status_at_cutoff[e.word_id] = e.status
         # a word later moved off known is not counted
-        if e.status == "known" and e.word_id in known:
+        if e.status == WordStatus.KNOWN and e.word_id in known:
             first_known.setdefault(e.word_id, d)
     before = len(known) - len(first_known)
     # known words with no event at all were known the whole time, so they cancel out of the gain
     undated = len(known - last.keys())
-    known_at_cutoff = undated + sum(s == "known" for s in status_at_cutoff.values())
+    known_at_cutoff = undated + sum(
+        s == WordStatus.KNOWN for s in status_at_cutoff.values()
+    )
     per_day: dict[date, int] = {}
     for d in first_known.values():
         per_day[d] = per_day.get(d, 0) + 1

@@ -3,14 +3,20 @@ import clsx from "clsx";
 import { useEffect } from "react";
 import useStore from "@/store/useStore";
 import { ARTICLE_CLASS } from "@/components/SidePanel";
-import { aiKey, type WordStatus } from "@/types";
+import { STATUSES, type WordStatus } from "@/lib/status";
+import { aiKey } from "@/types";
 
-const LEVELS: { status: WordStatus; label: string }[] = [
-  { status: "learning1", label: "1" },
-  { status: "learning2", label: "2" },
-  { status: "learning3", label: "3" },
-  { status: "known", label: "Known" },
-];
+// Buttons on the card: every status with a label here ("ignored" has none, so no button).
+const LEVEL_LABEL: Partial<Record<WordStatus, string>> = {
+  learning1: "1",
+  learning2: "2",
+  learning3: "3",
+  known: "Known",
+};
+const LEVELS = STATUSES.flatMap((status) => {
+  const label = LEVEL_LABEL[status];
+  return label ? [{ status, label }] : [];
+});
 
 const small =
   "px-3 py-1 rounded-full text-[12px] border border-line transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent";

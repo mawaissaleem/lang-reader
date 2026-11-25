@@ -2,16 +2,33 @@
 import { useMemo } from "react";
 import useStore from "@/store/useStore";
 import { countProgress, knownPct } from "@/lib/progress";
-import { NEW_CLASS, STATUS_CLASS } from "@/lib/status";
+import {
+  NEW_CLASS,
+  STATUSES,
+  STATUS_CLASS,
+  STATUS_HOTKEY,
+  type WordStatus,
+} from "@/lib/status";
 
+const LEGEND_LABEL: Record<WordStatus, string> = {
+  learning1: "Learning 1",
+  learning2: "2",
+  learning3: "3",
+  known: "Known",
+  ignored: "Ignored",
+};
 // status colour swatches with the key that sets each status
 const LEGEND: [string, string, string][] = [
   ["New", NEW_CLASS, "·"],
-  ["Learning 1", STATUS_CLASS.learning1.highlight, "1"],
-  ["2", STATUS_CLASS.learning2.highlight, "2"],
-  ["3", STATUS_CLASS.learning3.highlight, "3"],
-  ["Known", `border border-line ${STATUS_CLASS.known.highlight}`, "K"],
-  ["Ignored", `border border-line ${STATUS_CLASS.ignored.highlight}`, "I"],
+  ...STATUSES.map((status): [string, string, string] => {
+    const hasBorder = status === "known" || status === "ignored";
+    const highlight = STATUS_CLASS[status].highlight;
+    return [
+      LEGEND_LABEL[status],
+      hasBorder ? `border border-line ${highlight}` : highlight,
+      STATUS_HOTKEY[status].toUpperCase(),
+    ];
+  }),
 ];
 
 /** Word-count summary of a text, optionally with the status legend; `className` lets the reader header reuse it without the footer spacing. */

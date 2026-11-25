@@ -9,8 +9,8 @@ export interface DisplaySettings {
   genderColours: boolean;
   highlightMode: HighlightMode;
 }
-export type WordStatus =
-  "learning1" | "learning2" | "learning3" | "known" | "ignored";
+import type { WordStatus } from "@/lib/status";
+export type { WordStatus };
 
 import type { AiAnswer, WordLookupResponse } from "@/lib/api";
 

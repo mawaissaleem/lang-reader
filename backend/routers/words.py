@@ -13,14 +13,14 @@ import saved_words
 from anki import AnkiError, send_pending
 from database import USER_ID, get_db
 from lemmatizer import separable_particle, word_key
-from models import Dictionary, UserWord
+from models import Dictionary, UserWord, WordStatus
 from translation_pipeline import parse_priority
 
 router = APIRouter()
 
 
 class StatusUpdate(BaseModel):
-    status: Literal["learning1", "learning2", "learning3", "known", "ignored"]
+    status: WordStatus
     # the clicked form (den for der), remembered for colouring
     form: Optional[str] = None
 

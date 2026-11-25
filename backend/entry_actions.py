@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 import history
 import progress
 from library_entries import latest_subtitle, subtitle_text_path
-from models import Dictionary, ManualText, UserWord, Video, WordEvent
+from models import Dictionary, ManualText, UserWord, Video, WordEvent, WordStatus
 
 
 def entry_text(db: Session, kind: str, ref_id: int) -> Optional[str]:
@@ -63,16 +63,18 @@ def mark_forms_known(
             uw = UserWord(
                 user_id=user_id,
                 word_id=entry.id,
-                status="known",
+                status=WordStatus.KNOWN,
                 last_reviewed_at=now,
                 added_at=now,
             )
             db.add(uw)
             saved[entry.id] = uw
-            created.append((uw, history.record(db, user_id, entry.id, "known")))
+            created.append(
+                (uw, history.record(db, user_id, entry.id, WordStatus.KNOWN))
+            )
             result.changed += 1
-        elif not only_new and uw.status not in ("known", "ignored"):
-            result.changed += history.set_status(db, uw, "known")
+        elif not only_new and uw.status not in (WordStatus.KNOWN, WordStatus.IGNORED):
+            result.changed += history.set_status(db, uw, WordStatus.KNOWN)
     db.flush()
     result.created_word_ids = [uw.id for uw, _ in created]
     result.event_ids = [ev.id for _, ev in created]
@@ -112,7 +114,7 @@ def undo_mark_new_known(
             .filter(
                 UserWord.id.in_(word_ids),
                 UserWord.user_id == user_id,
-                UserWord.status == "known",
+                UserWord.status == WordStatus.KNOWN,
                 UserWord.source.is_(None),
                 UserWord.context_sentence.is_(None),
                 UserWord.text_kind.is_(None),

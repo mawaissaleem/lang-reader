@@ -1,6 +1,8 @@
 import re
 import unicodedata
 
+from models import WordStatus
+
 # in-process cache of each text's unique cleaned words, keyed by (kind, id) and invalidated by a stamp
 _words_cache: dict[tuple[str, int], tuple[object, frozenset[str]]] = {}
 
@@ -36,8 +38,11 @@ def count_status(words, statuses: dict[str, str]) -> dict[str, int]:
     out = {"known": 0, "learning": 0, "new": 0}
     for w in words:
         s = statuses.get(w) or statuses.get(w.lower())
-        if s == "ignored":
+        if s == WordStatus.IGNORED:
             continue
-        out["new" if s is None else "known" if s == "known" else "learning"] += 1
+        bucket = (
+            "new" if s is None else ("known" if s == WordStatus.KNOWN else "learning")
+        )
+        out[bucket] += 1
     out["total"] = sum(out.values())
     return out
