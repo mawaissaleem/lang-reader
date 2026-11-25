@@ -215,26 +215,11 @@ To back up, copy `backend/subtitles.db` while the backend is stopped. Schema cha
 
 ![lang-reader architecture: Next.js frontend, FastAPI backend, and the services it calls](docs/media/architecture.svg)
 
-Cloud boxes are on the internet (YouTube, PONS, AnkiWeb). External boxes run on your machine (LibreTranslate, Ollama, Anki desktop). Dashed lines are the Anki outbox and sync: cards wait while Anki is closed. The diagram is drawn with [Archify](https://github.com/tt-a1i/archify) from the code at commit `b9675a3`.
+Cloud boxes are on the internet (YouTube, PONS, AnkiWeb). External boxes run on your machine (LibreTranslate, Ollama, Anki desktop). Dashed lines are the Anki outbox and sync: cards wait while Anki is closed. The diagram is drawn with [Archify](https://github.com/tt-a1i/archify) from the code at commit `b9675a3`; the project layout at `43fcf19`.
 
-```
-backend/
-  main.py               App setup, CORS, startup (migrations, spaCy, Anki outbox)
-  routers/              One module per area
-  translators/          PONS, LibreTranslate, Ollama
-  extractors/           youtube-transcript-api and yt-dlp
-  anki.py               AnkiConnect client, outbox, two-way sync, .apkg export
-  tts.py                Piper → mp3 with a disk cache
-  lemmatizer.py         spaCy base forms and articles
-  migrations/           Alembic
-  tests/                unittest suite
-frontend/
-  app/                  Pages: library (home), progress, settings
-  components/           Reader, side panel, library, settings, progress
-  lib/                  API client and hooks
-  store/                Zustand store
-docs/                   Setup guides for the optional services
-```
+**Project layout**
+
+<img src="docs/media/project-layout.svg" width="560" alt="Project layout: backend (main.py, routers, translators, extractors, anki.py, tts.py, lemmatizer.py, migrations, tests), frontend (app, components, lib, store) and docs">
 
 ## Development
 
