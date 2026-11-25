@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import React from "react";
+import useStore from "@/store/useStore";
 
 type Props = {
   connected: boolean;
@@ -29,20 +30,8 @@ export default function AnkiFooter({
   onSync,
   onPull,
 }: Props) {
-  // safe to read at first render: the panel's body only mounts client-side, after a click
-  const [ankiDefault, setAnkiDefault] = React.useState(() => {
-    try {
-      return localStorage.getItem("ankiDefault") === "1";
-    } catch {
-      return false;
-    }
-  });
-  function toggleDefault(v: boolean) {
-    setAnkiDefault(v);
-    try {
-      localStorage.setItem("ankiDefault", v ? "1" : "0");
-    } catch {}
-  }
+  const ankiDefault = useStore((s) => s.ankiDefault);
+  const setAnkiDefault = useStore((s) => s.setAnkiDefault);
 
   return (
     <div className="px-5 py-4 border-t border-line flex-shrink-0">
@@ -93,7 +82,7 @@ export default function AnkiFooter({
         <input
           type="checkbox"
           checked={ankiDefault}
-          onChange={(e) => toggleDefault(e.target.checked)}
+          onChange={(e) => setAnkiDefault(e.target.checked)}
         />
         Make Save + Anki the default
       </label>

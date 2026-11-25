@@ -6,7 +6,6 @@ import DeckCards from "@/components/settings/DeckCards";
 import ReadingSection from "@/components/settings/ReadingSection";
 import ServicesList from "@/components/settings/ServicesList";
 import TranslatorOrder from "@/components/settings/TranslatorOrder";
-import type { Provider } from "@/types";
 import {
   fetchAnkiOverview,
   fetchAnkiFields,
@@ -63,9 +62,9 @@ function Section({
 
 export default function SettingsPage() {
   const loadUserWords = useStore((s) => s.loadUserWords);
-  const priority = useStore((s) => s.translatorPriority);
-  const setPriority = useStore((s) => s.setTranslatorPriority);
-  const loadPriority = useStore((s) => s.loadTranslatorPriority);
+  const order = useStore((s) => s.translatorOrder);
+  const setOrder = useStore((s) => s.setTranslatorOrder);
+  const loadSettings = useStore((s) => s.loadSettings);
   const translators = useStore((s) => s.translators);
   const loadTranslators = useStore((s) => s.loadTranslators);
   const [decks, setDecks] = useState<string[]>([]);
@@ -83,15 +82,9 @@ export default function SettingsPage() {
   } | null>(null);
 
   useEffect(() => {
-    loadPriority();
+    loadSettings();
     loadTranslators();
-  }, [loadPriority, loadTranslators]);
-
-  // the stored choice is the first translator; the others follow it as the fallbacks
-  const order: Provider[] = [
-    priority,
-    ...translators.map((t) => t.id).filter((id) => id !== priority),
-  ];
+  }, [loadSettings, loadTranslators]);
 
   useEffect(() => {
     fetchAnkiOverview()
@@ -187,7 +180,7 @@ export default function SettingsPage() {
             <TranslatorOrder
               order={order}
               translators={translators}
-              onChange={(next) => setPriority(next[0])}
+              onChange={setOrder}
             />
             <AiModel />
           </Section>

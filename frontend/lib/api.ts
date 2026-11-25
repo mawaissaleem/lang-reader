@@ -363,6 +363,29 @@ export async function fetchTranslators(): Promise<Translator[]> {
   return readJson(await fetch(`${API_BASE_URL}/translators`));
 }
 
+/** Saved preferences; a key is null until something is saved. */
+export interface UserSettings {
+  translator_priority: string[] | null;
+  anki_default: boolean | null;
+}
+
+export async function fetchSettings(): Promise<UserSettings> {
+  return readJson(await fetch(`${API_BASE_URL}/settings`));
+}
+
+/** Saves only the keys given and returns every saved setting. */
+export async function saveSettings(
+  changes: Partial<{ translator_priority: string[]; anki_default: boolean }>,
+): Promise<UserSettings> {
+  return readJson(
+    await fetch(`${API_BASE_URL}/settings`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(changes),
+    }),
+  );
+}
+
 /** Up/down state with a plain-words detail for PONS, LibreTranslate, Ollama and Piper. */
 export async function fetchServicesStatus(): Promise<
   Record<"pons" | "libretranslate" | "ollama" | "piper", ServiceStatus>

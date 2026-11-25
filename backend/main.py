@@ -19,6 +19,7 @@ from routers import (
     llm,
     progress,
     services,
+    settings,
     translation,
     tts,
     words,
@@ -78,6 +79,7 @@ for module in (
     tts,
     progress,
     services,
+    settings,
 ):
     app.include_router(module.router)
 

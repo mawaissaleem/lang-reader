@@ -18,7 +18,10 @@ vi.mock("@/lib/api", async (orig) => ({
   renameEntry: vi.fn(),
   deleteEntry: vi.fn(),
   fetchUserWords: vi.fn(async () => []),
-  fetchTranslatorPriority: vi.fn(async () => []),
+  fetchSettings: vi.fn(async () => ({
+    translator_priority: null,
+    anki_default: null,
+  })),
   fetchTranslators: vi.fn(async () => []),
   fetchAnkiConnected: vi.fn(async () => true),
 }));

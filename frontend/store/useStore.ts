@@ -8,6 +8,7 @@ import {
   WordStatus,
 } from "@/types";
 import { clickedKey } from "@/lib/words";
+import { loadSettingsMovingLegacy } from "@/lib/legacySettings";
 import {
   applyTheme,
   DEFAULT_DISPLAY,
@@ -23,12 +24,21 @@ import {
   fetchUserWords,
   patchWordStatus,
   fetchTranslators,
+  saveSettings,
   type WordLookupResponse,
 } from "@/lib/api";
 
 // open on the preferred source when it has a result, else on whatever was returned
 const openTab = (d: WordLookupResponse) =>
   d.translations[d.preferred] ? d.preferred : d.source;
+
+/** Fit a translator order to the listed ids: unknown ids drop out, missing ones join at the end. */
+function mergeOrder(order: string[], ids: string[]): string[] {
+  // no list yet (or the fetch failed): nothing to check against
+  if (!ids.length) return order;
+  const kept = order.filter((id) => ids.includes(id));
+  return [...kept, ...ids.filter((id) => !kept.includes(id))];
+}
 
 const useStore = create<StoreState>((set, get) => ({
   text: "",
@@ -82,7 +92,7 @@ const useStore = create<StoreState>((set, get) => ({
       });
       return;
     }
-    const { translatorPriority } = get();
+    const priority = get().translatorOrder.join(",");
     // a shift+click extension keeps the sentence, so keep its translation too (retry only after an error)
     const sameSentence =
       !!sentence && sentence === get().selectedSentence && !get().sentenceError;
@@ -129,7 +139,7 @@ const useStore = create<StoreState>((set, get) => ({
       sourceError: null,
     });
     try {
-      const data = await lookupWord(w, translatorPriority, false, sentence);
+      const data = await lookupWord(w, priority, false, sentence);
       // a newer click owns the panel and the loading flag
       if (get().selectedWord !== w) return;
       set({
@@ -375,36 +385,49 @@ const useStore = create<StoreState>((set, get) => ({
   loadTranslators: async () => {
     try {
       const translators = await fetchTranslators();
-      // a saved id the backend no longer offers falls back to the first listed
-      const { translatorPriority } = get();
-      const known = translators.some((t) => t.id === translatorPriority);
-      // an empty list keeps the current id rather than throwing
-      const fallback = translators[0]?.id ?? translatorPriority;
+      // ids the backend no longer offers drop out; new ones join at the end
+      const ids = translators.map((t) => t.id);
+      const { translatorOrder, translatorPriority } = get();
+      const order = mergeOrder(translatorOrder, ids);
       set({
         translators,
-        translatorPriority: known ? translatorPriority : fallback,
+        translatorOrder: order,
+        // an empty list keeps the current id rather than throwing
+        translatorPriority: order[0] ?? translatorPriority,
       });
     } catch {
       // the list stays empty; the UI shows raw ids
     }
   },
+  translatorOrder: ["pons"],
   translatorPriority: "pons", // "pons" at first render; saved value loads after mount
-  loadTranslatorPriority: () => {
+  ankiDefault: false,
+  loadSettings: async () => {
     try {
-      const saved = localStorage.getItem("translatorPriority");
-      if (!saved) return;
-      // once the list is known, only an id from it is accepted
-      const { translators } = get();
-      if (translators.length && !translators.some((t) => t.id === saved))
-        return;
-      set({ translatorPriority: saved });
-    } catch {}
+      const saved = await loadSettingsMovingLegacy();
+      const savedOrder = saved.translator_priority;
+      if (savedOrder?.length) {
+        // the translator list may have arrived first, so fill the saved order out against it
+        const ids = get().translators.map((t) => t.id);
+        const order = mergeOrder(savedOrder, ids);
+        set({ translatorOrder: order, translatorPriority: order[0] });
+      }
+      if (saved.anki_default !== null) set({ ankiDefault: saved.anki_default });
+    } catch {
+      // server unreachable: the defaults stay
+    }
   },
-  setTranslatorPriority: async (priority) => {
-    try {
-      localStorage.setItem("translatorPriority", priority);
-    } catch {}
-    set({ translatorPriority: priority });
+  setAnkiDefault: (value) => {
+    set({ ankiDefault: value });
+    saveSettings({ anki_default: value }).catch(() => {});
+  },
+  setTranslatorPriority: (priority) => {
+    const rest = get().translatorOrder.filter((id) => id !== priority);
+    return get().setTranslatorOrder([priority, ...rest]);
+  },
+  setTranslatorOrder: async (order) => {
+    set({ translatorOrder: order, translatorPriority: order[0] });
+    saveSettings({ translator_priority: order }).catch(() => {});
     // Re-lookup without force: the backend serves cached sources and only fetches what is missing
     const { selectedWord, selectedSentence } = get();
     if (selectedWord) {
@@ -420,7 +443,7 @@ const useStore = create<StoreState>((set, get) => ({
       try {
         const data = await lookupWord(
           selectedWord,
-          priority,
+          order.join(","),
           false,
           selectedSentence,
         );

@@ -104,7 +104,12 @@ export interface StoreState {
   loadUserWords: () => Promise<void>;
   translators: Translator[]; // empty until fetched; names fall back to the id
   loadTranslators: () => Promise<void>;
+  // the full saved order; translatorPriority is its first entry (the preferred translator)
+  translatorOrder: Provider[];
   translatorPriority: Provider;
-  loadTranslatorPriority: () => void;
-  setTranslatorPriority: (priority: Provider) => void;
+  ankiDefault: boolean;
+  loadSettings: () => Promise<void>;
+  setTranslatorOrder: (order: Provider[]) => Promise<void>;
+  setTranslatorPriority: (priority: Provider) => Promise<void>;
+  setAnkiDefault: (value: boolean) => void;
 }

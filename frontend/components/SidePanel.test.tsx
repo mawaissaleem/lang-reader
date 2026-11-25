@@ -27,10 +27,12 @@ vi.mock("@/lib/api", () => ({
     default: null,
   })),
   addSentenceCard: vi.fn(),
+  saveSettings: vi.fn(async () => ({})),
 }));
 
 import {
   addSentenceCard,
+  saveSettings,
   fetchAiAnswer,
   fetchAnkiConnected,
   fetchLlmModels,
@@ -397,7 +399,7 @@ describe("SidePanel Anki outbox", () => {
     expect(btn().className).not.toContain("text-on-accent");
     fireEvent.click(screen.getByLabelText("Make Save + Anki the default"));
     expect(btn().className).toContain("text-on-accent");
-    expect(localStorage.getItem("ankiDefault")).toBe("1");
+    expect(saveSettings).toHaveBeenCalledWith({ anki_default: true });
   });
 
   it("shows the pending count and Sync delivers", async () => {

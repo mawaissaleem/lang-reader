@@ -14,6 +14,7 @@ from anki import AnkiError, send_pending
 from database import USER_ID, get_db
 from lemmatizer import separable_particle, word_key
 from models import Dictionary, UserWord, WordStatus
+from routers.settings import saved_value
 from translation_pipeline import parse_priority
 
 router = APIRouter()
@@ -49,6 +50,9 @@ async def lookup_word(
     # key rule: nouns keep their capital (Bank != bank), every other word is lowercase
     word, pos, article = word_key(clicked, sentence)
     now = datetime.now(timezone.utc)
+    if priority is None:
+        saved = saved_value(db, "translator_priority")
+        priority = ",".join(saved) if saved else None
     priority_order = parse_priority(priority)
 
     entry = dictionary.find_entry(db, word, pos)

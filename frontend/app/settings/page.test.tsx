@@ -19,6 +19,11 @@ vi.mock("@/lib/api", () => ({
   importAnkiKnown: vi.fn(),
   fetchUserWords: vi.fn(async () => []),
   fetchTranslators: vi.fn(async () => []),
+  fetchSettings: vi.fn(async () => ({
+    translator_priority: null,
+    anki_default: null,
+  })),
+  saveSettings: vi.fn(async () => ({})),
   fetchLlmModels: vi.fn(),
   saveLlmModel: vi.fn(async () => {}),
   fetchRunningModels: vi.fn(),
