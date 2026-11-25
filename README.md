@@ -107,7 +107,7 @@ cd lang-reader
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 python -m spacy download de_core_news_sm
 ```
 
@@ -226,7 +226,7 @@ Cloud boxes are on the internet (YouTube, PONS, AnkiWeb). External boxes run on 
 **Tests and checks** (the same ones CI runs on every push and pull request)
 
 ```bash
-# backend
+# backend (ruff comes from: pip install -r requirements-dev.txt)
 cd backend
 ../.venv/bin/python -m unittest discover -s tests
 ruff format --check .
