@@ -72,13 +72,19 @@ def make_epub(
     return buf.getvalue()
 
 
+class FakeRaw(io.BytesIO):
+    """urllib3-style body stream; read() fails because it waits for a full chunk."""
+
+    def read1(self, n=-1, decode_content=True):
+        return super().read1(n)
+
+    def read(self, *a, **k):
+        raise AssertionError("read() blocks on a slow server, use read1()")
+
+
 class FakeResp:
     def __init__(self, body=b"", status=200, headers=None):
-        self.raw = type(
-            "Raw",
-            (io.BytesIO,),
-            {"read": lambda self, n, decode_content=True: io.BytesIO.read(self, n)},
-        )(body)
+        self.raw = FakeRaw(body)
         self.status_code = status
         self.headers = headers or {}
         self.is_redirect = "location" in self.headers
@@ -143,6 +149,24 @@ class UrlTests(unittest.TestCase):
     def test_too_large(self, *_):
         with self.assertRaisesRegex(importer.ImportError_, "too large"):
             importer.fetch_url("https://example.com/a")
+
+    @patch("importer.socket.getaddrinfo", return_value=PUBLIC)
+    def test_slow_drip_download_times_out(self, _dns):
+        clock = [0.0]
+
+        def drip(n, decode_content=True):
+            # each tiny chunk "takes" the whole budget
+            clock[0] += importer.DOWNLOAD_DEADLINE
+            return b"x"
+
+        resp = FakeResp()
+        resp.raw.read1 = drip
+        with (
+            patch("importer.requests.get", return_value=resp),
+            patch("importer.time.monotonic", side_effect=lambda: clock[0]),
+        ):
+            with self.assertRaisesRegex(importer.ImportError_, "too long"):
+                importer.fetch_url("https://example.com/a")
 
     @patch("importer.socket.getaddrinfo", return_value=PUBLIC)
     @patch("importer.requests.get", return_value=FakeResp(status=404))

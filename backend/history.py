@@ -70,9 +70,8 @@ def build_progress(db, user_id: int, tz: ZoneInfo, today: date) -> dict:
         last[e.word_id] = e.status
         if d <= cutoff:
             status_at_cutoff[e.word_id] = e.status
-        if (
-            e.status == "known" and e.word_id in known
-        ):  # a word later moved off known is not counted
+        # a word later moved off known is not counted
+        if e.status == "known" and e.word_id in known:
             first_known.setdefault(e.word_id, d)
     before = len(known) - len(first_known)
     # known words with no event at all were known the whole time, so they cancel out of the gain

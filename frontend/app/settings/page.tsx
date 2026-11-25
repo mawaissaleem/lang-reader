@@ -112,7 +112,8 @@ export default function SettingsPage() {
     fetchAnkiFields(model)
       .then((f) => {
         setFields(f);
-        setField((cur) => (f.includes(cur) ? cur : (f[0] ?? ""))); // default guess: the first field
+        // default guess: the first field
+        setField((cur) => (f.includes(cur) ? cur : (f[0] ?? "")));
       })
       .catch((e: Error) => setError(e.message));
   }, [model]);

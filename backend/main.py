@@ -58,9 +58,8 @@ async def _send_pending_on_start():
 async def lifespan(_app: FastAPI):
     run_migrations()
     load_model()
-    task = asyncio.create_task(
-        _send_pending_on_start()
-    )  # background: a closed Anki must not delay startup
+    # background: a closed Anki must not delay startup
+    task = asyncio.create_task(_send_pending_on_start())
     yield
     task.cancel()
 

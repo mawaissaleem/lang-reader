@@ -52,7 +52,6 @@ export default function ReaderView({
   return (
     // Fixed viewport height: the text and the word panel scroll on their own, so the panel's Save bar stays at the screen bottom.
     <div className="h-screen flex flex-col">
-      {/* Header */}
       <header className="border-b border-line px-6 py-4 flex items-center gap-3 text-ink">
         <button
           onClick={onBack}
@@ -106,7 +105,6 @@ export default function ReaderView({
         <DisplayMenu showFocus={!video?.cues.length} />
       </header>
 
-      {/* TextDisplay + SidePanel — exact same structure as root page */}
       <div className="flex flex-1 overflow-hidden">
         <main
           ref={mainRef}

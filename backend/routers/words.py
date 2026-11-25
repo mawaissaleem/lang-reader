@@ -21,18 +21,16 @@ router = APIRouter()
 
 class StatusUpdate(BaseModel):
     status: Literal["learning1", "learning2", "learning3", "known", "ignored"]
-    form: Optional[str] = (
-        None  # the clicked form (den for der), remembered for colouring
-    )
+    # the clicked form (den for der), remembered for colouring
+    form: Optional[str] = None
 
 
 class SaveContext(BaseModel):
     context_sentence: Optional[str] = None
     text_kind: Optional[Literal["video", "text"]] = None
     text_id: Optional[int] = None
-    form: Optional[str] = (
-        None  # the clicked form (den for der), remembered for colouring
-    )
+    # the clicked form (den for der), remembered for colouring
+    form: Optional[str] = None
 
 
 # ─────────────────────────────────────────

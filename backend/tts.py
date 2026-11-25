@@ -18,9 +18,8 @@ class TTSError(Exception):
 
 
 def voice_path() -> Path:
-    return BASE_DIR / os.getenv(
-        "PIPER_VOICE", "voices/de_DE-thorsten-medium.onnx"
-    )  # absolute env value wins
+    # absolute env value wins
+    return BASE_DIR / os.getenv("PIPER_VOICE", "voices/de_DE-thorsten-medium.onnx")
 
 
 def cache_dir() -> Path:
@@ -48,9 +47,8 @@ async def _run(args: list, stdin: bytes = b""):
         raise TTSError(f"{args[0]} not found") from e
     try:
         _, err = await asyncio.wait_for(p.communicate(stdin), TIMEOUT)
-    except (
-        asyncio.TimeoutError
-    ):  # a hung process would block every later request behind the lock
+    except asyncio.TimeoutError:
+        # a hung process would block every later request behind the lock
         p.kill()
         await p.wait()
         raise TTSError("timed out")
@@ -78,9 +76,8 @@ async def get_audio(text: str) -> Path:
         if path.exists():
             return path
         path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = path.with_name(
-            f".{path.name}.{os.getpid()}.tmp.mp3"
-        )  # .mp3 so ffmpeg infers the format
+        # .mp3 so ffmpeg infers the format
+        tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp.mp3")
         try:
             await synth(text, tmp)
             os.replace(tmp, path)  # atomic: readers never see a half-written file

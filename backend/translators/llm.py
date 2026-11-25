@@ -95,8 +95,9 @@ def generate(model, prompt, timeout=180):
             "prompt": prompt,
             "stream": False,
             "format": SCHEMA,
+            # num_predict caps runaway repeats
             "options": {"temperature": 0.1, "num_predict": 1024},
-        },  # cap stops runaway repeats
+        },
         timeout=timeout,
     )
     r.raise_for_status()
@@ -132,9 +133,8 @@ async def _stream(model, prompt, timeout=180):
                 async for line in r.aiter_lines():
                     if line:
                         obj = json.loads(line)
-                        if obj.get(
-                            "error"
-                        ):  # Ollama can fail after a 200 (e.g. runner out of memory)
+                        # Ollama can fail after a 200 (e.g. runner out of memory)
+                        if obj.get("error"):
                             raise LLMError(f"Ollama: {obj['error']}")
                         yield obj.get("response", "")
     except httpx.TransportError as e:

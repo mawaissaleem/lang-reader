@@ -98,7 +98,6 @@ export default function SidePanel() {
     >
       {sidePanelOpen && (
         <>
-          {/* Header */}
           <div className="flex flex-col gap-2 px-5 py-4 border-b border-line flex-shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -115,7 +114,6 @@ export default function SidePanel() {
               </button>
             </div>
 
-            {/* Translator preference — open settings to change */}
             <div className="flex items-center justify-between">
               <div className="text-[11px] font-semibold text-muted">
                 Preferred translator:
@@ -173,7 +171,6 @@ export default function SidePanel() {
             )}
           </div>
 
-          {/* Body — independent scroll */}
           <div className="flex-1 overflow-y-auto p-5">
             {wordLoading ? (
               <div className="flex items-center gap-2 mt-4 text-[13px] text-muted">
@@ -191,7 +188,6 @@ export default function SidePanel() {
               </div>
             ) : wordResult ? (
               <div className="flex flex-col gap-5">
-                {/* Word + class */}
                 <div>
                   <div className="flex items-baseline gap-2 mb-1.5">
                     {active?.word_class && (
@@ -265,7 +261,6 @@ export default function SidePanel() {
                   })}
                 </div>
 
-                {/* Meanings */}
                 {activeSource === "ai" ? (
                   <AiTab />
                 ) : active ? (

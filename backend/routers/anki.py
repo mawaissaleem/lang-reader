@@ -56,9 +56,8 @@ class SentenceCardIn(BaseModel):
     sentence_en: str = Field(min_length=1)
     target_word: str = Field(min_length=1)
     source: str = Field(min_length=1)
-    bold: list[str] = Field(
-        default=[], max_length=20
-    )  # clicked surface forms; empty bolds the lemma
+    # clicked surface forms; empty bolds the lemma
+    bold: list[str] = Field(default=[], max_length=20)
 
 
 @router.post("/anki/sentences")

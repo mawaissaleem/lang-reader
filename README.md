@@ -88,6 +88,7 @@ Shift + click   Extend the selection to a phrase or a separable verb
 
 ```bash
 sudo apt install python3 python3-venv python3-pip git
+# Ubuntu 22.04: python3 is 3.10 and too old. Also install python3.11 python3.11-venv and create the venv with python3.11 -m venv .venv
 # Node 20+: use https://github.com/nvm-sh/nvm or the NodeSource packages; Ubuntu's own nodejs is too old
 ```
 

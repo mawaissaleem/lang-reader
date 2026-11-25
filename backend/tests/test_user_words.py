@@ -8,7 +8,8 @@ from sqlalchemy.orm import sessionmaker
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from models import Base, UserWord
+from database import USER_ID
+from models import Base, Dictionary, UserWord
 from fastapi import HTTPException
 from routers.words import get_user_words, lookup_word, save_word
 
@@ -145,6 +146,15 @@ class TestWordStatus(unittest.IsolatedAsyncioTestCase):
 
     async def test_new_save_defaults_to_learning1(self):
         self.assertEqual(get_user_words(db=self.db)[0]["status"], "learning1")
+
+    async def test_mastered_only_filters_unmastered_words(self):
+        tee = Dictionary(german_word="tee", english_meanings=["tea"], source="seed")
+        self.db.add(tee)
+        self.db.flush()
+        self.db.add(UserWord(user_id=USER_ID, word_id=tee.id, is_mastered=True))
+        self.db.commit()
+        rows = self.client.get("/user/words?mastered_only=true").json()
+        self.assertEqual([r["word"] for r in rows], ["tee"])
 
     async def test_set_status_reads_back(self):
         r = self.client.patch(

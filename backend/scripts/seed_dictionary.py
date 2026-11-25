@@ -23,7 +23,6 @@ def seed_dictionary(json_path: str = "dictionary.json"):
 
     try:
         for entry in data["dictionary"]:
-            # skip if word already exists
             exists = (
                 session.query(Dictionary)
                 .filter_by(german_word=entry["german_word"])
@@ -39,7 +38,7 @@ def seed_dictionary(json_path: str = "dictionary.json"):
                 english_meanings=entry["english_meanings"],
                 word_class=entry["word_class"],
                 source=entry["source"],
-                raw_response=entry,  # store full entry as raw
+                raw_response=entry,
             )
             word.translations.append(
                 Translation(

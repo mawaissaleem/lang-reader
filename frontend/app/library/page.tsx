@@ -26,7 +26,6 @@ const SORTS: [SortKey, string][] = [
   ["title", "Title"],
 ];
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function LibraryPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const { openEntry, readerLoading, video, open, close } = useEntryReader();
@@ -51,7 +50,6 @@ export default function LibraryPage() {
   const loadUserWords = useStore((s) => s.loadUserWords);
   const loadTranslatorPriority = useStore((s) => s.loadTranslatorPriority);
 
-  // Load user words once (same as root page)
   useEffect(() => {
     loadUserWords();
     loadTranslatorPriority();
@@ -79,7 +77,6 @@ export default function LibraryPage() {
     );
   }
 
-  // ── Library view ────────────────────────────────────────────────────────────
   return (
     <div>
       <AppNav>
@@ -115,7 +112,6 @@ export default function LibraryPage() {
           />
         )}
 
-        {/* Filters + sort */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div className="flex gap-2">
             {FILTERS.map(([value, label]) => (

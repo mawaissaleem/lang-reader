@@ -97,9 +97,8 @@ def store_translations(
 
     # shortcut: no marker for a word nobody has a translation for (legacy columns are NOT NULL), so unknown words refetch per click
     for src in errors:
-        if entry and not (
-            cached.get(src) and cached[src].meanings
-        ):  # never blank a good row
+        # never blank a good row
+        if entry and not (cached.get(src) and cached[src].meanings):
             entry, _ = upsert(entry, src)
     return entry
 

@@ -35,13 +35,13 @@ def get_video_title(url: str) -> str:
     except (
         requests.RequestException,
         ValueError,
-    ) as e:  # network error or non-JSON body
+    ) as e:
+        # network error or non-JSON body
         logger.warning("Could not fetch video title for %s: %s", url, e)
         return "unknown_title"
 
 
 def sanitize_filename(title: str) -> str:
-    # Remove characters that are invalid in filenames
     title = re.sub(r'[\\/*?:"<>|]', "", title)
     title = title.strip()
     return title

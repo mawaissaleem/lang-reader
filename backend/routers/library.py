@@ -225,7 +225,6 @@ def get_library(db: Session = Depends(get_db)):
     for t in db.query(ManualText).all():
         items.append(_text_entry(t))
 
-    # sort newest first
     items.sort(key=lambda x: x["created_at"], reverse=True)
     return items
 

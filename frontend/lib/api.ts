@@ -1,5 +1,3 @@
-// lib/api.ts
-
 import type { WordStatus } from "@/types";
 import type { ProgressHistory } from "./history";
 import type { Cue } from "@/lib/video";

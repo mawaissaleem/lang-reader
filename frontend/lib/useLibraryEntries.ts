@@ -18,7 +18,6 @@ export function useLibraryEntries(paused: boolean) {
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<Record<string, Progress>>({});
 
-  // Fetch library on mount
   useEffect(() => {
     fetchLibrary()
       .then((data) => {

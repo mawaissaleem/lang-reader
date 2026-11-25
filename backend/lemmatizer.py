@@ -110,9 +110,8 @@ def analyze(
     if tok.pos_ in ("VERB", "AUX"):
         return verb_lemma(tok, word), tok.pos_, None
     lemma = tok.lemma_ or word
-    if (
-        tok.pos_ in NOUNS
-    ):  # the model sometimes lowercases a noun lemma (Essen -> essen)
+    # the model sometimes lowercases a noun lemma (Essen -> essen)
+    if tok.pos_ in NOUNS:
         return (
             lemma[:1].upper() + lemma[1:],
             tok.pos_,

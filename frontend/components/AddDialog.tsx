@@ -157,7 +157,6 @@ export default function AddDialog({ onSaved, onOpen }: Props) {
             shown below.
           </Dialog.Description>
 
-          {/* the one field: text, a link or a dropped file */}
           <div
             onDragOver={(e) => {
               e.preventDefault();

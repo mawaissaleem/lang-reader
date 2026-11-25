@@ -5,6 +5,7 @@ import ipaddress
 import logging
 import posixpath
 import socket
+import time
 import zipfile
 from html.parser import HTMLParser
 from typing import Optional, Tuple
@@ -19,6 +20,10 @@ MAX_DOWNLOAD = 5 * 1024 * 1024
 MAX_UPLOAD = 20 * 1024 * 1024
 MAX_EPUB_UNZIPPED = 50 * 1024 * 1024
 TIMEOUT = 15
+# Seconds for the whole body. Checked between reads, so the worst case is
+# DOWNLOAD_DEADLINE plus one TIMEOUT for a read that started just before it.
+DOWNLOAD_DEADLINE = 30
+CHUNK = 64 * 1024
 MAX_REDIRECTS = 5
 
 
@@ -45,6 +50,24 @@ def _check_url(url: str) -> None:
     # shortcut: DNS is resolved again by requests (rebinding possible), upgrade by pinning the IP
 
 
+def _read_body(r) -> bytes:
+    """Read a response in chunks, enforcing the size cap and a total deadline."""
+    deadline = time.monotonic() + DOWNLOAD_DEADLINE
+    chunks, size = [], 0
+    while True:
+        # read1 returns whatever has arrived; read would wait for a full CHUNK,
+        # so a server dripping bytes could hold the worker past the deadline.
+        chunk = r.raw.read1(CHUNK, decode_content=True)
+        if not chunk:
+            return b"".join(chunks)
+        size += len(chunk)
+        if size > MAX_DOWNLOAD:
+            raise ImportError_("The page is too large (max 5 MB)")
+        if time.monotonic() > deadline:
+            raise ImportError_("The page took too long to download")
+        chunks.append(chunk)
+
+
 def fetch_url(url: str) -> Tuple[str, str]:
     import trafilatura
 
@@ -53,7 +76,6 @@ def fetch_url(url: str) -> Tuple[str, str]:
     for _ in range(MAX_REDIRECTS + 1):
         _check_url(url)  # re-checked on every redirect hop
         try:
-            # shortcut: TIMEOUT is per read, not total download time, so a slow-drip server can hold a worker; upgrade with a deadline check in the read loop
             r = requests.get(
                 url,
                 timeout=TIMEOUT,
@@ -69,10 +91,7 @@ def fetch_url(url: str) -> Tuple[str, str]:
                 continue
             if r.status_code >= 400:
                 raise ImportError_(f"The page returned HTTP {r.status_code}")
-            data = r.raw.read(MAX_DOWNLOAD + 1, decode_content=True)
-            if len(data) > MAX_DOWNLOAD:
-                raise ImportError_("The page is too large (max 5 MB)")
-            html = data
+            html = _read_body(r)
             break
     if html is None:
         raise ImportError_("Too many redirects")

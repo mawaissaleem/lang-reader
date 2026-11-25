@@ -136,9 +136,8 @@ async def ensure_setup() -> dict:
     return created
 
 
-_send_lock = (
-    asyncio.Lock()
-)  # startup sync and the button must not both add the same note
+# startup sync and the button must not both add the same note
+_send_lock = asyncio.Lock()
 
 
 def _build_note(db, uw: UserWord) -> dict:
@@ -162,9 +161,8 @@ def _build_note(db, uw: UserWord) -> dict:
         else None
     )
     tags = ["reader"]
-    slug = re.sub(r"\W+", "-", (title or "").lower()).strip(
-        "-"
-    )  # Anki tags cannot hold spaces
+    # Anki tags cannot hold spaces
+    slug = re.sub(r"\W+", "-", (title or "").lower()).strip("-")
     if slug:
         tags.append(f"reader::src::{slug}")
     return {
@@ -503,9 +501,8 @@ async def import_known(db, user_id: int, mapping: dict) -> dict:
     }
     imported = 0
     for w in words:
-        if (
-            w not in dictionary
-        ):  # a placeholder row; the reader fills in meanings on first lookup
+        if w not in dictionary:
+            # a placeholder row; the reader fills in meanings on first lookup
             d = Dictionary(german_word=w, english_meanings=[], source="anki")
             db.add(d)
             db.flush()

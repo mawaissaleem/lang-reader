@@ -18,9 +18,7 @@ export default function TextDisplay({ pageText }: { pageText?: string }) {
 
   return (
     <div className="max-w-3xl mx-auto">
-      {/* Text area */}
       <div className="bg-surface border border-line rounded-2xl p-8 leading-8">
-        {/* Title */}
         {title && (
           <h2 className="text-ink text-xl font-semibold mb-6 pb-4 border-b border-line text-center">
             {title}

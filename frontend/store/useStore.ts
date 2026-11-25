@@ -283,7 +283,6 @@ const useStore = create<StoreState>((set, get) => ({
     try {
       const saved = await saveWord(
         wordResult.id,
-
         activeSource && activeSource !== "ai" ? activeSource : undefined,
         context,
         anki,

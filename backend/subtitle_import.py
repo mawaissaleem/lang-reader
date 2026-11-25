@@ -134,7 +134,8 @@ def save_subtitles(
         ValueError,
         MalformedFileError,
         MalformedCaptionError,
-    ):  # file I/O, vtt parsing or DB write failed
+    ):
+        # file I/O, vtt parsing or DB write failed
         db.rollback()
         logger.exception("Failed to save subtitles for %s", normalized_url)
         raise HTTPException(status_code=500, detail="Failed to process subtitles.")

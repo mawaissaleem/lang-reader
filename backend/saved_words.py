@@ -23,10 +23,8 @@ def require_translation(word: Dictionary, source: Optional[str]) -> None:
 def add_form(uw: UserWord, form: Optional[str]) -> None:
     """Remember a clicked form of the word (the caller commits); the base form itself is not stored."""
     if form and form != uw.word.german_word and form not in (uw.forms or []):
-        uw.forms = [
-            *(uw.forms or []),
-            form,
-        ]  # a new list, so SQLAlchemy sees the JSON change
+        # a new list, so SQLAlchemy sees the JSON change
+        uw.forms = [*(uw.forms or []), form]
 
 
 def update_existing(

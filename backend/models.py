@@ -95,13 +95,11 @@ class SentenceCard(Base):
     sentence_de = Column(Text, nullable=False)
     sentence_en = Column(Text, nullable=False)
     target_word = Column(String, nullable=False)  # the lemma
-    bold = Column(
-        JSON, nullable=False, default=list
-    )  # surface forms to bold; empty = the lemma
+    # surface forms to bold; empty = the lemma
+    bold = Column(JSON, nullable=False, default=list)
     source = Column(String, nullable=False)  # "AI example" or the text title
-    anki_status = Column(
-        String, nullable=False, default="pending"
-    )  # pending | sent | failed
+    # pending | sent | failed
+    anki_status = Column(String, nullable=False, default="pending")
     anki_note_id = Column(BigInteger, nullable=True)
 
 
@@ -116,7 +114,7 @@ class Dictionary(Base):
     english_meanings = Column(JSON, nullable=False)  # ["bank (financial)", "bench"]
     word_class = Column(String, nullable=True)  # noun, verb, adjective
     source = Column(String, nullable=False)  # 'seed', 'pons', 'mymemory'
-    raw_response = Column(JSON, nullable=True)  # full raw response from source
+    raw_response = Column(JSON, nullable=True)
     lookup_count = Column(Integer, default=0)  # how many times any user looked it up
     last_lookup_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
@@ -158,41 +156,31 @@ class UserWord(Base):
     __tablename__ = "user_words"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(
-        Integer, nullable=False, index=True
-    )  # assuming you have users table
+    user_id = Column(Integer, nullable=False, index=True)
     word_id = Column(Integer, ForeignKey("dictionary.id"), nullable=False)
 
-    # User-specific fields
     is_mastered = Column(Boolean, default=False)
     review_count = Column(Integer, default=0)
     last_reviewed_at = Column(DateTime, nullable=True)
-    notes = Column(Text, nullable=True)  # user's personal notes
-    status = Column(
-        String, nullable=False, default="learning1"
-    )  # learning1|learning2|learning3|known|ignored
-    source = Column(
-        String, nullable=True
-    )  # translation source whose meaning was saved; NULL for old rows
-    context_sentence = Column(Text, nullable=True)  # sentence the word was saved from
-    text_kind = Column(
-        String, nullable=True
-    )  # video (subtitle id) | text; same names as /library "type"
+    notes = Column(Text, nullable=True)
+    # learning1|learning2|learning3|known|ignored
+    status = Column(String, nullable=False, default="learning1")
+    # translation source whose meaning was saved; NULL for old rows
+    source = Column(String, nullable=True)
+    context_sentence = Column(Text, nullable=True)
+    # video (subtitle id) | text; same names as /library "type"
+    text_kind = Column(String, nullable=True)
     text_id = Column(Integer, nullable=True)
     # clicked forms that differ from the base form (den -> der), so the reader colours them after a reload
     forms = Column(JSON, nullable=True)
-    anki_status = Column(
-        String, nullable=False, default="none"
-    )  # none | pending | sent | failed
+    # none | pending | sent | failed
+    anki_status = Column(String, nullable=False, default="none")
     anki_note_id = Column(BigInteger, nullable=True)
 
-    # When did user add this word to their known list
     added_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
-    # Relationship
     word = relationship("Dictionary")
 
-    # Ensure one entry per user per word
     __table_args__ = (UniqueConstraint("user_id", "word_id", name="unique_user_word"),)
 
 
