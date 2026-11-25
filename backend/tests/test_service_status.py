@@ -88,7 +88,12 @@ class ServiceStatusTest(unittest.TestCase):
             self.assertTrue(asyncio.run(llm.is_up(2.0)))
 
     def test_status_survives_malformed_libretranslate_url(self):
-        for bad in ("http://localhost:50O0", "http://[::1:5000", "http://localhost:500000", "http://xn--/"):
+        for bad in (
+            "http://localhost:50O0",
+            "http://[::1:5000",
+            "http://localhost:500000",
+            "http://xn--/",
+        ):
             with (
                 self.subTest(url=bad),
                 patch.dict(os.environ, {"LIBRETRANSLATE_URL": bad}),

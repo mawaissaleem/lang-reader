@@ -103,7 +103,9 @@ describe("video overlay", () => {
         fireEvent.click(screen.getAllByText("Welt")[0]);
       });
     await click();
-    expect(screen.getByTestId("word-card").closest(".aspect-video")).toBeTruthy();
+    expect(
+      screen.getByTestId("word-card").closest(".aspect-video"),
+    ).toBeTruthy();
     await act(async () => {
       fireEvent.click(screen.getByLabelText("Close word card"));
     });
