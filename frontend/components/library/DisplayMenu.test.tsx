@@ -26,6 +26,7 @@ describe("DisplayMenu", () => {
     fireEvent.click(screen.getByText("Linen"));
     expect(useStore.getState().theme).toBe("linen");
     expect(localStorage.getItem("readerDisplay")).toContain('"linen"');
+    expect(document.documentElement.dataset.theme).toBe("linen");
   });
 
   it("closes on Escape", () => {

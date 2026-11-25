@@ -138,7 +138,7 @@ export default function SettingsPage() {
     setChosen((c) => (c.includes(d) ? c.filter((x) => x !== d) : [...c, d]));
 
   return (
-    <div className="min-h-screen bg-bg text-ink">
+    <div className="min-h-screen text-ink">
       <AppNav />
       <div className="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-12 md:flex-row">
         <aside className="md:w-48 md:flex-none">
@@ -231,7 +231,7 @@ export default function SettingsPage() {
             <button
               onClick={run}
               disabled={busy || !chosen.length || !model || !field}
-              className="self-start rounded-lg bg-accent px-4 py-2 text-sm font-medium text-on-accent hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-40"
+              className="self-start rounded-lg bg-[image:var(--grad)] px-4 py-2 text-sm font-medium text-on-accent hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-40"
             >
               {busy
                 ? "Importing…"

@@ -33,7 +33,7 @@ export default function AiTab() {
     return (
       <p
         role="tabpanel"
-        className="text-[12px] text-faint text-center py-6 m-0"
+        className="text-[12px] text-muted text-center py-6 m-0"
       >
         The AI needs the sentence the word is in.
       </p>
@@ -56,14 +56,14 @@ export default function AiTab() {
     return (
       <div
         role="tabpanel"
-        className="flex flex-col items-center gap-2 py-6 text-center text-[12px] text-faint"
+        className="flex flex-col items-center gap-2 py-6 text-center text-[12px] text-muted"
       >
         <Loader2 size={18} className="animate-spin" />
         <span>
           Asking the model… <Elapsed since={entry.startedAt} /> · {entry.tokens}{" "}
           tokens
         </span>
-        <span className="text-faint">This can take 10–30 s or more</span>
+        <span className="text-muted">This can take 10–30 s or more</span>
       </div>
     );
   }
@@ -113,7 +113,7 @@ export default function AiTab() {
           {result.note}
         </p>
       )}
-      <p className="text-[11px] text-faint m-0">
+      <p className="text-[11px] text-muted m-0">
         answered by {model}
         {cached && " (cached)"}
       </p>

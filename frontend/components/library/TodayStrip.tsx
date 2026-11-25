@@ -92,7 +92,7 @@ function UpNext({
       <button
         type="button"
         onClick={() => onContinue(next)}
-        className="flex-none rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink"
+        className="flex-none rounded-lg bg-[image:var(--grad)] px-5 py-2.5 text-sm font-semibold text-on-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink"
       >
         Continue
       </button>

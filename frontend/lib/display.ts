@@ -20,13 +20,46 @@ const OLD_THEMES: Record<string, ReaderTheme> = {
   paper: "linen",
 };
 
+/** The three themes, in the order every switcher lists them. */
+export const THEMES: { value: ReaderTheme; label: string }[] = [
+  { value: "midnight", label: "Midnight" },
+  { value: "grove", label: "Grove" },
+  { value: "linen", label: "Linen" },
+];
+
 /** A saved theme name as a current theme; missing or unknown names give the default. */
 function migrateTheme(saved: unknown): ReaderTheme {
   const name = String(saved);
-  if (name in OLD_THEMES) return OLD_THEMES[name];
-  const current: ReaderTheme[] = ["midnight", "grove", "linen"];
-  return current.find((t) => t === name) ?? DEFAULT_DISPLAY.theme;
+  if (Object.hasOwn(OLD_THEMES, name)) return OLD_THEMES[name];
+  return THEMES.find((t) => t.value === name)?.value ?? DEFAULT_DISPLAY.theme;
 }
+
+/** Puts the theme on <html>, where every page and panel picks it up. */
+export function applyTheme(theme: ReaderTheme) {
+  if (typeof document !== "undefined")
+    document.documentElement.dataset.theme = theme;
+}
+
+/** Runs inline in <head> before first paint: puts the saved theme (old names migrated) on <html>. Must stay self-contained: it is serialised with Function.toString. */
+function setSavedTheme(
+  key: string,
+  fallback: string,
+  old: Record<string, string>,
+  names: string[],
+) {
+  let theme = fallback;
+  try {
+    const saved = JSON.parse(localStorage.getItem(key) || "{}").theme;
+    const name = Object.prototype.hasOwnProperty.call(old, saved)
+      ? old[saved]
+      : saved;
+    if (names.includes(name)) theme = name;
+  } catch {}
+  document.documentElement.dataset.theme = theme;
+}
+
+/** Inline script for <head> so Linen never flashes dark; fed the same key, names and migration map as loadDisplay. */
+export const THEME_INIT_SCRIPT = `(${setSavedTheme})(${JSON.stringify(KEY)}, ${JSON.stringify(DEFAULT_DISPLAY.theme)}, ${JSON.stringify(OLD_THEMES)}, ${JSON.stringify(THEMES.map((t) => t.value))})`;
 
 /** Saved Display settings merged over the defaults; unknown or broken storage gives the defaults. */
 export function loadDisplay(): DisplaySettings {

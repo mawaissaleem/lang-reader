@@ -24,7 +24,7 @@ export default function ProgressPage() {
   const today = new Date().toLocaleDateString("en-CA");
 
   return (
-    <div className="min-h-screen bg-bg text-ink">
+    <div className="min-h-screen text-ink">
       <AppNav />
       <main className="mx-auto max-w-5xl px-6 py-10">
         <h1 className="font-serif text-3xl">Progress</h1>

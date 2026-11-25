@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import clsx from "clsx";
 import useStore from "@/store/useStore";
 import { NEW_CLASS, STATUS_CLASS } from "@/lib/status";
-import { TEXT_SIZE_REM } from "@/lib/display";
+import { TEXT_SIZE_REM, THEMES } from "@/lib/display";
 import type { ReaderTheme } from "@/types";
 
 /** A row of mutually exclusive options; the radio inputs give arrow-key navigation and a focus ring. */
@@ -94,11 +94,7 @@ export default function ReadingSection() {
         label="Theme"
         value={theme}
         onChange={(v) => setDisplay({ theme: v })}
-        options={[
-          { value: "midnight", text: "Midnight" },
-          { value: "grove", text: "Grove" },
-          { value: "linen", text: "Linen" },
-        ]}
+        options={THEMES.map((t) => ({ value: t.value, text: t.label }))}
       />
       <Choice
         label="Text size"

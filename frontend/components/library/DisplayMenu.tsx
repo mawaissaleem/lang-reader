@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import useStore from "@/store/useStore";
 import { isHotkeyEvent } from "@/lib/status";
+import { THEMES } from "@/lib/display";
 
 /** One labelled row of choices; the active choice is marked with aria-pressed. */
 function Row<T extends string>({
@@ -126,11 +127,7 @@ export default function DisplayMenu({ showFocus }: { showFocus: boolean }) {
           <Row
             label="Theme"
             value={theme}
-            options={[
-              { value: "midnight", label: "Midnight" },
-              { value: "grove", label: "Grove" },
-              { value: "linen", label: "Linen" },
-            ]}
+            options={THEMES}
             onPick={(theme) => setDisplay({ theme })}
           />
           <Row

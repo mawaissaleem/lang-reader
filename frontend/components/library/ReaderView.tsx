@@ -27,7 +27,6 @@ export default function ReaderView({
   captionSource: "creator" | "auto" | null;
   onBack: () => void;
 }) {
-  const theme = useStore((s) => s.theme);
   const textSize = useStore((s) => s.textSize);
   const loadDisplay = useStore((s) => s.loadDisplay);
   // saved Display settings load after mount so the server and first client render match
@@ -54,10 +53,7 @@ export default function ReaderView({
     // Fixed viewport height: the text and the word panel scroll on their own, so the panel's Save bar stays at the screen bottom.
     <div className="h-screen flex flex-col">
       {/* Header */}
-      <header
-        data-theme={theme}
-        className="border-b border-line px-6 py-4 flex items-center gap-3 bg-bg text-ink"
-      >
+      <header className="border-b border-line px-6 py-4 flex items-center gap-3 text-ink">
         <button
           onClick={onBack}
           className="flex items-center gap-2 text-sm text-muted hover:text-ink transition-colors"
@@ -114,9 +110,8 @@ export default function ReaderView({
       <div className="flex flex-1 overflow-hidden">
         <main
           ref={mainRef}
-          data-theme={theme}
           style={{ fontSize: TEXT_SIZE_REM[textSize] }}
-          className="flex-1 overflow-y-auto p-8 bg-bg text-ink"
+          className="flex-1 overflow-y-auto p-8 text-ink"
         >
           {loading ? (
             <div className="flex items-center justify-center h-full text-muted text-sm">

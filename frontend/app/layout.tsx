@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Sans, DM_Serif_Display, Literata } from "next/font/google";
 import "./globals.css";
+import { THEME_INIT_SCRIPT } from "@/lib/display";
 
 // Self-hosted at build time; each font is exposed as a CSS variable for Tailwind and inline styles.
 const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-dm-sans" });
@@ -30,7 +31,12 @@ export default function RootLayout({
     <html
       lang="de"
       className={`${dmSans.variable} ${dmSerif.variable} ${literata.variable}`}
+      // the init script sets data-theme before React hydrates
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body>{children}</body>
     </html>
   );

@@ -8,7 +8,12 @@ import {
   WordStatus,
 } from "@/types";
 import { clickedKey } from "@/lib/words";
-import { DEFAULT_DISPLAY, loadDisplay, saveDisplay } from "@/lib/display";
+import {
+  applyTheme,
+  DEFAULT_DISPLAY,
+  loadDisplay,
+  saveDisplay,
+} from "@/lib/display";
 import {
   lookupWord,
   fetchSentenceTranslation,
@@ -309,9 +314,14 @@ const useStore = create<StoreState>((set, get) => ({
   ...DEFAULT_DISPLAY, // always the defaults at first render; saved values load after mount
   setDisplay: (patch) => {
     set(patch);
+    applyTheme(get().theme);
     saveDisplay(get());
   },
-  loadDisplay: () => set(loadDisplay()),
+  loadDisplay: () => {
+    const saved = loadDisplay();
+    set(saved);
+    applyTheme(saved.theme);
+  },
   openPanelOnSelect: true,
   setOpenPanelOnSelect: (open) => set({ openPanelOnSelect: open }),
   sidePanelOpen: false,

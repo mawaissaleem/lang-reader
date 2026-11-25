@@ -74,7 +74,7 @@ export default function AnkiFooter({
                 saved
                   ? "bg-surface-2 text-good border border-line cursor-default"
                   : primary
-                    ? "bg-accent text-on-accent hover:brightness-110 disabled:opacity-60"
+                    ? "bg-[image:var(--grad)] text-on-accent hover:brightness-110 disabled:opacity-60"
                     : "bg-accent-soft text-accent border border-line hover:bg-surface-2 disabled:opacity-60",
               )}
             >

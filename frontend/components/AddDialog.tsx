@@ -281,7 +281,7 @@ export default function AddDialog({ onSaved, onOpen }: Props) {
               <button
                 onClick={handleSubmit}
                 disabled={(!canSubmit && !imported) || busy}
-                className={`rounded-2xl bg-accent px-4 py-2 text-sm font-semibold text-on-accent transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
+                className={`rounded-2xl bg-[image:var(--grad)] px-4 py-2 text-sm font-semibold text-on-accent transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
               >
                 {busy ? "Adding…" : submitLabel(kind, imported?.entry)}
               </button>

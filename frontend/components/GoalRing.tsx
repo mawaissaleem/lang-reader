@@ -11,7 +11,7 @@ export default function GoalRing({
       aria-label={`${today} of ${goal} words today`}
       className="grid h-16 w-16 flex-none place-items-center rounded-full"
       style={{
-        background: `conic-gradient(var(--accent) ${goalPct({ today, goal })}%, var(--surface-2) 0)`,
+        background: `conic-gradient(var(--accent), var(--accent2) ${goalPct({ today, goal })}%, var(--surface-2) 0)`,
       }}
     >
       <span className="col-start-1 row-start-1 grid h-[50px] w-[50px] place-items-center rounded-full bg-surface text-[13px] font-bold text-ink">

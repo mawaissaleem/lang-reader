@@ -81,14 +81,7 @@ export default function LibraryPage() {
 
   // ── Library view ────────────────────────────────────────────────────────────
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "var(--bg)",
-        color: "var(--text)",
-        fontFamily: "var(--font-dm-sans), system-ui, sans-serif",
-      }}
-    >
+    <div>
       <AppNav>
         <AddDialog
           onSaved={() =>

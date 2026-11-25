@@ -149,7 +149,7 @@ export default function SidePanel() {
                       "flex-1 py-1 rounded-md transition-all tracking-wide uppercase text-[12px] font-semibold",
                       translatorPriority === "pons"
                         ? "bg-accent text-on-accent"
-                        : "text-faint hover:text-muted",
+                        : "text-muted hover:text-ink",
                     )}
                   >
                     PONS
@@ -163,7 +163,7 @@ export default function SidePanel() {
                       "flex-1 py-1 rounded-md transition-all tracking-wide uppercase text-[12px] font-semibold",
                       translatorPriority === "libretranslate"
                         ? "bg-accent text-on-accent"
-                        : "text-faint hover:text-muted",
+                        : "text-muted hover:text-ink",
                     )}
                   >
                     LibreTranslate
@@ -176,7 +176,7 @@ export default function SidePanel() {
           {/* Body — independent scroll */}
           <div className="flex-1 overflow-y-auto p-5">
             {wordLoading ? (
-              <div className="flex items-center gap-2 mt-4 text-[13px] text-faint">
+              <div className="flex items-center gap-2 mt-4 text-[13px] text-muted">
                 <Loader2 size={15} className="animate-spin" />
                 Looking up{" "}
                 <strong className="text-muted">{selectedWord}</strong>…
@@ -251,7 +251,7 @@ export default function SidePanel() {
                           "pb-2 -mb-px text-[11px] font-semibold tracking-widest uppercase border-b-2 transition-colors",
                           activeSource === t.id
                             ? "border-accent text-accent"
-                            : "border-transparent text-faint hover:text-muted",
+                            : "border-transparent text-muted hover:text-ink",
                         )}
                       >
                         {t.label}
@@ -289,7 +289,7 @@ export default function SidePanel() {
                     role="tabpanel"
                     className="flex flex-col items-center gap-3 py-6 text-center"
                   >
-                    <p className="text-[12px] text-faint m-0">
+                    <p className="text-[12px] text-muted m-0">
                       No {activeLabel} result for this word yet.
                     </p>
                     {sourceError && (
@@ -327,7 +327,7 @@ export default function SidePanel() {
                 )}
               </div>
             ) : (
-              <p className="text-[13px] text-faint mt-2">
+              <p className="text-[13px] text-muted mt-2">
                 Click any word to see its meaning.
               </p>
             )}

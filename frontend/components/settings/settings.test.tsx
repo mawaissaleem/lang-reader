@@ -170,6 +170,7 @@ describe("ReadingSection", () => {
     expect(JSON.parse(localStorage.getItem("readerDisplay")!).theme).toBe(
       "linen",
     );
+    expect(document.documentElement.dataset.theme).toBe("linen");
     expect(screen.getByTestId("preview-linen").dataset.theme).toBe("linen");
   });
 });

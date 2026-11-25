@@ -82,7 +82,7 @@ export default function GoalCard({
           <button
             type="submit"
             disabled={!valid}
-            className={`rounded-lg bg-accent px-3 py-1 text-sm font-semibold text-bg disabled:opacity-40 ${FOCUS}`}
+            className={`rounded-lg bg-[image:var(--grad)] px-3 py-1 text-sm font-semibold text-on-accent disabled:opacity-40 ${FOCUS}`}
           >
             Save
           </button>

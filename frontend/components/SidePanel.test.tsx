@@ -374,9 +374,9 @@ describe("SidePanel Anki outbox", () => {
   it("the default checkbox makes Save + Anki primary and persists", () => {
     open();
     const btn = () => screen.getByRole("button", { name: "Save + Anki" });
-    expect(btn().className).not.toContain("bg-accent ");
+    expect(btn().className).not.toContain("text-on-accent");
     fireEvent.click(screen.getByLabelText("Make Save + Anki the default"));
-    expect(btn().className).toContain("bg-accent ");
+    expect(btn().className).toContain("text-on-accent");
     expect(localStorage.getItem("ankiDefault")).toBe("1");
   });
 

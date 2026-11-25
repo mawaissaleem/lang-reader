@@ -4,7 +4,7 @@
 
 /* Three themes: Midnight (default), Grove and Linen. Values come from the contrast-checked
    design palette; every theme defines every token so none falls back to another by accident.
-   The page or reader container sets data-theme to pick one. */
+   The <html> element carries data-theme; the settings previews and video overlays set their own. */
 @layer base {
   :root,
   [data-theme="midnight"] {
@@ -150,8 +150,12 @@
   border-color: hsl(var(--border));
 }
 
+/* --glow is "none" outside Grove; fixed keeps it in view while pages scroll */
 body {
-  background-color: var(--bg);
+  min-height: 100vh;
+  background: var(--glow), var(--bg);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
   color: var(--text);
   font-family: var(--font-dm-sans), sans-serif;
 }
