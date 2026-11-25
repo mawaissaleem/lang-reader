@@ -35,7 +35,8 @@ class PageUndo(BaseModel):
 
 class TextCreate(BaseModel):
     title: Optional[str] = None
-    content: str
+    # same cap as web pages, so pasted text can't be used to fill the database
+    content: str = Field(max_length=importer.MAX_DOWNLOAD)
 
 
 @router.get("/videos")

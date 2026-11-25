@@ -18,10 +18,12 @@ export const USER_ID = 1;
 async function readJson<T>(response: Response, fallback?: string): Promise<T> {
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
+    // FastAPI validation errors (422) send `detail` as a list of {msg, ...}
+    const detail = Array.isArray(error.detail)
+      ? error.detail[0]?.msg
+      : error.detail;
     throw new Error(
-      error.detail ||
-        fallback ||
-        `Request failed with status ${response.status}`,
+      detail || fallback || `Request failed with status ${response.status}`,
     );
   }
   return response.json();

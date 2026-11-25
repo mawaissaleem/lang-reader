@@ -45,6 +45,16 @@ describe.each(calls)("%s errors", (_name, call) => {
     await expect(call()).rejects.toThrow("This video already exists...");
   });
 
+  it("shows the first message of a validation error list", async () => {
+    stubFetch(
+      422,
+      JSON.stringify({
+        detail: [{ msg: "String should have at most 5 characters" }],
+      }),
+    );
+    await expect(call()).rejects.toThrow("String should have at most 5");
+  });
+
   it("falls back to the status for a non-JSON error body", async () => {
     stubFetch(500, "<html>boom</html>");
     await expect(call()).rejects.toThrow("Request failed with status 500");

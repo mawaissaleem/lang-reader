@@ -10,6 +10,7 @@ from sqlalchemy.pool import StaticPool
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import importer
 from database import get_db
 from main import app
 from models import Base, Subtitle, Video
@@ -36,6 +37,14 @@ class TextEndpointTests(unittest.TestCase):
 
     def create(self, title="T", content="eins zwei drei"):
         return self.client.post("/texts", json={"title": title, "content": content})
+
+    def test_text_over_the_cap_is_rejected(self):
+        r = self.create(content="x" * (importer.MAX_DOWNLOAD + 1))
+        self.assertEqual(r.status_code, 422)
+
+    def test_text_at_the_cap_is_saved(self):
+        r = self.create(content="x" * importer.MAX_DOWNLOAD)
+        self.assertEqual(r.status_code, 200)
 
     def add_subtitle(self, vtt_path):
         with self.Session() as db:
