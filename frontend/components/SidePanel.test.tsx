@@ -11,7 +11,6 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/api", () => ({
-  USER_ID: 1,
   ttsUrl: (t: string) => `/tts?text=${t}`,
   fetchSentenceTranslation: vi.fn(async () => ""),
   lookupWord: vi.fn(),
@@ -328,7 +327,6 @@ describe("SidePanel source tabs", () => {
     await waitFor(() =>
       expect(saveWord).toHaveBeenCalledWith(
         7,
-        1,
         "libretranslate",
         { form: "haus" },
         false,
@@ -367,13 +365,7 @@ describe("SidePanel Anki outbox", () => {
     open();
     fireEvent.click(screen.getByRole("button", { name: "Save + Anki" }));
     await waitFor(() =>
-      expect(saveWord).toHaveBeenCalledWith(
-        7,
-        1,
-        "pons",
-        { form: "haus" },
-        true,
-      ),
+      expect(saveWord).toHaveBeenCalledWith(7, "pons", { form: "haus" }, true),
     );
   });
 
@@ -407,7 +399,7 @@ describe("SidePanel Anki outbox", () => {
     open();
     fireEvent.click(screen.getByRole("button", { name: "Pull from Anki" }));
     await screen.findByText("3 of 5 words updated from Anki");
-    expect(fetchUserWords).toHaveBeenCalledWith(1);
+    expect(fetchUserWords).toHaveBeenCalledWith();
   });
 
   it("keeps the success message when the reload after a pull fails", async () => {
@@ -526,7 +518,7 @@ describe("SidePanel AI tab", () => {
     expect(screen.queryByTestId("sentence-box")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "+ Anki" }));
     await screen.findByText("Waiting for Anki");
-    expect(addSentenceCard).toHaveBeenCalledWith(1, {
+    expect(addSentenceCard).toHaveBeenCalledWith({
       sentence_de: "Das Haus ist alt.",
       sentence_en: "The house is old.",
       target_word: "haus",
@@ -554,7 +546,7 @@ describe("SidePanel reader sentence", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "+ Anki" }));
     await screen.findByText("✓ In Anki");
-    expect(addSentenceCard).toHaveBeenCalledWith(1, {
+    expect(addSentenceCard).toHaveBeenCalledWith({
       sentence_de: "Das Haus ist alt.",
       sentence_en: "The house is old.",
       target_word: "haus",
@@ -582,7 +574,7 @@ describe("SidePanel reader sentence", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "+ Anki" }));
     await screen.findByText("✓ In Anki");
-    expect(vi.mocked(addSentenceCard).mock.calls[0][1].bold).toEqual([
+    expect(vi.mocked(addSentenceCard).mock.calls[0][0].bold).toEqual([
       "fängt",
       "an",
     ]);

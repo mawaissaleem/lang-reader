@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { fetchProgressHistory, USER_ID } from "@/lib/api";
+import { fetchProgressHistory } from "@/lib/api";
 import type { ProgressHistory } from "@/lib/history";
 
 /** Loads today's count, goal and streak; refetches when `paused` turns false (the reader may have saved words). */
@@ -9,7 +9,7 @@ export function useProgressHistory(paused: boolean) {
 
   const refresh = useCallback(
     () =>
-      fetchProgressHistory(USER_ID)
+      fetchProgressHistory()
         .then(setHistory)
         .catch((err) => console.error("Progress history load failed", err)),
     [],

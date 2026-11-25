@@ -201,7 +201,7 @@ class EndpointTest(unittest.TestCase):
 
     def test_import_saves_mapping_and_returns_counts(self):
         with client_for(Collection(["das Haus"])):
-            r = self.client.post("/anki/import?user_id=1", json=MAPPING)
+            r = self.client.post("/anki/import", json=MAPPING)
             self.assertEqual(
                 r.json(), {"imported": 1, "already_known": 0, "skipped": 0}
             )
@@ -211,9 +211,7 @@ class EndpointTest(unittest.TestCase):
 
     def test_import_without_deck_is_422(self):
         self.assertEqual(
-            self.client.post(
-                "/anki/import?user_id=1", json={**MAPPING, "decks": []}
-            ).status_code,
+            self.client.post("/anki/import", json={**MAPPING, "decks": []}).status_code,
             422,
         )
 
@@ -223,7 +221,7 @@ class EndpointTest(unittest.TestCase):
 
         with client_for(closed):
             self.assertEqual(
-                self.client.post("/anki/import?user_id=1", json=MAPPING).status_code,
+                self.client.post("/anki/import", json=MAPPING).status_code,
                 502,
             )
             self.assertEqual(self.client.get("/anki/overview").status_code, 502)

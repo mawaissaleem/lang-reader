@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import {
   markNewWordsKnown,
   undoMarkNewWordsKnown,
-  USER_ID,
   type PageMarkResult,
 } from "@/lib/api";
 import { isHotkeyEvent } from "@/lib/status";
@@ -53,7 +52,7 @@ export default function PageBar({
     try {
       const result = await request();
       setUndoable(result?.changed ? result : null);
-      await loadUserWords(USER_ID);
+      await loadUserWords();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -67,13 +66,13 @@ export default function PageBar({
     const ok = window.confirm(
       `Mark ${n} new word${n === 1 ? "" : "s"} on this page as known?`,
     );
-    if (ok) run(() => markNewWordsKnown(newWords, USER_ID));
+    if (ok) run(() => markNewWordsKnown(newWords));
   }
 
   function undo() {
     if (!undoable) return;
     run(async () => {
-      await undoMarkNewWordsKnown(undoable, USER_ID);
+      await undoMarkNewWordsKnown(undoable);
       return null;
     });
   }

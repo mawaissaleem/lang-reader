@@ -91,7 +91,7 @@ class SentenceApiTest(unittest.TestCase):
         self.addCleanup(main.app.dependency_overrides.clear)
 
     def add(self, **over):
-        return self.client.post("/anki/sentences?user_id=1", json={**BODY, **over})
+        return self.client.post("/anki/sentences", json={**BODY, **over})
 
     def test_note_has_bold_target_fields_tags_deck_and_model(self):
         fake = Fake()

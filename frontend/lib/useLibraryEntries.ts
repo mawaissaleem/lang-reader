@@ -7,7 +7,6 @@ import {
   fetchLibraryProgress,
   markEntryKnown,
   renameEntry,
-  USER_ID,
   type LibraryEntry as Entry,
 } from "@/lib/api";
 import type { Progress } from "@/lib/progress";
@@ -62,7 +61,7 @@ export function useLibraryEntries(paused: boolean) {
 
   const markKnown = useCallback(
     async (entry: Entry) => {
-      await markEntryKnown(entry, USER_ID);
+      await markEntryKnown(entry);
       await refreshProgress();
     },
     [refreshProgress],

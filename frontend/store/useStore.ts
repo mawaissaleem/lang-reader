@@ -23,7 +23,6 @@ import {
   fetchUserWords,
   patchWordStatus,
   type WordLookupResponse,
-  USER_ID,
 } from "@/lib/api";
 
 // open on the preferred source when it has a result, else on whatever was returned
@@ -255,7 +254,7 @@ const useStore = create<StoreState>((set, get) => ({
     try {
       put(
         (
-          await addSentenceCard(USER_ID, {
+          await addSentenceCard({
             sentence_de: german,
             sentence_en: english,
             target_word: word,
@@ -284,13 +283,13 @@ const useStore = create<StoreState>((set, get) => ({
     try {
       const saved = await saveWord(
         wordResult.id,
-        USER_ID,
+
         activeSource && activeSource !== "ai" ? activeSource : undefined,
         context,
         anki,
       );
       // already_saved or not, reload to get the user_words id and status
-      await get().loadUserWords(USER_ID);
+      await get().loadUserWords();
       // shortcut: only the clicked form gets the base form's color; other inflected forms of the same word keep their own, separate color
       const base = get().userWords[wordResult.word];
       if (base)
@@ -328,8 +327,8 @@ const useStore = create<StoreState>((set, get) => ({
   sidePanelOpen: false,
   setSidePanelOpen: (open) => set({ sidePanelOpen: open }),
   userWords: {},
-  loadUserWords: async (userId: number) => {
-    const words = await fetchUserWords(userId);
+  loadUserWords: async () => {
+    const words = await fetchUserWords();
     set({
       // clicked forms first, so a saved word with the same text as another word's form keeps its own entry
       userWords: Object.fromEntries(

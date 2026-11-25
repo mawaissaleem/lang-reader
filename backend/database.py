@@ -21,6 +21,10 @@ def run_migrations(url: str = DATABASE_URL) -> None:
     command.upgrade(cfg, "head")
 
 
+# The app is single-user by design: every route acts as this one user.
+USER_ID = 1
+
+
 def get_db():
     db = SessionLocal()
     try:

@@ -52,10 +52,10 @@ class TestLookupDoesNotSave(unittest.IsolatedAsyncioTestCase):
 
     async def test_save_creates_then_already_saved(self):
         word_id = (await self._lookup())["id"]
-        first = await save_word(word_id, 1, db=self.db)
+        first = await save_word(word_id, db=self.db)
         self.assertFalse(first["already_saved"])
         self.assertEqual(self.db.query(UserWord).count(), 1)
-        second = await save_word(word_id, 1, db=self.db)
+        second = await save_word(word_id, db=self.db)
         self.assertTrue(second["already_saved"])
         self.assertEqual(self.db.query(UserWord).count(), 1)
 
@@ -87,30 +87,30 @@ class TestSaveSource(unittest.IsolatedAsyncioTestCase):
             )["id"]
 
     async def test_save_stores_source(self):
-        await save_word(self.word_id, 1, source="libretranslate", db=self.db)
+        await save_word(self.word_id, source="libretranslate", db=self.db)
         self.assertEqual(self.db.query(UserWord).one().source, "libretranslate")
 
     async def test_unknown_source_is_422(self):
         with self.assertRaises(HTTPException) as cm:
-            await save_word(self.word_id, 1, source="deepl", db=self.db)
+            await save_word(self.word_id, source="deepl", db=self.db)
         self.assertEqual(cm.exception.status_code, 422)
         self.assertEqual(self.db.query(UserWord).count(), 0)
 
     async def test_resave_updates_source(self):
-        await save_word(self.word_id, 1, source="pons", db=self.db)
-        r = await save_word(self.word_id, 1, source="libretranslate", db=self.db)
+        await save_word(self.word_id, source="pons", db=self.db)
+        r = await save_word(self.word_id, source="libretranslate", db=self.db)
         self.assertTrue(r["already_saved"])
         self.assertEqual(self.db.query(UserWord).one().source, "libretranslate")
 
     async def test_user_words_returns_saved_sources_meanings(self):
-        await save_word(self.word_id, 1, source="libretranslate", db=self.db)
-        row = get_user_words(1, db=self.db)[0]
+        await save_word(self.word_id, source="libretranslate", db=self.db)
+        row = get_user_words(db=self.db)[0]
         self.assertEqual(row["source"], "libretranslate")
         self.assertEqual(row["english_meanings"], ["java (drink)"])
 
     async def test_user_words_without_source_uses_dictionary_mirror(self):
-        await save_word(self.word_id, 1, db=self.db)
-        row = get_user_words(1, db=self.db)[0]
+        await save_word(self.word_id, db=self.db)
+        row = get_user_words(db=self.db)[0]
         self.assertIsNone(row["source"])
         self.assertEqual(
             row["english_meanings"], self.db.query(UserWord).one().word.english_meanings
@@ -140,18 +140,18 @@ class TestWordStatus(unittest.IsolatedAsyncioTestCase):
             return_value=PONS_OK,
         ):
             word_id = (await lookup_word("kaffee", db=self.db))["id"]
-        await save_word(word_id, 1, db=self.db)
+        await save_word(word_id, db=self.db)
         self.uw_id = self.db.query(UserWord).one().id
 
     async def test_new_save_defaults_to_learning1(self):
-        self.assertEqual(get_user_words(1, db=self.db)[0]["status"], "learning1")
+        self.assertEqual(get_user_words(db=self.db)[0]["status"], "learning1")
 
     async def test_set_status_reads_back(self):
         r = self.client.patch(
             f"/user-words/{self.uw_id}/status", json={"status": "known"}
         )
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(self.client.get("/user/1/words").json()[0]["status"], "known")
+        self.assertEqual(self.client.get("/user/words").json()[0]["status"], "known")
 
     async def test_invalid_status_is_422(self):
         r = self.client.patch(
@@ -186,7 +186,7 @@ class TestSaveContext(unittest.IsolatedAsyncioTestCase):
             return_value=PONS_OK,
         ):
             self.word_id = (await lookup_word("kaffee", db=self.db))["id"]
-        self.url = f"/user-words/{self.word_id}/save?user_id=1"
+        self.url = f"/user-words/{self.word_id}/save"
 
     async def test_save_stores_and_returns_context(self):
         ctx = {
@@ -195,14 +195,12 @@ class TestSaveContext(unittest.IsolatedAsyncioTestCase):
             "text_id": 4,
         }
         self.assertEqual(self.client.post(self.url, json=ctx).status_code, 200)
-        row = self.client.get("/user/1/words").json()[0]
+        row = self.client.get("/user/words").json()[0]
         self.assertEqual({k: row[k] for k in ctx}, ctx)
 
     async def test_save_without_body_still_works(self):
         self.assertEqual(self.client.post(self.url).status_code, 200)
-        self.assertIsNone(
-            self.client.get("/user/1/words").json()[0]["context_sentence"]
-        )
+        self.assertIsNone(self.client.get("/user/words").json()[0]["context_sentence"])
 
     async def test_invalid_kind_is_422(self):
         r = self.client.post(
@@ -219,7 +217,7 @@ class TestSaveContext(unittest.IsolatedAsyncioTestCase):
             self.url,
             json={"context_sentence": "Zwei.", "text_kind": "video", "text_id": 2},
         )
-        row = self.client.get("/user/1/words").json()[0]
+        row = self.client.get("/user/words").json()[0]
         self.assertEqual(
             (row["context_sentence"], row["text_kind"], row["text_id"]),
             ("Eins.", "text", 1),
@@ -231,7 +229,7 @@ class TestSaveContext(unittest.IsolatedAsyncioTestCase):
             self.url,
             json={"context_sentence": "Zwei.", "text_kind": "video", "text_id": 2},
         )
-        row = self.client.get("/user/1/words").json()[0]
+        row = self.client.get("/user/words").json()[0]
         self.assertEqual(
             (row["context_sentence"], row["text_kind"], row["text_id"]),
             ("Zwei.", "video", 2),
@@ -242,19 +240,19 @@ class TestClickedForms(TestSaveContext):
     """Clicked forms (den for der) are kept with the saved word so the reader colours them after a reload."""
 
     def forms(self):
-        return self.client.get("/user/1/words").json()[0]["forms"]
+        return self.client.get("/user/words").json()[0]["forms"]
 
     async def test_save_remembers_form_once_and_skips_base_form(self):
         self.client.post(self.url, json={"form": "Kaffees"})
         self.client.post(self.url, json={"form": "Kaffees"})
-        word = self.client.get("/user/1/words").json()[0]["word"]
+        word = self.client.get("/user/words").json()[0]["word"]
         self.client.post(self.url, json={"form": word})
         self.assertEqual(self.forms(), ["Kaffees"])
 
     async def test_status_change_remembers_form(self):
         self.client.post(self.url)
         self.assertEqual(self.forms(), [])
-        uw_id = self.client.get("/user/1/words").json()[0]["id"]
+        uw_id = self.client.get("/user/words").json()[0]["id"]
         r = self.client.patch(
             f"/user-words/{uw_id}/status", json={"status": "known", "form": "kaffees"}
         )

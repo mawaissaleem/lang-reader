@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/api", () => ({
-  USER_ID: 1,
   fetchSentenceTranslation: vi.fn(),
   lookupWord: vi.fn(),
   saveWord: vi.fn(),

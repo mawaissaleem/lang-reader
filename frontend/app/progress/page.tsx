@@ -4,7 +4,7 @@ import AppNav from "@/components/AppNav";
 import ActivityGrid from "@/components/progress/ActivityGrid";
 import GoalCard from "@/components/progress/GoalCard";
 import KnownChart from "@/components/progress/KnownChart";
-import { fetchProgressHistory, USER_ID } from "@/lib/api";
+import { fetchProgressHistory } from "@/lib/api";
 import type { ProgressHistory } from "@/lib/history";
 
 export default function ProgressPage() {
@@ -12,7 +12,7 @@ export default function ProgressPage() {
   const [error, setError] = useState<string | null>(null);
 
   const load = () =>
-    fetchProgressHistory(USER_ID)
+    fetchProgressHistory()
       .then(setData)
       .catch((e: Error) => setError(e.message));
 

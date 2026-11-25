@@ -77,8 +77,8 @@ class TestWriters(Base_):
         d = Dictionary(german_word="Baum", english_meanings=[], source="pons")
         self.db.add(d)
         self.db.commit()
-        asyncio.run(words.save_word(d.id, 1, db=self.db))
-        asyncio.run(words.save_word(d.id, 1, db=self.db))
+        asyncio.run(words.save_word(d.id, db=self.db))
+        asyncio.run(words.save_word(d.id, db=self.db))
         self.assertEqual(self.db.query(WordEvent).count(), 1)
 
     def test_save_word_logs_learning1(self):
@@ -87,7 +87,7 @@ class TestWriters(Base_):
         d = Dictionary(german_word="Baum", english_meanings=[], source="pons")
         self.db.add(d)
         self.db.commit()
-        asyncio.run(words.save_word(d.id, 1, db=self.db))
+        asyncio.run(words.save_word(d.id, db=self.db))
         self.assertEqual(
             [(e.word_id, e.status) for e in self.db.query(WordEvent)],
             [(d.id, "learning1")],
@@ -275,7 +275,7 @@ class TestProgress(Base_):
         self.addCleanup(main.app.dependency_overrides.clear)
         c = TestClient(main.app)
         self.assertEqual(
-            c.get("/progress?user_id=1&tz=Europe/Berlin").json()["streak"]["current"], 0
+            c.get("/progress?tz=Europe/Berlin").json()["streak"]["current"], 0
         )
         self.assertEqual(c.get("/progress?tz=Nope/Zone").status_code, 400)
 

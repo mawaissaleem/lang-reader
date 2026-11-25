@@ -13,7 +13,6 @@ import {
   fetchAnkiFields,
   importAnkiKnown,
   API_BASE_URL,
-  USER_ID,
 } from "@/lib/api";
 import useStore from "@/store/useStore";
 
@@ -123,10 +122,8 @@ export default function SettingsPage() {
     setError(null);
     setResult(null);
     try {
-      setResult(
-        await importAnkiKnown(USER_ID, { decks: chosen, model, field }),
-      );
-      await loadUserWords(USER_ID);
+      setResult(await importAnkiKnown({ decks: chosen, model, field }));
+      await loadUserWords();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Import failed");
     } finally {
@@ -242,7 +239,7 @@ export default function SettingsPage() {
               No desktop Anki?{" "}
               <a
                 className="text-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                href={`${API_BASE_URL}/anki/export.apkg?user_id=${USER_ID}`}
+                href={`${API_BASE_URL}/anki/export.apkg`}
               >
                 Export .apkg
               </a>{" "}

@@ -63,7 +63,7 @@ class TestEndpoint(unittest.TestCase):
             self.db.add(v)
             self.db.commit()
             sub_id = v.subtitles[0].id
-            out = get_library_progress(user_id=1, db=self.db)
+            out = get_library_progress(db=self.db)
         self.assertEqual(
             out["text-1"], {"known": 1, "learning": 0, "new": 1, "total": 2}
         )
@@ -71,23 +71,23 @@ class TestEndpoint(unittest.TestCase):
             out[f"video-{sub_id}"], {"known": 1, "learning": 0, "new": 2, "total": 3}
         )
 
-    def test_missing_file_skipped_and_other_user_has_no_known(self):
+    def test_missing_file_skipped(self):
         v = Video(url="u", title="T")
         v.subtitles.append(
             Subtitle(extraction_method="x", txt_path="/nope.txt", word_count=1)
         )
         self.db.add(v)
         self.db.commit()
-        self.assertEqual(get_library_progress(user_id=2, db=self.db), {})
+        self.assertEqual(get_library_progress(db=self.db), {})
 
     def test_cache_skips_rereading(self):
         self.db.add(ManualText(title="t", content="Haus", word_count=1))
         self.db.commit()
-        get_library_progress(user_id=1, db=self.db)
+        get_library_progress(db=self.db)
         with patch.object(
             progress, "unique_words", side_effect=AssertionError("re-split")
         ):
-            get_library_progress(user_id=1, db=self.db)
+            get_library_progress(db=self.db)
 
 
 if __name__ == "__main__":

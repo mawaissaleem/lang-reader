@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/api", () => ({
-  USER_ID: 1,
   fetchSentenceTranslation: vi.fn(async () => ""),
   lookupWord: vi.fn(),
   saveWord: vi.fn(),
@@ -53,7 +52,6 @@ describe("saveSelectedWord", () => {
     await useStore.getState().saveSelectedWord();
     expect(saveWord).toHaveBeenCalledWith(
       7,
-      1,
       "pons",
       {
         form: "Haus",
@@ -74,7 +72,7 @@ describe("saveSelectedWord", () => {
     vi.mocked(fetchUserWords).mockResolvedValue([]);
     useStore.setState({ selectedSentence: null, activeSource: "ai" });
     await useStore.getState().saveSelectedWord();
-    expect(vi.mocked(saveWord).mock.calls[0][2]).toBeUndefined();
+    expect(vi.mocked(saveWord).mock.calls[0][1]).toBeUndefined();
   });
 
   it("keeps the text ref from click time when another text opens before save", async () => {
@@ -100,7 +98,6 @@ describe("saveSelectedWord", () => {
     await useStore.getState().saveSelectedWord();
     expect(saveWord).toHaveBeenCalledWith(
       7,
-      1,
       "pons",
       {
         form: "Haus",
@@ -120,7 +117,7 @@ describe("saveSelectedWord", () => {
     });
     vi.mocked(fetchUserWords).mockResolvedValue([]);
     await useStore.getState().saveSelectedWord(true);
-    expect(vi.mocked(saveWord).mock.calls[0][4]).toBe(true);
+    expect(vi.mocked(saveWord).mock.calls[0][3]).toBe(true);
     expect(useStore.getState().saveError).toMatch(/Anki rejected/);
   });
 
@@ -135,7 +132,6 @@ describe("saveSelectedWord", () => {
     await useStore.getState().saveSelectedWord();
     expect(saveWord).toHaveBeenCalledWith(
       7,
-      1,
       undefined,
       { form: "Haus" },
       false,
@@ -273,7 +269,7 @@ describe("loadUserWords", () => {
       { id: 1, word: "der", status: "known", forms: ["den", "die"] },
       { id: 2, word: "die", status: "learning1", forms: [] },
     ] as never);
-    await useStore.getState().loadUserWords(1);
+    await useStore.getState().loadUserWords();
     const { userWords } = useStore.getState();
     expect(userWords.den).toEqual({ id: 1, status: "known" });
     expect(userWords.die).toEqual({ id: 2, status: "learning1" });
@@ -341,7 +337,7 @@ describe("addSentenceCard", () => {
       pending: 1,
     });
     await add();
-    expect(addSentenceCard).toHaveBeenCalledWith(1, {
+    expect(addSentenceCard).toHaveBeenCalledWith({
       sentence_de: "Das Haus ist alt.",
       sentence_en: "The house is old.",
       target_word: "Haus",

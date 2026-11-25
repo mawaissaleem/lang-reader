@@ -33,7 +33,7 @@ afterEach(() => vi.unstubAllGlobals());
 const calls: [string, () => Promise<unknown>][] = [
   ["importFromYouTube", () => importFromYouTube("https://youtu.be/x")],
   ["lookupWord", () => lookupWord("Haus")],
-  ["saveWord", () => saveWord(1, 1)],
+  ["saveWord", () => saveWord(1)],
   ["createText", () => createText("t", "x")],
   ["fetchText", () => fetchText(1)],
   ["renameText", () => renameText(1, "t")],
@@ -109,6 +109,21 @@ describe("entry dispatch", () => {
   });
 });
 
+describe("user-scoped urls", () => {
+  it("fetchUserWords uses /user/words", async () => {
+    stubFetch(200, "[]");
+    await fetchUserWords();
+    expect(vi.mocked(fetch).mock.calls[0][0]).toMatch(/\/user\/words$/);
+  });
+
+  it("saveWord sends no user id", async () => {
+    stubFetch(200, "{}");
+    await saveWord(1, "pons", undefined, true);
+    const url = vi.mocked(fetch).mock.calls[0][0] as string;
+    expect(url).toMatch(/\/user-words\/1\/save\?source=pons&anki=true$/);
+  });
+});
+
 describe("lookupWord url", () => {
   it("does not send a user id", async () => {
     stubFetch(200, "{}");
@@ -119,7 +134,7 @@ describe("lookupWord url", () => {
 
 describe("fetch helpers that used a fixed error message", () => {
   const helpers: [string, () => Promise<unknown>, string][] = [
-    ["fetchUserWords", () => fetchUserWords(1), "Failed to fetch user words"],
+    ["fetchUserWords", () => fetchUserWords(), "Failed to fetch user words"],
     ["fetchLibrary", () => fetchLibrary(), "Failed to fetch library: 500"],
     [
       "fetchLibraryProgress",
@@ -129,7 +144,7 @@ describe("fetch helpers that used a fixed error message", () => {
     ["fetchSubtitleText", () => fetchSubtitleText(1), "Failed to fetch text"],
     [
       "fetchProgressHistory",
-      () => fetchProgressHistory(1),
+      () => fetchProgressHistory(),
       "Failed to fetch progress: 500",
     ],
   ];
@@ -247,18 +262,18 @@ describe("addSentenceCard", () => {
       target_word: "Haus",
       source: "AI example",
     };
-    expect(await addSentenceCard(1, card)).toEqual({
+    expect(await addSentenceCard(card)).toEqual({
       anki_status: "sent",
       pending: 0,
     });
     const [url, init] = vi.mocked(fetch).mock.calls[0];
-    expect(url).toMatch(/\/anki\/sentences\?user_id=1$/);
+    expect(url).toMatch(/\/anki\/sentences$/);
     expect(JSON.parse(init!.body as string)).toEqual(card);
   });
 
   it("throws the backend's error", async () => {
     stubFetch(422, JSON.stringify({ detail: "bad" }));
-    await expect(addSentenceCard(1, {} as never)).rejects.toThrow("bad");
+    await expect(addSentenceCard({} as never)).rejects.toThrow("bad");
   });
 });
 

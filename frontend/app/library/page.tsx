@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { fetchLibrary, entryKey, USER_ID } from "@/lib/api";
+import { fetchLibrary, entryKey } from "@/lib/api";
 import AppNav from "@/components/AppNav";
 import AddDialog from "@/components/AddDialog";
 import EntryCard from "@/components/library/EntryCard";
@@ -53,7 +53,7 @@ export default function LibraryPage() {
 
   // Load user words once (same as root page)
   useEffect(() => {
-    loadUserWords(USER_ID);
+    loadUserWords();
     loadTranslatorPriority();
   }, [loadUserWords, loadTranslatorPriority]);
 
@@ -166,7 +166,7 @@ export default function LibraryPage() {
                 onRename={rename}
                 onMarkKnown={async (e) => {
                   await markKnown(e);
-                  await Promise.all([loadUserWords(USER_ID), refreshHistory()]);
+                  await Promise.all([loadUserWords(), refreshHistory()]);
                 }}
                 onDelete={remove}
               />

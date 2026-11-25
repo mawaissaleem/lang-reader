@@ -106,7 +106,7 @@ class OutboxTest(unittest.IsolatedAsyncioTestCase):
 
     async def _save(self, anki_flag=True, ctx=None):
         return await save_word(
-            self.word_id, 1, source="pons", anki=anki_flag, body=ctx, db=self.db
+            self.word_id, source="pons", anki=anki_flag, body=ctx, db=self.db
         )
 
     async def test_plain_save_leaves_anki_none_and_sends_nothing(self):

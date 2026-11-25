@@ -10,7 +10,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/api", () => ({
   API_BASE_URL: "http://localhost:8000",
-  USER_ID: 1,
   fetchAnkiOverview: vi.fn(),
   fetchAnkiConnected: vi.fn(async () => true),
   fetchAnkiPending: vi.fn(async () => 0),
@@ -83,7 +82,7 @@ describe("SettingsPage", () => {
     });
     fireEvent.click(screen.getByText("Import 1 deck as known"));
     await screen.findByText(/Imported 3 new words/);
-    expect(importAnkiKnown).toHaveBeenCalledWith(1, {
+    expect(importAnkiKnown).toHaveBeenCalledWith({
       decks: ["Goethe"],
       model: "Vocab",
       field: "de_word",

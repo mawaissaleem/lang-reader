@@ -24,7 +24,7 @@ from anki import (
     pending_count,
     AnkiError,
 )
-from database import get_db
+from database import USER_ID, get_db
 from models import SentenceCard, Setting
 
 router = APIRouter()
@@ -62,19 +62,17 @@ class SentenceCardIn(BaseModel):
 
 
 @router.post("/anki/sentences")
-async def anki_add_sentence(
-    body: SentenceCardIn, user_id: int, db: Session = Depends(get_db)
-):
+async def anki_add_sentence(body: SentenceCardIn, db: Session = Depends(get_db)):
     """Queue a Reader Sentence note (one per user + sentence + word) and try to send it now."""
     sc = (
         db.query(SentenceCard)
         .filter_by(
-            user_id=user_id, sentence_de=body.sentence_de, target_word=body.target_word
+            user_id=USER_ID, sentence_de=body.sentence_de, target_word=body.target_word
         )
         .first()
     )
     if not sc:
-        sc = SentenceCard(user_id=user_id, **body.model_dump())
+        sc = SentenceCard(user_id=USER_ID, **body.model_dump())
         db.add(sc)
     elif sc.anki_status == "failed":
         sc.anki_status = "pending"  # clicking again retries
@@ -97,10 +95,10 @@ async def anki_sync(db: Session = Depends(get_db)):
 
 
 @router.post("/anki/pull")
-async def anki_pull(user_id: int, db: Session = Depends(get_db)):
+async def anki_pull(db: Session = Depends(get_db)):
     """Promote word statuses from the Reader Word cards' Anki intervals."""
     try:
-        return await pull_intervals(db, user_id)
+        return await pull_intervals(db, USER_ID)
     except AnkiError as e:
         raise HTTPException(status_code=502, detail=str(e))
 
@@ -133,13 +131,13 @@ async def anki_fields(model: str):
 
 
 @router.post("/anki/import")
-async def anki_import(body: AnkiMapping, user_id: int, db: Session = Depends(get_db)):
+async def anki_import(body: AnkiMapping, db: Session = Depends(get_db)):
     """Save the mapping and import its words as known. Read-only on Anki."""
     if not body.decks:
         raise HTTPException(status_code=422, detail="Pick at least one deck")
     mapping = body.model_dump()
     try:
-        result = await import_known(db, user_id, mapping)
+        result = await import_known(db, USER_ID, mapping)
     except AnkiError as e:
         raise HTTPException(status_code=502, detail=str(e))
     db.merge(Setting(key="anki_mapping", value=mapping))
@@ -148,11 +146,11 @@ async def anki_import(body: AnkiMapping, user_id: int, db: Session = Depends(get
 
 
 @router.get("/anki/export.apkg")
-def anki_export(user_id: int, db: Session = Depends(get_db)):
+def anki_export(db: Session = Depends(get_db)):
     """Fallback for no desktop Anki: the user's Anki-bound words as a deck to import by hand."""
     fd, path = tempfile.mkstemp(suffix=".apkg")
     os.close(fd)
-    export_apkg(db, user_id, path)
+    export_apkg(db, USER_ID, path)
     return FileResponse(
         path,
         media_type="application/octet-stream",

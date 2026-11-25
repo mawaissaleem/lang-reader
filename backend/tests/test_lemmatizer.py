@@ -263,7 +263,7 @@ class TestLookupUsesLemma(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((verb["word"], verb["article"]), ("essen", None))
         self.assertNotEqual(noun["id"], verb["id"])
         for r in (noun, verb):
-            await save_word(r["id"], user_id=1, db=db)
+            await save_word(r["id"], db=db)
         self.assertEqual(db.query(UserWord).count(), 2)
 
     async def test_noun_adopts_legacy_lowercase_row(self):
@@ -306,7 +306,7 @@ class TestLookupUsesLemma(unittest.IsolatedAsyncioTestCase):
         old.translations.append(Translation(source="pons", meanings=["go"]))
         db.add(old)
         db.commit()
-        await save_word(old.id, user_id=1, db=db)
+        await save_word(old.id, db=db)
         pons = AsyncMock(
             return_value={
                 "success": True,

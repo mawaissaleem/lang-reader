@@ -8,9 +8,6 @@ import type { Cue } from "@/lib/video";
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-/** The single user this app serves; every API and store call that needs a user id passes this. */
-export const USER_ID = 1;
-
 /**
  * Parses a JSON response, or throws an Error carrying the server's `detail`.
  * `fallback` is the message used when the server sends no detail.
@@ -77,8 +74,8 @@ export interface UserWord {
   forms: string[]; // clicked forms that differ from the base form (den for der)
 }
 
-export async function fetchUserWords(userId: number): Promise<UserWord[]> {
-  const response = await fetch(`${API_BASE_URL}/user/${userId}/words`);
+export async function fetchUserWords(): Promise<UserWord[]> {
+  const response = await fetch(`${API_BASE_URL}/user/words`);
   return readJson(response, "Failed to fetch user words");
 }
 
@@ -92,7 +89,6 @@ export interface SaveContext {
 
 export async function saveWord(
   wordId: number,
-  userId: number,
   source?: string,
   context?: SaveContext,
   anki = false,
@@ -101,8 +97,11 @@ export async function saveWord(
   already_saved: boolean;
   anki_status: "none" | "pending" | "sent" | "failed";
 }> {
+  const query = new URLSearchParams();
+  if (source) query.set("source", source);
+  if (anki) query.set("anki", "true");
   const response = await fetch(
-    `${API_BASE_URL}/user-words/${wordId}/save?user_id=${userId}${source ? `&source=${encodeURIComponent(source)}` : ""}${anki ? "&anki=true" : ""}`,
+    `${API_BASE_URL}/user-words/${wordId}/save?${query}`,
     context
       ? {
           method: "POST",
@@ -281,10 +280,9 @@ export async function deleteEntry(e: LibraryEntry): Promise<void> {
 
 export async function markEntryKnown(
   e: LibraryEntry,
-  userId: number,
 ): Promise<{ changed: number }> {
   return readJson(
-    await fetch(`${entryPath(e)}/mark-known?user_id=${userId}`, {
+    await fetch(`${entryPath(e)}/mark-known`, {
       method: "POST",
     }),
   );
@@ -300,10 +298,9 @@ export interface PageMarkResult {
 /** Marks the given words known, but only those the user has not saved yet; one all-or-nothing request. */
 export async function markNewWordsKnown(
   words: string[],
-  userId: number,
 ): Promise<PageMarkResult> {
   return readJson(
-    await fetch(`${API_BASE_URL}/library/mark-new-known?user_id=${userId}`, {
+    await fetch(`${API_BASE_URL}/library/mark-new-known`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ words }),
@@ -314,20 +311,16 @@ export async function markNewWordsKnown(
 /** Removes exactly the words and history events a markNewWordsKnown call created. */
 export async function undoMarkNewWordsKnown(
   result: PageMarkResult,
-  userId: number,
 ): Promise<{ removed: number; word_ids: number[]; event_ids: number[] }> {
   return readJson(
-    await fetch(
-      `${API_BASE_URL}/library/undo-mark-new-known?user_id=${userId}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          word_ids: result.word_ids,
-          event_ids: result.event_ids,
-        }),
-      },
-    ),
+    await fetch(`${API_BASE_URL}/library/undo-mark-new-known`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        word_ids: result.word_ids,
+        event_ids: result.event_ids,
+      }),
+    }),
   );
 }
 
@@ -386,11 +379,12 @@ export async function syncAnki(): Promise<{
   return readJson(response);
 }
 
-export async function pullAnki(
-  userId: number,
-): Promise<{ changed: number; checked: number }> {
+export async function pullAnki(): Promise<{
+  changed: number;
+  checked: number;
+}> {
   return readJson(
-    await fetch(`${API_BASE_URL}/anki/pull?user_id=${userId}`, {
+    await fetch(`${API_BASE_URL}/anki/pull`, {
       method: "POST",
     }),
   );
@@ -405,11 +399,10 @@ export interface SentenceCard {
 }
 
 export async function addSentenceCard(
-  userId: number,
   card: SentenceCard,
 ): Promise<{ anki_status: "pending" | "sent" | "failed"; pending: number }> {
   return readJson(
-    await fetch(`${API_BASE_URL}/anki/sentences?user_id=${userId}`, {
+    await fetch(`${API_BASE_URL}/anki/sentences`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(card),
@@ -440,11 +433,10 @@ export async function fetchAnkiFields(model: string): Promise<string[]> {
 }
 
 export async function importAnkiKnown(
-  userId: number,
   mapping: AnkiMapping,
 ): Promise<{ imported: number; already_known: number; skipped: number }> {
   return readJson(
-    await fetch(`${API_BASE_URL}/anki/import?user_id=${userId}`, {
+    await fetch(`${API_BASE_URL}/anki/import`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(mapping),
@@ -569,12 +561,10 @@ export async function fetchAiAnswer(
   return answer;
 }
 
-export async function fetchProgressHistory(
-  userId: number,
-): Promise<ProgressHistory> {
+export async function fetchProgressHistory(): Promise<ProgressHistory> {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const response = await fetch(
-    `${API_BASE_URL}/progress?user_id=${userId}&tz=${encodeURIComponent(tz)}`,
+    `${API_BASE_URL}/progress?tz=${encodeURIComponent(tz)}`,
   );
   return readJson(response, `Failed to fetch progress: ${response.status}`);
 }

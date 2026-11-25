@@ -9,7 +9,6 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/api", () => ({
-  USER_ID: 1,
   ttsUrl: (t: string) => `/tts?text=${t}`,
   fetchSentenceTranslation: vi.fn(async () => "Hello world"),
   lookupWord: vi.fn(),

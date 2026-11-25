@@ -3,7 +3,6 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/api", () => ({
-  USER_ID: 1,
   fetchAnkiConnected: vi.fn(async () => true),
   fetchAnkiPending: vi.fn(async () => 3),
   syncAnki: vi.fn(),
@@ -47,7 +46,7 @@ describe("useAnkiOutbox", () => {
 
     await act(() => result.current.pull());
 
-    expect(loadUserWords).toHaveBeenCalledWith(1);
+    expect(loadUserWords).toHaveBeenCalledWith();
     expect(result.current.message).toBe("2 of 5 words updated from Anki");
   });
 

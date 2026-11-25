@@ -123,12 +123,10 @@ class PullTest(unittest.IsolatedAsyncioTestCase):
 
         self.word(1, "Haus", "learning1")
         with client_for(down), self.assertRaises(HTTPException) as c:
-            await anki_pull(user_id=1, db=self.db)
+            await anki_pull(db=self.db)
         self.assertEqual(c.exception.status_code, 502)
 
     async def test_endpoint_success(self):
         self.word(1, "Haus", "learning1")
         with self.anki({1: ("Haus", [10])}, {10: 8}):
-            self.assertEqual(
-                await anki_pull(user_id=1, db=self.db), {"changed": 1, "checked": 1}
-            )
+            self.assertEqual(await anki_pull(db=self.db), {"changed": 1, "checked": 1})

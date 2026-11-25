@@ -72,10 +72,7 @@ class ExportTest(unittest.TestCase):
         self.assertEqual(len({r[0] for r in a}), 2)
 
     def test_endpoint_downloads_apkg(self):
-        r = self.client.get("/anki/export.apkg", params={"user_id": 1})
+        r = self.client.get("/anki/export.apkg")
         self.assertEqual(r.status_code, 200)
         self.assertIn("lang-reader.apkg", r.headers["content-disposition"])
         self.assertTrue(r.content.startswith(b"PK"))
-
-    def test_endpoint_requires_user_id(self):
-        self.assertEqual(self.client.get("/anki/export.apkg").status_code, 422)

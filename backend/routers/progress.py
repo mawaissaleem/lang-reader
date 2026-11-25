@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from database import get_db
+from database import USER_ID, get_db
 from library_entries import latest_subtitle, subtitle_text_path
 from models import Dictionary, ManualText, Setting, UserWord, Video
 
@@ -17,13 +17,13 @@ router = APIRouter()
 
 
 @router.get("/progress")
-def get_progress(user_id: int = 1, tz: str = "UTC", db: Session = Depends(get_db)):
+def get_progress(tz: str = "UTC", db: Session = Depends(get_db)):
     """Known-words-over-time and the daily streak, with days cut in the caller's IANA timezone."""
     try:
         zone = ZoneInfo(tz)
     except (ZoneInfoNotFoundError, ValueError):
         raise HTTPException(status_code=400, detail=f"Unknown timezone: {tz}")
-    return history.build_progress(db, user_id, zone, datetime.now(zone).date())
+    return history.build_progress(db, USER_ID, zone, datetime.now(zone).date())
 
 
 class GoalBody(BaseModel):
@@ -39,13 +39,13 @@ def set_daily_goal(body: GoalBody, db: Session = Depends(get_db)):
 
 
 @router.get("/library/progress")
-def get_library_progress(user_id: int = 1, db: Session = Depends(get_db)):
+def get_library_progress(db: Session = Depends(get_db)):
     """Known/learning/new counts per library item, keyed "<type>-<id>" like the frontend's entryKey."""
     statuses = {
         w: s
         for w, s in db.query(Dictionary.german_word, UserWord.status)
         .join(UserWord, UserWord.word_id == Dictionary.id)
-        .filter(UserWord.user_id == user_id)
+        .filter(UserWord.user_id == USER_ID)
     }
     out = {}
     for v in db.query(Video).all():

@@ -11,7 +11,7 @@ import dictionary
 import history
 import saved_words
 from anki import AnkiError, send_pending
-from database import get_db
+from database import USER_ID, get_db
 from lemmatizer import separable_particle, word_key
 from models import Dictionary, UserWord
 from translation_pipeline import parse_priority
@@ -111,13 +111,11 @@ def _user_word_json(uw: UserWord) -> dict:
     }
 
 
-@router.get("/user/{user_id}/words")
-def get_user_words(
-    user_id: int, mastered_only: bool = False, db: Session = Depends(get_db)
-):
+@router.get("/user/words")
+def get_user_words(mastered_only: bool = False, db: Session = Depends(get_db)):
     query = (
         db.query(UserWord)
-        .filter(UserWord.user_id == user_id)
+        .filter(UserWord.user_id == USER_ID)
         .join(Dictionary, UserWord.word_id == Dictionary.id)
     )
 
@@ -144,7 +142,6 @@ def set_word_status(
 @router.post("/user-words/{word_id}/save")
 async def save_word(
     word_id: int,
-    user_id: int,
     source: Optional[str] = None,
     anki: bool = False,
     body: Optional[SaveContext] = None,
@@ -158,7 +155,7 @@ async def save_word(
 
     existing = (
         db.query(UserWord)
-        .filter(UserWord.user_id == user_id, UserWord.word_id == word_id)
+        .filter(UserWord.user_id == USER_ID, UserWord.word_id == word_id)
         .first()
     )
     if existing:
@@ -171,7 +168,7 @@ async def save_word(
             **await _try_send(db, existing, anki),
         }
 
-    user_word = saved_words.create_user_word(db, user_id, word_id, source, ctx, anki)
+    user_word = saved_words.create_user_word(db, USER_ID, word_id, source, ctx, anki)
     return {
         "message": "Word saved successfully",
         "already_saved": False,

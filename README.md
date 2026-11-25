@@ -71,7 +71,7 @@ Shift + click   Extend the selection to a phrase or a separable verb
 ## Known issues
 
 - **YouTube import reads browser cookies.** The yt-dlp fallback calls YouTube with your Firefox cookies by default (`backend/extractors/yt_dlp.py`). Without that browser, imports that reach the fallback can fail. Set `YTDLP_COOKIES_BROWSER` to another browser, or leave it empty. See [YouTube import](#youtube-import).
-- **One user.** The user id is fixed to `1`. Do not expose the backend to a network you do not trust: it has no login.
+- **One user.** The app is single-user by design and has no login. Keep the backend on localhost; do not expose it to a network you do not trust.
 - **Base forms are not perfect.** The small spaCy model sometimes mistags verbs, so a few words keep the form you clicked.
 
 ## Requirements

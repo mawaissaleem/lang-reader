@@ -98,7 +98,7 @@ export interface StoreState {
   // saved words by lowercase text; id is user_words.id (what the status endpoint takes)
   userWords: Record<string, { id: number; status: WordStatus }>;
   setWordStatus: (status: WordStatus) => Promise<void>;
-  loadUserWords: (userId: number) => Promise<void>;
+  loadUserWords: () => Promise<void>;
   translatorPriority: "pons" | "libretranslate";
   loadTranslatorPriority: () => void;
   setTranslatorPriority: (priority: "pons" | "libretranslate") => void;

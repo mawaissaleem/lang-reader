@@ -75,10 +75,7 @@ describe("PageBar", () => {
     bar();
     fireEvent.click(screen.getByText(/Finish page/));
     expect(await screen.findByText(/2 marked known/)).toBeTruthy();
-    expect(api.markNewWordsKnown).toHaveBeenCalledWith(
-      ["Haus", "Baum"],
-      api.USER_ID,
-    );
+    expect(api.markNewWordsKnown).toHaveBeenCalledWith(["Haus", "Baum"]);
     expect(loadUserWords).toHaveBeenCalledTimes(1);
 
     vi.mocked(api.undoMarkNewWordsKnown).mockResolvedValue({
@@ -88,10 +85,11 @@ describe("PageBar", () => {
     });
     fireEvent.click(screen.getByText("Undo"));
     await vi.waitFor(() => expect(loadUserWords).toHaveBeenCalledTimes(2));
-    expect(api.undoMarkNewWordsKnown).toHaveBeenCalledWith(
-      { changed: 2, word_ids: [5, 6], event_ids: [7, 8] },
-      api.USER_ID,
-    );
+    expect(api.undoMarkNewWordsKnown).toHaveBeenCalledWith({
+      changed: 2,
+      word_ids: [5, 6],
+      event_ids: [7, 8],
+    });
     expect(screen.queryByText("Undo")).toBeNull();
   });
 
