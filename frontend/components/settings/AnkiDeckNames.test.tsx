@@ -35,6 +35,14 @@ describe("AnkiDeckNames", () => {
     );
   });
 
+  it("does not save a field left without editing", () => {
+    vi.mocked(fetchSettings).mockReturnValue(new Promise(() => {})); // never loads
+    vi.mocked(saveSettings).mockClear();
+    render(<AnkiDeckNames />);
+    fireEvent.blur(screen.getByLabelText("Deck for word cards"));
+    expect(saveSettings).not.toHaveBeenCalled();
+  });
+
   it("saves the typed name on blur", async () => {
     vi.mocked(fetchSettings).mockResolvedValue({
       translator_priority: null,

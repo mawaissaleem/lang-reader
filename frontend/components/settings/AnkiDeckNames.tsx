@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fetchSettings, saveSettings } from "@/lib/api";
 import { select } from "./AiModel";
 
@@ -10,12 +10,21 @@ const DEFAULT_SENTENCES = "German::Reader::Sentences";
 export default function AnkiDeckNames() {
   const [words, setWords] = useState("");
   const [sentences, setSentences] = useState("");
+  // only an edited field is saved: a blur before the settings load must not reset a custom name
+  const edited = useRef({ words: false, sentences: false });
+  const saveIfEdited = (key: "words" | "sentences", value: string) => {
+    if (!edited.current[key]) return;
+    edited.current[key] = false;
+    saveSettings({ [`anki_deck_${key}`]: value }).catch(() => {});
+  };
 
   useEffect(() => {
     fetchSettings()
       .then((s) => {
-        setWords(s.anki_deck_words ?? "");
-        setSentences(s.anki_deck_sentences ?? "");
+        // a field typed into before the load keeps what was typed
+        if (!edited.current.words) setWords(s.anki_deck_words ?? "");
+        if (!edited.current.sentences)
+          setSentences(s.anki_deck_sentences ?? "");
       })
       .catch(() => {});
   }, []);
@@ -28,10 +37,11 @@ export default function AnkiDeckNames() {
           className={select}
           value={words}
           placeholder={DEFAULT_WORDS}
-          onChange={(e) => setWords(e.target.value)}
-          onBlur={() =>
-            saveSettings({ anki_deck_words: words }).catch(() => {})
-          }
+          onChange={(e) => {
+            edited.current.words = true;
+            setWords(e.target.value);
+          }}
+          onBlur={() => saveIfEdited("words", words)}
         />
       </label>
       <label className="flex flex-col gap-1 text-sm text-ink">
@@ -40,10 +50,11 @@ export default function AnkiDeckNames() {
           className={select}
           value={sentences}
           placeholder={DEFAULT_SENTENCES}
-          onChange={(e) => setSentences(e.target.value)}
-          onBlur={() =>
-            saveSettings({ anki_deck_sentences: sentences }).catch(() => {})
-          }
+          onChange={(e) => {
+            edited.current.sentences = true;
+            setSentences(e.target.value);
+          }}
+          onBlur={() => saveIfEdited("sentences", sentences)}
         />
       </label>
     </div>

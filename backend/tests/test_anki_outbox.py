@@ -25,6 +25,7 @@ class Fake(FakeAnki):
         super().__init__(decks=anki.DECKS, models=list(anki.MODELS))
         self.reject, self.sync_error = reject, sync_error
         self.notes = {}  # note id -> Lemma
+        self.note_decks = {}  # note id -> deck; a note without one matches any deck: query
 
     def _ok(self, result=None):
         return httpx.Response(200, json={"result": result, "error": None})
@@ -47,6 +48,11 @@ class Fake(FakeAnki):
                     i
                     for i, lemma in self.notes.items()
                     if anki._q("Lemma:" + lemma).lower() in q.lower()
+                    and (
+                        "deck:" not in q
+                        or i not in self.note_decks
+                        or anki._q(self.note_decks[i]) in q
+                    )
                 ]
             )
         if body["action"] == "notesInfo":
@@ -223,6 +229,17 @@ class OutboxTest(unittest.IsolatedAsyncioTestCase):
     async def test_lost_reply_is_found_not_duplicated(self):
         fake = Fake()
         fake.notes[555] = "Haus"  # added earlier, reply lost, we have no id
+        with client_for(fake):
+            r = await self._save()
+        self.assertEqual(r["anki_status"], "sent")
+        self.assertEqual(self.row().anki_note_id, 555)
+        self.assertNotIn("addNote", fake.actions())
+
+    async def test_note_in_old_deck_is_found_after_rename(self):
+        self.db.add(Setting(key="anki_deck_words", value="Mein::Wörter"))
+        self.db.commit()
+        fake = Fake()
+        fake.notes[555], fake.note_decks[555] = "Haus", "German::Reader::Words"
         with client_for(fake):
             r = await self._save()
         self.assertEqual(r["anki_status"], "sent")

@@ -5,10 +5,12 @@ import httpx
 from fastapi.testclient import TestClient
 
 import anki
+import database
 import main
 from models import Base, Setting
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 
 def client_for(handler):
@@ -20,7 +22,10 @@ def client_for(handler):
 
 
 def memory_db():
-    engine = create_engine("sqlite:///:memory:")
+    # thread-safe so a TestClient (which runs the app in another thread) can share it
+    engine = create_engine(
+        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
     Base.metadata.create_all(bind=engine)
     return sessionmaker(bind=engine)()
 
@@ -139,6 +144,12 @@ class SetupTest(unittest.IsolatedAsyncioTestCase):
 
 
 class SetupEndpointTest(unittest.TestCase):
+    def setUp(self):
+        # setup reads deck names from settings: never touch the real DB (CI has no tables)
+        db = memory_db()
+        main.app.dependency_overrides[database.get_db] = lambda: db
+        self.addCleanup(main.app.dependency_overrides.clear)
+
     def test_ok(self):
         with client_for(FakeAnki()):
             r = TestClient(main.app).post("/anki/setup")

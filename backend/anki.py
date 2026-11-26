@@ -237,8 +237,8 @@ def _q(v: str) -> str:
 
 
 async def _find_existing(note: dict):
-    """Id of the Reader note with this lemma, or None."""
-    q = f"deck:{_q(note['deckName'])} note:{_q(note['modelName'])} {_q('Lemma:' + note['fields']['Lemma'])}"
+    """Id of the Reader note with this lemma in any deck (the deck may have been renamed in Settings), or None."""
+    q = f"note:{_q(note['modelName'])} {_q('Lemma:' + note['fields']['Lemma'])}"
     ids = await invoke("findNotes", query=q)
     if not ids:
         return None
