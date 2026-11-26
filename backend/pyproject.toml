@@ -4,6 +4,6 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lang-reader-backend"
-version = "1.0.0"
+version = "1.1.0"
 description = "Read German from YouTube videos and texts, click any word to look it up, and send what you learn to Anki."
 requires-python = ">=3.11"
